@@ -6,5 +6,8 @@
 *.test
 *.out
 
-# Local planning notes, not part of the challenge deliverable
-docs/
+# Local working specs and plans (Portuguese), never published
+docs/superpowers/
+
+# Windows download metadata copied into WSL
+*:Zone.Identifier
