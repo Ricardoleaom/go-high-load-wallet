@@ -11,7 +11,7 @@ DATABASE_URL ?= postgres://app:local_dev_password@localhost:$(POSTGRES_HOST_PORT
 WALLETS ?= 100000
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-obs down clean test test-short lint lint-ci vuln build image seed
+.PHONY: help up up-obs down clean test test-short lint lint-ci vuln build image seed verify
 
 help: ## List the available targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -51,3 +51,6 @@ image: ## Build the API container image
 
 seed: ## Load WALLETS benchmark wallets into DATABASE_URL (add TRUNCATE=1 to empty it first)
 	go run ./cmd/seed -database-url "$(DATABASE_URL)" -wallets $(WALLETS) $(if $(TRUNCATE),-truncate)
+
+verify: ## Check the financial invariants of DATABASE_URL (exit 1 on any violation)
+	go run ./cmd/verify -database-url "$(DATABASE_URL)"
