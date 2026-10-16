@@ -47,6 +47,12 @@ type Authenticator struct {
 	metrics *observability.Metrics
 }
 
+// unknownKeyRefreshTimeout bounds the JWKS re-fetch a token with an unknown
+// kid triggers on the request path. The re-fetch is what picks up a key the
+// IdP just rotated in, so it stays on, but a slow or hung IdP must cost the
+// request at most this long instead of the library's one-minute default.
+const unknownKeyRefreshTimeout = 2 * time.Second
+
 // NewAuthenticator fetches the JWKS and fails if it cannot, so the caller
 // decides whether to retry. ctx bounds the background refresh that re-reads
 // the JWKS every refreshInterval, dropping keys the IdP revoked: it must
@@ -61,6 +67,7 @@ func NewAuthenticator(
 	kf, err := keyfunc.NewDefaultOverrideCtx(ctx, []string{jwksURL}, keyfunc.Override{
 		NoErrorReturnFirstHTTPReq: &failOnFirstFetch,
 		RefreshInterval:           refreshInterval,
+		RateLimitWaitMax:          unknownKeyRefreshTimeout,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("fetch JWKS from %s: %w", jwksURL, err)

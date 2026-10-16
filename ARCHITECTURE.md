@@ -503,7 +503,10 @@ assinatura, expiração e algoritmo. Só `RS256` é aceito
 (`jwt.WithValidMethods`), o que bloqueia o ataque de confusão de
 algoritmo, em que um token HS256 seria assinado usando a chave pública
 como segredo. As chaves são buscadas e renovadas pelo `keyfunc` em
-background.
+background. Um token com `kid` desconhecido dispara uma releitura imediata
+do JWKS, que é o que aceita na hora uma chave recém-rotacionada no IdP;
+essa releitura acontece no máximo uma vez a cada 5 minutos e custa à
+requisição no máximo 2 segundos, mesmo com o IdP lento ou fora do ar.
 
 **Permissões.**
 

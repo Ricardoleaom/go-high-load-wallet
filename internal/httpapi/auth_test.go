@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -48,6 +49,49 @@ func TestAuthenticatorStopsTrustingRevokedKeys(t *testing.T) {
 	waitForStatus(t, protected, oldToken, http.StatusUnauthorized)
 	if status := statusFor(protected, issuer.ProviderToken(t, "provider-a")); status != http.StatusNoContent {
 		t.Fatalf("token signed after rotation: status %d, want 204", status)
+	}
+}
+
+// A token with an unknown kid makes the JWKS library re-fetch the keys on
+// the request path. A hung IdP must not hold that request: it gets a 401
+// within a short bound instead of the library's one-minute default.
+func TestUnknownKeyIsRejectedQuicklyWhileTheIdPHangs(t *testing.T) {
+	issuer := jwttest.NewIssuer(t)
+	var hung atomic.Bool
+	release := make(chan struct{})
+	idp := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hung.Load() {
+			select {
+			case <-release:
+			case <-r.Context().Done():
+			case <-time.After(10 * time.Second):
+			}
+			return
+		}
+		issuer.ServeHTTP(w, r)
+	}))
+	t.Cleanup(idp.Close)
+	t.Cleanup(func() { close(release) })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	auth, err := httpapi.NewAuthenticator(ctx, idp.URL, time.Hour, observability.New())
+	if err != nil {
+		t.Fatalf("NewAuthenticator: %v", err)
+	}
+	protected := auth.Middleware(noContent())
+
+	hung.Store(true)
+	started := time.Now()
+	status := statusFor(protected, issuer.UnknownKeyProviderToken(t, "provider-a"))
+	elapsed := time.Since(started)
+
+	if status != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", status)
+	}
+	if elapsed > 5*time.Second {
+		t.Fatalf("an unknown kid held the request for %v while the IdP hung", elapsed)
 	}
 }
 
