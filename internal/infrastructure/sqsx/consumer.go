@@ -12,10 +12,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 
-	wagerapp "github.com/Ricardoleaom/backend-challenge-go/internal/application/wager"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/wager"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
+	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 	"github.com/google/uuid"
 )
 

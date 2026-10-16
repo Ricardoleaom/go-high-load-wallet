@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 )
 
 type contextKey string
@@ -46,8 +47,28 @@ type Authenticator struct {
 	metrics *observability.Metrics
 }
 
-func NewAuthenticator(ctx context.Context, jwksURL string, metrics *observability.Metrics) (*Authenticator, error) {
-	kf, err := keyfunc.NewDefaultCtx(ctx, []string{jwksURL})
+// unknownKeyRefreshTimeout bounds the JWKS re-fetch a token with an unknown
+// kid triggers on the request path. The re-fetch is what picks up a key the
+// IdP just rotated in, so it stays on, but a slow or hung IdP must cost the
+// request at most this long instead of the library's one-minute default.
+const unknownKeyRefreshTimeout = 2 * time.Second
+
+// NewAuthenticator fetches the JWKS and fails if it cannot, so the caller
+// decides whether to retry. ctx bounds the background refresh that re-reads
+// the JWKS every refreshInterval, dropping keys the IdP revoked: it must
+// live as long as the Authenticator, not just this call.
+func NewAuthenticator(
+	ctx context.Context,
+	jwksURL string,
+	refreshInterval time.Duration,
+	metrics *observability.Metrics,
+) (*Authenticator, error) {
+	failOnFirstFetch := false
+	kf, err := keyfunc.NewDefaultOverrideCtx(ctx, []string{jwksURL}, keyfunc.Override{
+		NoErrorReturnFirstHTTPReq: &failOnFirstFetch,
+		RefreshInterval:           refreshInterval,
+		RateLimitWaitMax:          unknownKeyRefreshTimeout,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("fetch JWKS from %s: %w", jwksURL, err)
 	}

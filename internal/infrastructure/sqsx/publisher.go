@@ -9,8 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 )
 
 // OutboxPublisher drains the outbox into the events queue. Several

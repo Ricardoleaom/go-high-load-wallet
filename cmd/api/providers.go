@@ -10,13 +10,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"go.uber.org/fx"
 
-	wagerapp "github.com/Ricardoleaom/backend-challenge-go/internal/application/wager"
-	walletapp "github.com/Ricardoleaom/backend-challenge-go/internal/application/wallet"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/config"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/httpapi"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/sqsx"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/observability"
+	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
+	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/config"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 )
 
 func newDB(lc fx.Lifecycle, cfg config.Config) (*sql.DB, error) {
@@ -37,28 +37,39 @@ func newDB(lc fx.Lifecycle, cfg config.Config) (*sql.DB, error) {
 	return db, nil
 }
 
-// newAuthenticator retries JWKS discovery for a while, since Keycloak may
-// still be starting up when this process does in docker compose.
-func newAuthenticator(cfg config.Config, metrics *observability.Metrics) (*httpapi.Authenticator, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
+// Overridden by tests; production waits up to two minutes for the IdP,
+// which takes a while on a cold docker compose up.
+var (
+	jwksStartupTimeout = 2 * time.Minute
+	jwksRetryDelay     = 5 * time.Second
+)
 
-	var lastErr error
-	for attempt := 0; attempt < 12; attempt++ {
-		auth, err := httpapi.NewAuthenticator(ctx, cfg.JWKSURL, metrics)
+// newAuthenticator retries the first JWKS fetch while the IdP may still be
+// starting. Each attempt gets its own context: a failed attempt's refresh
+// goroutine stops right away, and the successful one keeps re-reading the
+// JWKS until Fx stops the app, so keys revoked at the IdP stop being
+// trusted without a restart.
+func newAuthenticator(lc fx.Lifecycle, cfg config.Config, metrics *observability.Metrics) (*httpapi.Authenticator, error) {
+	deadline := time.Now().Add(jwksStartupTimeout)
+
+	for attempt := 1; ; attempt++ {
+		ctx, cancel := context.WithCancel(context.Background())
+		auth, err := httpapi.NewAuthenticator(ctx, cfg.JWKSURL, cfg.JWKSRefreshInterval, metrics)
 		if err == nil {
+			lc.Append(fx.Hook{OnStop: func(context.Context) error {
+				cancel()
+				return nil
+			}})
 			return auth, nil
 		}
-		lastErr = err
-		slog.Warn("waiting for IdP JWKS endpoint", "attempt", attempt+1, "error", err)
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("fetch JWKS: %w", ctx.Err())
-		case <-time.After(5 * time.Second):
-		}
-	}
+		cancel()
 
-	return nil, fmt.Errorf("fetch JWKS after retries: %w", lastErr)
+		if !time.Now().Before(deadline) {
+			return nil, fmt.Errorf("fetch JWKS after %d attempts: %w", attempt, err)
+		}
+		slog.Warn("waiting for IdP JWKS endpoint", "attempt", attempt, "error", err)
+		time.Sleep(jwksRetryDelay)
+	}
 }
 
 func newSQSClient(cfg config.Config) (*sqs.Client, error) {

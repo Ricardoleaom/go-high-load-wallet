@@ -6,9 +6,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 	"time"
+
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
 func newTestID(t *testing.T) string {
@@ -35,10 +36,7 @@ func newTestID(t *testing.T) string {
 func setupWalletWriterTest(t *testing.T, walletID string, balance int64) (*sql.DB, context.Context) {
 	t.Helper()
 
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("DATABASE_URL is not set; skipping PostgreSQL integration test")
-	}
+	databaseURL := pgtest.URL(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)

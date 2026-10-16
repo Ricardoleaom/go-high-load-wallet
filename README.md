@@ -1,5 +1,9 @@
 # Desafio Backend: Processamento Distribuído de Apostas
 
+> Este repositório evolui o desafio entregue em
+> [backend-challenge-go](https://github.com/Ricardoleaom/backend-challenge-go)
+> (tag `v0.1.0-challenge`) para um serviço focado em alta volumetria.
+
 Serviço em Go que movimenta carteiras de jogadores via HTTP e SQS, com
 idempotência persistente, ledger auditável, transactional outbox e
 autenticação OAuth2/OIDC via Keycloak. As decisões técnicas estão em
@@ -8,7 +12,7 @@ autenticação OAuth2/OIDC via Keycloak. As decisões técnicas estão em
 ## Pré-requisitos
 
 - Docker e Docker Compose
-- Go 1.27.1 (a mesma versão do `go.mod` e do `Dockerfile`), só para rodar
+- Go 1.27.2 (a mesma versão do `go.mod` e do `Dockerfile`), só para rodar
   os testes fora do container
 - `curl` e `jq` para os exemplos
 
@@ -26,11 +30,11 @@ sai), Keycloak (importa o realm), LocalStack (cria as filas) e a API.
 | API | `http://localhost:8080` |
 | Keycloak | `http://localhost:8081` (admin/admin) |
 | LocalStack (SQS) | `http://localhost:4566` |
-| Postgres | `localhost:5432` (app/local_dev_password) |
+| Postgres | `localhost:5432` (app/local_dev_password); outra porta com `POSTGRES_HOST_PORT` se a 5432 já estiver em uso |
 
 Pronto quando `curl localhost:8080/health/ready` responder
 `{"status":"ok",...}`. O Keycloak leva uns 20 segundos na primeira
-subida; a API espera por ele sozinha.
+subida; a API tenta buscar as chaves por até 2 minutos antes de desistir.
 
 ## Variáveis de ambiente
 
@@ -42,6 +46,7 @@ containers.
 | --- | --- | --- |
 | `DATABASE_URL` | sim | conexão com o Postgres |
 | `JWKS_URL` | sim | chaves públicas do Keycloak para validar tokens |
+| `JWKS_REFRESH_INTERVAL` | não | segundos entre releituras do JWKS, que descartam chaves revogadas (padrão `3600`) |
 | `SQS_TRANSACTIONS_QUEUE_URL` | sim | fila de entrada `wager-transactions.fifo` |
 | `SQS_EVENTS_QUEUE_URL` | sim | fila de saída `wager-events.fifo` |
 | `SQS_ENDPOINT` | não | endpoint do LocalStack |
@@ -73,7 +78,7 @@ O serviço `migrate` aplica tudo no `docker compose up`. Manualmente:
 
 ```sh
 MIGRATE="docker run --rm -v $(pwd)/migrations:/migrations --network host migrate/migrate \
-  -path=/migrations -database postgres://app:local_dev_password@localhost:5432/backend_challenge?sslmode=disable"
+  -path=/migrations -database postgres://app:local_dev_password@localhost:5432/wallet?sslmode=disable"
 
 $MIGRATE up        # aplicar todas
 $MIGRATE down 1    # reverter a última
@@ -191,33 +196,18 @@ Lista completa de endpoints, códigos HTTP, corpos de erro e
 ## Testes
 
 ```sh
-go vet ./...
-go test ./...
-go test -race ./...
+make test        # tudo, inclusive integração (precisa de Docker)
+make test-short  # só unitários, sem Docker
+make lint
 ```
 
-Sem variáveis de ambiente, rodam só os testes unitários; os de integração
-são pulados com uma mensagem dizendo o que falta. Não há build tags.
-
-### Testes de integração
-
-Usam Postgres, Keycloak e LocalStack reais, sem mocks.
-
-```sh
-docker compose up -d postgres migrate keycloak localstack
-
-export DATABASE_URL="postgres://app:local_dev_password@localhost:5432/backend_challenge?sslmode=disable"
-export JWKS_URL="http://localhost:8081/realms/wagering/protocol/openid-connect/certs"
-export SQS_ENDPOINT="http://localhost:4566"
-export SQS_TRANSACTIONS_QUEUE_URL="http://localhost:4566/000000000000/wager-transactions.fifo"
-export SQS_EVENTS_QUEUE_URL="http://localhost:4566/000000000000/wager-events.fifo"
-
-go test -race ./...
-```
-
-Só `DATABASE_URL` já habilita os testes de `internal/infrastructure/postgres`
-e `internal/application/...`. `cmd/api` (composição Fx) precisa das
-cinco variáveis.
+Os testes de integração sobem sozinhos o que precisam, com
+testcontainers-go: um Postgres com as migrations aplicadas, um LocalStack
+com as filas e um JWKS falso no lugar do Keycloak (`internal/testsupport`).
+Sem Docker e sem `DATABASE_URL` eles **falham** dizendo o que falta, em vez
+de serem pulados. Para reaproveitar um Postgres já no ar (o do Compose, por
+exemplo), defina `DATABASE_URL`; as migrations pendentes são aplicadas
+antes dos testes.
 
 | Cenário do edital | Teste |
 | --- | --- |

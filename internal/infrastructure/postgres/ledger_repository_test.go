@@ -4,23 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/ledger"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ledger"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
 func setupLedgerTest(t *testing.T) (*sql.DB, context.Context) {
 	t.Helper()
 
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("DATABASE_URL is not set; skipping PostgreSQL integration test")
-	}
+	databaseURL := pgtest.URL(t)
 
 	ctx, cancel := context.WithTimeout(
 		context.Background(),

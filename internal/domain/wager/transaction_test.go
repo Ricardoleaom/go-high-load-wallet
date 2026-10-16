@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 )
 
 func testInput(t *testing.T, kind Kind, amount string, reference string) Input {

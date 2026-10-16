@@ -6,14 +6,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
-	domainwager "github.com/Ricardoleaom/backend-challenge-go/internal/domain/wager"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
+	domainwager "github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
 func newTestID(t *testing.T) string {
@@ -46,10 +46,7 @@ func mustMoney(t *testing.T, amount string) money.Money {
 func newTestService(t *testing.T) (*Service, *sql.DB, context.Context) {
 	t.Helper()
 
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("DATABASE_URL is not set; skipping PostgreSQL integration test")
-	}
+	databaseURL := pgtest.URL(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)

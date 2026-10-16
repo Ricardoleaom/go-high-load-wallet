@@ -9,8 +9,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
 )
 
 var (

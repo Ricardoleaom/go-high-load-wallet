@@ -5,9 +5,12 @@ package observability
 
 import (
 	"net/http"
+	"runtime"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/buildinfo"
 )
 
 type Metrics struct {
@@ -62,7 +65,18 @@ func New() *Metrics {
 		}),
 	}
 
+	buildInfo := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "wallet_build_info",
+		Help: "Always 1; the labels identify the running build.",
+		ConstLabels: prometheus.Labels{
+			"version":   buildinfo.Version,
+			"goversion": runtime.Version(),
+		},
+	})
+	buildInfo.Set(1)
+
 	registry.MustRegister(
+		buildInfo,
 		m.HTTPRequestsTotal,
 		m.WagerTransactionsTotal,
 		m.IdempotentReplaysTotal,

@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 )
 
 // RetryWorker periodically resolves PENDING_REFERENCE transactions whose

@@ -11,9 +11,9 @@ import (
 
 	"go.uber.org/fx"
 
-	wagerapp "github.com/Ricardoleaom/backend-challenge-go/internal/application/wager"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/config"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/sqsx"
+	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/config"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx"
 )
 
 // runBackground starts fn in a goroutine on OnStart and, on OnStop, cancels
