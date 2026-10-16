@@ -177,3 +177,16 @@ func TestNewRejectsNegativeAmount(t *testing.T) {
 		t.Fatalf("expected invalid amount, got %v", err)
 	}
 }
+
+func TestKindKnown(t *testing.T) {
+	for _, kind := range []Kind{KindOpening, KindBet, KindWin, KindLoss, KindRefund, KindRollback} {
+		if !kind.Known() {
+			t.Errorf("%s reported as unknown", kind)
+		}
+	}
+	for _, kind := range []Kind{"", "bet", "JACKPOT"} {
+		if kind.Known() {
+			t.Errorf("%q reported as known", kind)
+		}
+	}
+}

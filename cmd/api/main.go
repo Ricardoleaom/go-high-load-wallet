@@ -92,6 +92,7 @@ func main() {
 		fx.Invoke(
 			registerTracing,
 			registerHTTPServer,
+			registerAdminServer,
 			registerSQSConsumer,
 			registerOutboxPublisher,
 			registerReferenceRetryWorker,

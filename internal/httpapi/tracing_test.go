@@ -41,3 +41,21 @@ func TestHandlerStartsAServerSpan(t *testing.T) {
 	}
 	t.Fatalf("no server span recorded; %d spans ended", len(recorder.Ended()))
 }
+
+func TestPublicHandlerNoLongerServesMetrics(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	metrics := observability.New()
+	auth, err := httpapi.NewAuthenticator(ctx, jwttest.NewIssuer(t).JWKSURL(), time.Hour, metrics)
+	if err != nil {
+		t.Fatalf("NewAuthenticator: %v", err)
+	}
+	handler := httpapi.NewHandler(httpapi.Dependencies{Auth: auth, Metrics: metrics})
+
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+
+	if recorder.Code == http.StatusOK {
+		t.Fatal("the public port still serves /metrics")
+	}
+}
