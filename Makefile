@@ -7,7 +7,7 @@ IMAGE ?= go-high-load-wallet:$(VERSION)
 ACTIONLINT_VERSION := v1.7.12
 
 .DEFAULT_GOAL := help
-.PHONY: help up down clean test test-short lint lint-ci vuln build image
+.PHONY: help up up-obs down clean test test-short lint lint-ci vuln build image
 
 help: ## List the available targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -15,11 +15,14 @@ help: ## List the available targets
 up: ## Start the default stack (Postgres, Keycloak, LocalStack, API)
 	VERSION=$(VERSION) docker compose up -d --build
 
+up-obs: ## Start the stack plus Prometheus, Grafana, Jaeger and the PostgreSQL exporter, with tracing on
+	OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318 VERSION=$(VERSION) docker compose --profile obs up -d --build
+
 down: ## Stop the stack, keeping data volumes
-	docker compose down
+	docker compose --profile obs down
 
 clean: ## Stop the stack and delete its data volumes
-	docker compose down -v
+	docker compose --profile obs down -v
 
 test: ## Run every test, integration included (needs Docker or DATABASE_URL)
 	go test -race -count=1 ./...
