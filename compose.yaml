@@ -141,5 +141,19 @@ services:
     environment:
       DATA_SOURCE_NAME: postgresql://app:local_dev_password@postgres:5432/wallet?sslmode=disable
 
+  k6:
+    image: grafana/k6:2.3.0
+    profiles: [bench]
+    # Writes results as the host user so bench/results stays editable.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    volumes:
+      - ./bench/k6:/scripts:ro
+      - ./bench/data:/data:ro
+      - ./bench/results:/results
+    environment:
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_STATS: p(50),p(95),p(99),max
+      K6_PROMETHEUS_RW_PUSH_INTERVAL: 5s
+
 volumes:
   postgres_data:

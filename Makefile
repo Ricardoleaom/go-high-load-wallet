@@ -11,7 +11,7 @@ DATABASE_URL ?= postgres://app:local_dev_password@localhost:$(POSTGRES_HOST_PORT
 WALLETS ?= 100000
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-obs down clean test test-short lint lint-ci vuln build image seed verify
+.PHONY: help up up-obs down clean test test-short lint lint-ci vuln build image seed verify bench
 
 help: ## List the available targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -54,3 +54,6 @@ seed: ## Load WALLETS benchmark wallets into DATABASE_URL (add TRUNCATE=1 to emp
 
 verify: ## Check the financial invariants of DATABASE_URL (exit 1 on any violation)
 	go run ./cmd/verify -database-url "$(DATABASE_URL)"
+
+bench: ## Run a load scenario in its own compose project: SCENARIO, MODE (steady|knee), RATE, DURATION, REPEAT, WALLETS
+	bench/run.sh

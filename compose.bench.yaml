@@ -1,0 +1,15 @@
+# Overrides for bench/run.sh (project wallet-bench): pins the load
+# generator, the API and PostgreSQL to separate CPUs so k6 does not steal
+# time from the system it measures, turns pprof on and samples 1% of traces.
+services:
+  postgres:
+    cpuset: "${BENCH_CPUS_POSTGRES:-0-1}"
+
+  app:
+    cpuset: "${BENCH_CPUS_APP:-2}"
+    environment:
+      PPROF_ENABLED: "true"
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-0.01}
+
+  k6:
+    cpuset: "${BENCH_CPUS_K6:-3}"
