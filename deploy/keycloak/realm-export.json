@@ -4,7 +4,10 @@
   "accessTokenLifespan": 300,
   "roles": {
     "realm": [
-      { "name": "internal", "description": "Internal service, allowed to operate on wallets directly." }
+      {
+        "name": "internal",
+        "description": "Internal service, allowed to operate on wallets directly."
+      }
     ]
   },
   "clients": [
@@ -70,6 +73,49 @@
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false
+    },
+    {
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "attributes": {
+        "access.token.lifespan": "7200"
+      },
+      "clientId": "bench-provider",
+      "secret": "bench-provider-secret",
+      "protocolMappers": [
+        {
+          "name": "provider-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "config": {
+            "claim.name": "provider_id",
+            "claim.value": "bench-provider",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "attributes": {
+        "access.token.lifespan": "7200"
+      },
+      "clientId": "bench-internal",
+      "secret": "bench-internal-secret"
     }
   ],
   "users": [
@@ -77,7 +123,17 @@
       "username": "service-account-internal-service",
       "enabled": true,
       "serviceAccountClientId": "internal-service",
-      "realmRoles": ["internal"]
+      "realmRoles": [
+        "internal"
+      ]
+    },
+    {
+      "username": "service-account-bench-internal",
+      "enabled": true,
+      "serviceAccountClientId": "bench-internal",
+      "realmRoles": [
+        "internal"
+      ]
     }
   ]
 }
