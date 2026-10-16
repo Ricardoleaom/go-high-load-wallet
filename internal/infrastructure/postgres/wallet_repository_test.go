@@ -4,18 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
 func TestWalletRepositoryGetByID(t *testing.T) {
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("DATABASE_URL is not set; skipping PostgreSQL integration test")
-	}
+	databaseURL := pgtest.URL(t)
 
 	ctx, cancel := context.WithTimeout(
 		context.Background(),

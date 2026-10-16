@@ -6,13 +6,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
 func newTransactionTestID(t *testing.T) string {
@@ -45,10 +45,7 @@ func setupTransactionRepositoryTest(t *testing.T) (
 ) {
 	t.Helper()
 
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("DATABASE_URL is not set; skipping PostgreSQL integration test")
-	}
+	databaseURL := pgtest.URL(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
@@ -304,10 +301,7 @@ func mustRebuildWithIdempotencyKey(
 // PENDING_REFERENCE transaction and process it concurrently, with one
 // instance's successful result getting overwritten by the other's rejection.
 func TestListDuePendingReferencesClaimsEachRowOnce(t *testing.T) {
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("DATABASE_URL is not set; skipping PostgreSQL integration test")
-	}
+	databaseURL := pgtest.URL(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
