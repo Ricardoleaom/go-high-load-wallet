@@ -536,8 +536,12 @@ worker de referências.
 
 **Inicialização.** `config.Load` falha se faltar variável obrigatória. A
 conexão com o Postgres é aberta e testada com `Ping` antes de subir. O
-autenticador tenta buscar o JWKS por até 60 segundos, porque o Keycloak
-pode subir depois da aplicação. Se algo falhar, o Fx não inicia.
+autenticador tenta buscar o JWKS por até 2 minutos, porque o Keycloak
+pode subir depois da aplicação; uma primeira busca que falha conta como
+tentativa perdida, nunca como sucesso. Depois do boot, o JWKS é relido a
+cada `JWKS_REFRESH_INTERVAL` (padrão 1 hora) enquanto a aplicação estiver
+no ar, o que descarta chaves revogadas no IdP. Se algo falhar, o Fx não
+inicia.
 
 **Workers.** Os três workers usam `runBackground`
 (`cmd/api/lifecycle.go`): no `OnStart` criam um contexto cancelável e

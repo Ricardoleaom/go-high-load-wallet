@@ -34,7 +34,7 @@ sai), Keycloak (importa o realm), LocalStack (cria as filas) e a API.
 
 Pronto quando `curl localhost:8080/health/ready` responder
 `{"status":"ok",...}`. O Keycloak leva uns 20 segundos na primeira
-subida; a API espera por ele sozinha.
+subida; a API tenta buscar as chaves por até 2 minutos antes de desistir.
 
 ## Variáveis de ambiente
 
@@ -46,6 +46,7 @@ containers.
 | --- | --- | --- |
 | `DATABASE_URL` | sim | conexão com o Postgres |
 | `JWKS_URL` | sim | chaves públicas do Keycloak para validar tokens |
+| `JWKS_REFRESH_INTERVAL` | não | segundos entre releituras do JWKS, que descartam chaves revogadas (padrão `3600`) |
 | `SQS_TRANSACTIONS_QUEUE_URL` | sim | fila de entrada `wager-transactions.fifo` |
 | `SQS_EVENTS_QUEUE_URL` | sim | fila de saída `wager-events.fifo` |
 | `SQS_ENDPOINT` | não | endpoint do LocalStack |

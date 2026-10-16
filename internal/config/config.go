@@ -16,7 +16,8 @@ type Config struct {
 
 	DatabaseURL string
 
-	JWKSURL string
+	JWKSURL             string
+	JWKSRefreshInterval time.Duration
 
 	AWSRegion            string
 	AWSAccessKeyID       string
@@ -34,6 +35,7 @@ func Load() (Config, error) {
 		HTTPPort:               getEnv("HTTP_PORT", "8080"),
 		DatabaseURL:            os.Getenv("DATABASE_URL"),
 		JWKSURL:                os.Getenv("JWKS_URL"),
+		JWKSRefreshInterval:    getDuration("JWKS_REFRESH_INTERVAL", time.Hour),
 		AWSRegion:              getEnv("AWS_REGION", "us-east-1"),
 		AWSAccessKeyID:         getEnv("AWS_ACCESS_KEY_ID", "test"),
 		AWSSecretAccessKey:     getEnv("AWS_SECRET_ACCESS_KEY", "test"),

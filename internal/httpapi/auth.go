@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
 	"github.com/golang-jwt/jwt/v5"
@@ -46,8 +47,21 @@ type Authenticator struct {
 	metrics *observability.Metrics
 }
 
-func NewAuthenticator(ctx context.Context, jwksURL string, metrics *observability.Metrics) (*Authenticator, error) {
-	kf, err := keyfunc.NewDefaultCtx(ctx, []string{jwksURL})
+// NewAuthenticator fetches the JWKS and fails if it cannot, so the caller
+// decides whether to retry. ctx bounds the background refresh that re-reads
+// the JWKS every refreshInterval, dropping keys the IdP revoked: it must
+// live as long as the Authenticator, not just this call.
+func NewAuthenticator(
+	ctx context.Context,
+	jwksURL string,
+	refreshInterval time.Duration,
+	metrics *observability.Metrics,
+) (*Authenticator, error) {
+	failOnFirstFetch := false
+	kf, err := keyfunc.NewDefaultOverrideCtx(ctx, []string{jwksURL}, keyfunc.Override{
+		NoErrorReturnFirstHTTPReq: &failOnFirstFetch,
+		RefreshInterval:           refreshInterval,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("fetch JWKS from %s: %w", jwksURL, err)
 	}
