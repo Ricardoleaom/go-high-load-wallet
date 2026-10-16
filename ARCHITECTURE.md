@@ -640,9 +640,6 @@ Não foi implementado um vínculo provider-jogador (algo como uma tabela
   Os mecanismos existem (`SKIP LOCKED`, remoção só após a conclusão,
   estado todo no banco) e foram verificados manualmente contra o ambiente
   Docker, mas não viraram teste.
-- **Sem testes HTTP end-to-end automatizados.** A cobertura automatizada
-  está no domínio, na aplicação, nos repositórios e na composição Fx, que
-  é onde ficam as garantias financeiras.
 - **Métricas ausentes**: contagem de mensagens enviadas à DLQ, histograma
   de latência de processamento e atraso da outbox (idade do evento
   pendente mais antigo). Hoje o atraso só é observável consultando
