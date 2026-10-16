@@ -33,7 +33,8 @@ func TestLoadDefaultsReproduceTheDeliveredBehavior(t *testing.T) {
 		{"OutboxPublishInterval", cfg.OutboxPublishInterval, 2 * time.Second},
 		{"ReferenceRetryInterval", cfg.ReferenceRetryInterval, 15 * time.Second},
 		{"JWKSRefreshInterval", cfg.JWKSRefreshInterval, time.Hour},
-		{"AdminPort", cfg.AdminPort, "6060"},
+		{"AdminAddr", cfg.AdminAddr, "127.0.0.1:6060"},
+		{"PprofEnabled", cfg.PprofEnabled, false},
 		{"LogLevel", cfg.LogLevel, slog.LevelInfo},
 	}
 	for _, c := range checks {
@@ -70,6 +71,7 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 		{"OUTBOX_PUBLISH_INTERVAL", "0"},
 		{"REFERENCE_RETRY_INTERVAL", "-5"},
 		{"LOG_LEVEL", "loud"},
+		{"PPROF_ENABLED", "maybe"},
 	}
 	for _, c := range cases {
 		t.Run(c.key+"="+c.value, func(t *testing.T) {

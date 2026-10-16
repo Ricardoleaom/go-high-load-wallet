@@ -73,10 +73,10 @@ func registerHTTPServer(lc fx.Lifecycle, cfg config.Config, handler http.Handler
 	serve(lc, "HTTP", ":"+cfg.HTTPPort, handler)
 }
 
-// registerAdminServer serves metrics and pprof on their own port, which
-// stays off the public network.
+// registerAdminServer serves metrics (and pprof when enabled) on their own
+// address, loopback by default, so they stay off the public network.
 func registerAdminServer(lc fx.Lifecycle, cfg config.Config, metrics *observability.Metrics) {
-	serve(lc, "admin", ":"+cfg.AdminPort, observability.AdminHandler(metrics))
+	serve(lc, "admin", cfg.AdminAddr, observability.AdminHandler(metrics, cfg.PprofEnabled))
 }
 
 // serve listens on OnStart, so a taken port fails the boot, and drains

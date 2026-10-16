@@ -40,7 +40,7 @@ func TestFxAppStartsAndStopsCleanly(t *testing.T) {
 	t.Setenv("SQS_EVENTS_QUEUE_URL", sqstest.CreateFIFOQueue(ctx, t, endpoint, "wager-events.fifo"))
 	// Port 0 avoids colliding with an app container already bound to 8080.
 	t.Setenv("HTTP_PORT", "0")
-	t.Setenv("ADMIN_PORT", "0")
+	t.Setenv("ADMIN_ADDR", "127.0.0.1:0")
 
 	app := fx.New(
 		configModule,

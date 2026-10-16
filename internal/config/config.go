@@ -15,9 +15,13 @@ import (
 )
 
 type Config struct {
-	HTTPPort  string
-	AdminPort string
-	LogLevel  slog.Level
+	HTTPPort string
+	LogLevel slog.Level
+
+	// The admin server exposes metrics and, only when PprofEnabled, the Go
+	// profiler. It listens on loopback unless ADMIN_ADDR says otherwise.
+	AdminAddr    string
+	PprofEnabled bool
 
 	DatabaseURL    string
 	DBMaxOpenConns int
@@ -44,7 +48,7 @@ type Config struct {
 func Load() (Config, error) {
 	cfg := Config{
 		HTTPPort:             getEnv("HTTP_PORT", "8080"),
-		AdminPort:            getEnv("ADMIN_PORT", "6060"),
+		AdminAddr:            getEnv("ADMIN_ADDR", "127.0.0.1:6060"),
 		DatabaseURL:          os.Getenv("DATABASE_URL"),
 		JWKSURL:              os.Getenv("JWKS_URL"),
 		AWSRegion:            getEnv("AWS_REGION", "us-east-1"),
@@ -64,6 +68,8 @@ func Load() (Config, error) {
 
 	var err error
 	cfg.LogLevel, err = ParseLogLevel(os.Getenv("LOG_LEVEL"))
+	collect(err)
+	cfg.PprofEnabled, err = boolEnv("PPROF_ENABLED", false)
 	collect(err)
 	cfg.DBMaxOpenConns, err = intEnv("DB_MAX_OPEN_CONNS", 10, 1)
 	collect(err)
@@ -117,6 +123,18 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func boolEnv(key string, fallback bool) (bool, error) {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback, nil
+	}
+	b, err := strconv.ParseBool(raw)
+	if err != nil {
+		return false, fmt.Errorf("%s %q is not a boolean", key, raw)
+	}
+	return b, nil
 }
 
 func intEnv(key string, fallback, minimum int) (int, error) {
