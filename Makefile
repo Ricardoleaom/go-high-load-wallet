@@ -1,10 +1,13 @@
 SHELL := /bin/bash
-TOOLS := go tool -modfile=tools.mod
+TOOLS := go tool -modfile=tools/go.mod
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 IMAGE ?= go-high-load-wallet:$(VERSION)
+# actionlint runs from its own module: its YAML dependency conflicts with
+# golangci-lint's inside tools/go.mod.
+ACTIONLINT_VERSION := v1.7.12
 
 .DEFAULT_GOAL := help
-.PHONY: help up down clean test test-short lint vuln build image
+.PHONY: help up down clean test test-short lint lint-ci vuln build image
 
 help: ## List the available targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -26,6 +29,9 @@ test-short: ## Run unit tests only (no Docker)
 
 lint: ## Run golangci-lint
 	$(TOOLS) golangci-lint run ./...
+
+lint-ci: ## Validate the GitHub Actions workflows
+	go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 
 vuln: ## Check dependencies for known vulnerabilities
 	$(TOOLS) govulncheck ./...
