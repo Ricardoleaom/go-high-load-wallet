@@ -17,6 +17,7 @@ import (
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 	"github.com/google/uuid"
 )
 
@@ -66,6 +67,7 @@ type Consumer struct {
 	db       *sql.DB
 	inbox    *postgres.InboxRepository
 	wager    *wagerapp.Service
+	metrics  *observability.Metrics
 }
 
 func NewConsumer(
@@ -74,6 +76,7 @@ func NewConsumer(
 	db *sql.DB,
 	inbox *postgres.InboxRepository,
 	wagerService *wagerapp.Service,
+	metrics *observability.Metrics,
 ) *Consumer {
 	return &Consumer{
 		client:   client,
@@ -81,6 +84,7 @@ func NewConsumer(
 		db:       db,
 		inbox:    inbox,
 		wager:    wagerService,
+		metrics:  metrics,
 	}
 }
 
@@ -119,6 +123,15 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 	ctx, span := tracer.Start(ctx, "sqs.process_message", trace.WithSpanKind(trace.SpanKindConsumer))
 	defer span.End()
 
+	// Every return below sets outcome first: invalid messages will never
+	// succeed and head for the DLQ, errors are retried by redelivery.
+	started := time.Now()
+	outcome := "error"
+	defer func() {
+		observability.ObserveDuration(ctx,
+			c.metrics.SQSProcessingDuration.WithLabelValues(outcome), time.Since(started).Seconds())
+	}()
+
 	sqsMessageID := aws.ToString(msg.MessageId)
 
 	var envelope messageEnvelope
@@ -127,6 +140,7 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 		// policy's maxReceiveCount and land in the DLQ instead of looping
 		// here forever.
 		slog.ErrorContext(ctx, "invalid SQS message body", "error", err, "sqsMessageId", sqsMessageID)
+		outcome = "invalid"
 		return
 	}
 
@@ -135,6 +149,7 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 	messageID := envelope.MessageID
 	if messageID == "" {
 		slog.ErrorContext(ctx, "SQS message without envelope messageId", "sqsMessageId", sqsMessageID)
+		outcome = "invalid"
 		return
 	}
 
@@ -149,6 +164,7 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 	amount, err := money.New(envelope.Data.Money.Amount, envelope.Data.Money.Currency)
 	if err != nil {
 		logger.ErrorContext(ctx, "invalid money in SQS message", "error", err)
+		outcome = "invalid"
 		return
 	}
 
@@ -180,10 +196,13 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 	if alreadyCompleted {
 		logger.InfoContext(ctx, "duplicate SQS delivery acknowledged from inbox")
 		c.ack(ctx, msg, logger)
+		outcome = "duplicate"
 		return
 	}
 
+	submitStarted := time.Now()
 	result, err := c.wager.Submit(ctx, input)
+	wagerapp.RecordSubmit(ctx, c.metrics, "sqs", input.Kind, result, err, submitStarted)
 	if err != nil {
 		logger.ErrorContext(ctx, "process wager transaction from SQS", "error", err)
 		return
@@ -201,6 +220,7 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 		"idempotentReplay", result.IdempotentReplay,
 	)
 	c.ack(ctx, msg, logger)
+	outcome = "processed"
 }
 
 func (c *Consumer) recordInbox(ctx context.Context, messageID, payloadHash string) (alreadyCompleted bool, err error) {

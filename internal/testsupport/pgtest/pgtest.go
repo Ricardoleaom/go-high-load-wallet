@@ -5,9 +5,12 @@ package pgtest
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"sync"
 	"testing"
@@ -45,6 +48,56 @@ func URL(t testing.TB) string {
 		t.Fatal(sharedErr)
 	}
 	return sharedURL
+}
+
+// FreshURL returns a migrated database of its own on the same server as URL,
+// dropped when the test ends. Tests that truncate tables or count rows
+// globally use it so they cannot disturb, or be disturbed by, other tests.
+func FreshURL(t testing.TB) string {
+	t.Helper()
+	server := URL(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	suffix := make([]byte, 6)
+	if _, err := rand.Read(suffix); err != nil {
+		t.Fatalf("name a fresh database: %v", err)
+	}
+	name := "wallet_" + hex.EncodeToString(suffix)
+
+	admin, err := sql.Open("pgx", server)
+	if err != nil {
+		t.Fatalf("open %s: %v", server, err)
+	}
+	defer func() { _ = admin.Close() }()
+	if _, err := admin.ExecContext(ctx, "CREATE DATABASE "+name); err != nil {
+		t.Fatalf("create database %s: %v", name, err)
+	}
+	t.Cleanup(func() { dropDatabase(server, name) })
+
+	parsed, err := url.Parse(server)
+	if err != nil {
+		t.Fatalf("parse %s: %v", server, err)
+	}
+	parsed.Path = "/" + name
+	fresh := parsed.String()
+
+	if err := Migrate(ctx, fresh); err != nil {
+		t.Fatalf("migrate %s: %v", name, err)
+	}
+	return fresh
+}
+
+func dropDatabase(server, name string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	admin, err := sql.Open("pgx", server)
+	if err != nil {
+		return
+	}
+	defer func() { _ = admin.Close() }()
+	_, _ = admin.ExecContext(ctx, "DROP DATABASE IF EXISTS "+name+" WITH (FORCE)")
 }
 
 func provision() (string, error) {

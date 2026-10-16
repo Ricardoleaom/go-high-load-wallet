@@ -62,6 +62,21 @@ func (r *OutboxRepository) Append(
 	return nil
 }
 
+// Backlog reports how many events wait for publication and how old the
+// oldest of them is; both are zero when nothing is pending.
+func (r *OutboxRepository) Backlog(ctx context.Context) (pending int64, oldest time.Duration, err error) {
+	var oldestSeconds float64
+	err = r.db.QueryRowContext(ctx, `
+		SELECT count(*), COALESCE(EXTRACT(EPOCH FROM now() - min(occurred_at)), 0)::float8
+		FROM outbox_events
+		WHERE published_at IS NULL
+	`).Scan(&pending, &oldestSeconds)
+	if err != nil {
+		return 0, 0, fmt.Errorf("measure outbox backlog: %w", err)
+	}
+	return pending, time.Duration(oldestSeconds * float64(time.Second)), nil
+}
+
 // PublishDue claims up to `limit` due events with SELECT ... FOR UPDATE SKIP
 // LOCKED, so multiple publisher instances can run concurrently without
 // double-publishing or blocking on each other. A crash mid-batch releases

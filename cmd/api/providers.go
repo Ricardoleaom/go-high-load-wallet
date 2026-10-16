@@ -109,14 +109,23 @@ func newOutboxRepository(db *sql.DB) *postgres.OutboxRepository {
 	return postgres.NewOutboxRepository(db)
 }
 
+// registerDBMetrics exposes the pool statistics and the outbox backlog. The
+// backlog query runs on every scrape, bounded so a slow database cannot
+// stall the scrape.
+func registerDBMetrics(metrics *observability.Metrics, db *sql.DB, outbox *postgres.OutboxRepository) {
+	metrics.RegisterDB(db)
+	metrics.Registry.MustRegister(observability.NewOutboxCollector(outbox.Backlog, 2*time.Second))
+}
+
 func newSQSConsumer(
 	cfg config.Config,
 	client *sqs.Client,
 	db *sql.DB,
 	inbox *postgres.InboxRepository,
 	wagerService *wagerapp.Service,
+	metrics *observability.Metrics,
 ) *sqsx.Consumer {
-	return sqsx.NewConsumer(client, cfg.TransactionsQueueURL, db, inbox, wagerService)
+	return sqsx.NewConsumer(client, cfg.TransactionsQueueURL, db, inbox, wagerService, metrics)
 }
 
 func newOutboxPublisher(
@@ -125,7 +134,7 @@ func newOutboxPublisher(
 	outbox *postgres.OutboxRepository,
 	metrics *observability.Metrics,
 ) *sqsx.OutboxPublisher {
-	return sqsx.NewOutboxPublisher(client, cfg.EventsQueueURL, outbox, metrics)
+	return sqsx.NewOutboxPublisher(client, cfg.EventsQueueURL, outbox, metrics, cfg.OutboxBatchSize)
 }
 
 func newSQSReadiness(cfg config.Config, client *sqs.Client) *sqsx.Readiness {

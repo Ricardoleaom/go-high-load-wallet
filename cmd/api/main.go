@@ -64,6 +64,18 @@ var httpModule = fx.Module("http",
 	),
 )
 
+// appInvokes starts everything with a lifecycle; the Fx composition test
+// runs this exact list.
+var appInvokes = fx.Invoke(
+	registerTracing,
+	registerDBMetrics,
+	registerHTTPServer,
+	registerAdminServer,
+	registerSQSConsumer,
+	registerOutboxPublisher,
+	registerReferenceRetryWorker,
+)
+
 func main() {
 	// Set before Fx starts so its own lifecycle events and every component
 	// logging through slog's default share the same JSON output.
@@ -89,13 +101,6 @@ func main() {
 		applicationModule,
 		messagingModule,
 		httpModule,
-		fx.Invoke(
-			registerTracing,
-			registerHTTPServer,
-			registerAdminServer,
-			registerSQSConsumer,
-			registerOutboxPublisher,
-			registerReferenceRetryWorker,
-		),
+		appInvokes,
 	).Run()
 }

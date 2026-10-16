@@ -5,16 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/sqs"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/localstack"
 	"go.uber.org/fx"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/hostport"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/jwttest"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/sqstest"
 )
 
 // TestFxAppStartsAndStopsCleanly builds the exact module graph main() runs,
@@ -33,7 +28,7 @@ func TestFxAppStartsAndStopsCleanly(t *testing.T) {
 
 	databaseURL := pgtest.URL(t)
 	issuer := jwttest.NewIssuer(t)
-	endpoint := startLocalStack(ctx, t)
+	endpoint := sqstest.Start(ctx, t)
 
 	t.Setenv("DATABASE_URL", databaseURL)
 	t.Setenv("JWKS_URL", issuer.JWKSURL())
@@ -41,8 +36,8 @@ func TestFxAppStartsAndStopsCleanly(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "test")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
 	t.Setenv("SQS_ENDPOINT", endpoint)
-	t.Setenv("SQS_TRANSACTIONS_QUEUE_URL", createFIFOQueue(ctx, t, endpoint, "wager-transactions.fifo"))
-	t.Setenv("SQS_EVENTS_QUEUE_URL", createFIFOQueue(ctx, t, endpoint, "wager-events.fifo"))
+	t.Setenv("SQS_TRANSACTIONS_QUEUE_URL", sqstest.CreateFIFOQueue(ctx, t, endpoint, "wager-transactions.fifo"))
+	t.Setenv("SQS_EVENTS_QUEUE_URL", sqstest.CreateFIFOQueue(ctx, t, endpoint, "wager-events.fifo"))
 	// Port 0 avoids colliding with an app container already bound to 8080.
 	t.Setenv("HTTP_PORT", "0")
 	t.Setenv("ADMIN_PORT", "0")
@@ -53,14 +48,7 @@ func TestFxAppStartsAndStopsCleanly(t *testing.T) {
 		applicationModule,
 		messagingModule,
 		httpModule,
-		fx.Invoke(
-			registerTracing,
-			registerHTTPServer,
-			registerAdminServer,
-			registerSQSConsumer,
-			registerOutboxPublisher,
-			registerReferenceRetryWorker,
-		),
+		appInvokes,
 		fx.NopLogger,
 	)
 
@@ -75,50 +63,4 @@ func TestFxAppStartsAndStopsCleanly(t *testing.T) {
 	if err := app.Stop(stopCtx); err != nil {
 		t.Fatalf("app.Stop: %v", err)
 	}
-}
-
-func startLocalStack(ctx context.Context, t *testing.T) string {
-	t.Helper()
-	ctr, err := localstack.Run(ctx, "localstack/localstack:3.8",
-		testcontainers.WithEnv(map[string]string{"SERVICES": "sqs"}),
-		hostport.Publish("4566/tcp"),
-	)
-	testcontainers.CleanupContainer(t, ctr)
-	if err != nil {
-		t.Fatalf("start LocalStack: %v", err)
-	}
-
-	endpoint, err := ctr.PortEndpoint(ctx, "4566/tcp", "http")
-	if err != nil {
-		t.Fatalf("LocalStack endpoint: %v", err)
-	}
-	return endpoint
-}
-
-// createFIFOQueue creates the queue the way deploy/localstack/init-queues.sh
-// does (the DLQ does not matter for start/stop) and returns the path-style
-// URL the compose setup also uses.
-func createFIFOQueue(ctx context.Context, t *testing.T, endpoint, name string) string {
-	t.Helper()
-	client, err := sqsx.NewClient(ctx, sqsx.Config{
-		Region:          "us-east-1",
-		Endpoint:        endpoint,
-		AccessKeyID:     "test",
-		SecretAccessKey: "test",
-	})
-	if err != nil {
-		t.Fatalf("SQS client: %v", err)
-	}
-
-	_, err = client.CreateQueue(ctx, &sqs.CreateQueueInput{
-		QueueName: aws.String(name),
-		Attributes: map[string]string{
-			"FifoQueue":                 "true",
-			"ContentBasedDeduplication": "false",
-		},
-	})
-	if err != nil {
-		t.Fatalf("create queue %s: %v", name, err)
-	}
-	return endpoint + "/000000000000/" + name
 }
