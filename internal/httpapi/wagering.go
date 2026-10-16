@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"net/http"
 
-	wagerapp "github.com/Ricardoleaom/backend-challenge-go/internal/application/wager"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/wager"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
+	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 )
 
 func requireProvider(w http.ResponseWriter, r *http.Request) (string, bool) {

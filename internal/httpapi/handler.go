@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
-	wagerapp "github.com/Ricardoleaom/backend-challenge-go/internal/application/wager"
-	walletapp "github.com/Ricardoleaom/backend-challenge-go/internal/application/wallet"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/observability"
+	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
+	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 )
 
 // ReadinessChecker reports whether a dependency is ready to serve traffic.

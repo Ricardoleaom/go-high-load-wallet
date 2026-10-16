@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	walletapp "github.com/Ricardoleaom/backend-challenge-go/internal/application/wallet"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
+	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 )
 
 func requireInternal(w http.ResponseWriter, r *http.Request) bool {

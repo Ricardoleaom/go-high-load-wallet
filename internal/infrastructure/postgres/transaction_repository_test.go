@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
 )
 
 func newTransactionTestID(t *testing.T) string {

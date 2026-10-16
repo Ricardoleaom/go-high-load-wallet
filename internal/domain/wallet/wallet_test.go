@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 )
 
 func mustMoney(t *testing.T, amount, currency string) money.Money {

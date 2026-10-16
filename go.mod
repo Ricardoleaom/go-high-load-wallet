@@ -1,4 +1,4 @@
-module github.com/Ricardoleaom/backend-challenge-go
+module github.com/Ricardoleaom/go-high-load-wallet
 
 go 1.27.1
 

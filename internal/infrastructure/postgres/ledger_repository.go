@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/ledger"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ledger"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 )
 
 var ErrLedgerEntryNotFound = errors.New("ledger entry not found")

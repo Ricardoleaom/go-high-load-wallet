@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 )
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

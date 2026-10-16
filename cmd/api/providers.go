@@ -10,13 +10,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"go.uber.org/fx"
 
-	wagerapp "github.com/Ricardoleaom/backend-challenge-go/internal/application/wager"
-	walletapp "github.com/Ricardoleaom/backend-challenge-go/internal/application/wallet"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/config"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/httpapi"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/sqsx"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/observability"
+	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
+	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/config"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 )
 
 func newDB(lc fx.Lifecycle, cfg config.Config) (*sql.DB, error) {

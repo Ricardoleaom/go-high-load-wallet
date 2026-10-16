@@ -8,10 +8,10 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/application/events"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/ledger"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/wager"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/application/events"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ledger"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 )
 
 // AppendProcessed records WagerTransactionProcessed and, when the operation

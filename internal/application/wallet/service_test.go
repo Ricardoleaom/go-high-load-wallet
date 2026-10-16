@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 )
 
 func newTestID(t *testing.T) string {

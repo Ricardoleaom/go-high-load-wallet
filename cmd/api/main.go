@@ -7,11 +7,11 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 
-	walletapp "github.com/Ricardoleaom/backend-challenge-go/internal/application/wallet"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/config"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/httpapi"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/observability"
+	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/config"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 )
 
 var configModule = fx.Module("config",

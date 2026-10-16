@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 )
 
 func TestWalletRepositoryGetByID(t *testing.T) {

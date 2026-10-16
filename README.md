@@ -1,5 +1,9 @@
 # Desafio Backend: Processamento Distribuído de Apostas
 
+> Este repositório evolui o desafio entregue em
+> [backend-challenge-go](https://github.com/Ricardoleaom/backend-challenge-go)
+> (tag `v0.1.0-challenge`) para um serviço focado em alta volumetria.
+
 Serviço em Go que movimenta carteiras de jogadores via HTTP e SQS, com
 idempotência persistente, ledger auditável, transactional outbox e
 autenticação OAuth2/OIDC via Keycloak. As decisões técnicas estão em
@@ -26,7 +30,7 @@ sai), Keycloak (importa o realm), LocalStack (cria as filas) e a API.
 | API | `http://localhost:8080` |
 | Keycloak | `http://localhost:8081` (admin/admin) |
 | LocalStack (SQS) | `http://localhost:4566` |
-| Postgres | `localhost:5432` (app/local_dev_password) |
+| Postgres | `localhost:5432` (app/local_dev_password); outra porta com `POSTGRES_HOST_PORT` se a 5432 já estiver em uso |
 
 Pronto quando `curl localhost:8080/health/ready` responder
 `{"status":"ok",...}`. O Keycloak leva uns 20 segundos na primeira
@@ -73,7 +77,7 @@ O serviço `migrate` aplica tudo no `docker compose up`. Manualmente:
 
 ```sh
 MIGRATE="docker run --rm -v $(pwd)/migrations:/migrations --network host migrate/migrate \
-  -path=/migrations -database postgres://app:local_dev_password@localhost:5432/backend_challenge?sslmode=disable"
+  -path=/migrations -database postgres://app:local_dev_password@localhost:5432/wallet?sslmode=disable"
 
 $MIGRATE up        # aplicar todas
 $MIGRATE down 1    # reverter a última
@@ -206,7 +210,7 @@ Usam Postgres, Keycloak e LocalStack reais, sem mocks.
 ```sh
 docker compose up -d postgres migrate keycloak localstack
 
-export DATABASE_URL="postgres://app:local_dev_password@localhost:5432/backend_challenge?sslmode=disable"
+export DATABASE_URL="postgres://app:local_dev_password@localhost:5432/wallet?sslmode=disable"
 export JWKS_URL="http://localhost:8081/realms/wagering/protocol/openid-connect/certs"
 export SQS_ENDPOINT="http://localhost:4566"
 export SQS_TRANSACTIONS_QUEUE_URL="http://localhost:4566/000000000000/wager-transactions.fifo"

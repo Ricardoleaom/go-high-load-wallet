@@ -8,12 +8,12 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/Ricardoleaom/backend-challenge-go/internal/application/outboxevents"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/ledger"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/money"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/domain/wager"
-	domainwallet "github.com/Ricardoleaom/backend-challenge-go/internal/domain/wallet"
-	"github.com/Ricardoleaom/backend-challenge-go/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/application/outboxevents"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ledger"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
+	domainwallet "github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 )
 
 var ErrWalletConflict = postgres.ErrWalletConflict
