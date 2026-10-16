@@ -196,33 +196,18 @@ Lista completa de endpoints, códigos HTTP, corpos de erro e
 ## Testes
 
 ```sh
-go vet ./...
-go test ./...
-go test -race ./...
+make test        # tudo, inclusive integração (precisa de Docker)
+make test-short  # só unitários, sem Docker
+make lint
 ```
 
-Sem variáveis de ambiente, rodam só os testes unitários; os de integração
-são pulados com uma mensagem dizendo o que falta. Não há build tags.
-
-### Testes de integração
-
-Usam Postgres, Keycloak e LocalStack reais, sem mocks.
-
-```sh
-docker compose up -d postgres migrate keycloak localstack
-
-export DATABASE_URL="postgres://app:local_dev_password@localhost:5432/wallet?sslmode=disable"
-export JWKS_URL="http://localhost:8081/realms/wagering/protocol/openid-connect/certs"
-export SQS_ENDPOINT="http://localhost:4566"
-export SQS_TRANSACTIONS_QUEUE_URL="http://localhost:4566/000000000000/wager-transactions.fifo"
-export SQS_EVENTS_QUEUE_URL="http://localhost:4566/000000000000/wager-events.fifo"
-
-go test -race ./...
-```
-
-Só `DATABASE_URL` já habilita os testes de `internal/infrastructure/postgres`
-e `internal/application/...`. `cmd/api` (composição Fx) precisa das
-cinco variáveis.
+Os testes de integração sobem sozinhos o que precisam, com
+testcontainers-go: um Postgres com as migrations aplicadas, um LocalStack
+com as filas e um JWKS falso no lugar do Keycloak (`internal/testsupport`).
+Sem Docker e sem `DATABASE_URL` eles **falham** dizendo o que falta, em vez
+de serem pulados. Para reaproveitar um Postgres já no ar (o do Compose, por
+exemplo), defina `DATABASE_URL`; as migrations pendentes são aplicadas
+antes dos testes.
 
 | Cenário do edital | Teste |
 | --- | --- |

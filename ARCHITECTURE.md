@@ -560,7 +560,8 @@ antes de todos que a usam.
 e os eventos do próprio Fx usam o mesmo logger em nível DEBUG.
 
 `TestFxAppStartsAndStopsCleanly` (`cmd/api/main_test.go`) monta a
-composição inteira contra o ambiente real e confere que `Start` e `Stop`
+composição inteira contra Postgres e LocalStack em containers
+(testcontainers-go) e um JWKS em processo, e confere que `Start` e `Stop`
 terminam sem erro, com os três workers saindo de fato.
 
 O domínio (`internal/domain/...`) não importa Fx, HTTP, SQS nem a
