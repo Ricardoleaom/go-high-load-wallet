@@ -19,6 +19,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/hostport"
 	"github.com/Ricardoleaom/go-high-load-wallet/migrations"
 )
 
@@ -66,13 +67,15 @@ func provision() (string, error) {
 }
 
 // startContainer leaves cleanup to Ryuk, which removes the container when
-// the test binary exits: every test in the binary shares it.
+// the test binary exits: every test in the binary shares it. The host port
+// is pinned (see hostport) rather than left to Docker.
 func startContainer(ctx context.Context) (string, error) {
 	ctr, err := postgres.Run(ctx, image,
 		postgres.WithDatabase("wallet"),
 		postgres.WithUsername("app"),
 		postgres.WithPassword("test"),
 		postgres.BasicWaitStrategies(),
+		hostport.Publish("5432/tcp"),
 	)
 	if err != nil {
 		return "", err
