@@ -11,3 +11,7 @@ docs/superpowers/
 
 # Windows download metadata copied into WSL
 *:Zone.Identifier
+
+# Benchmark inputs and raw results (reports live in docs/benchmarks)
+/bench/data/
+/bench/results/

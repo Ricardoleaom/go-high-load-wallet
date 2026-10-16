@@ -5,9 +5,13 @@ IMAGE ?= go-high-load-wallet:$(VERSION)
 # actionlint runs from its own module: its YAML dependency conflicts with
 # golangci-lint's inside tools/go.mod.
 ACTIONLINT_VERSION := v1.7.12
+# Host-side access to the compose PostgreSQL (seed, verify).
+POSTGRES_HOST_PORT ?= 5432
+DATABASE_URL ?= postgres://app:local_dev_password@localhost:$(POSTGRES_HOST_PORT)/wallet?sslmode=disable
+WALLETS ?= 100000
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-obs down clean test test-short lint lint-ci vuln build image
+.PHONY: help up up-obs down clean test test-short lint lint-ci vuln build image seed
 
 help: ## List the available targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -44,3 +48,6 @@ build: ## Build the API binary into bin/
 
 image: ## Build the API container image
 	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE) .
+
+seed: ## Load WALLETS benchmark wallets into DATABASE_URL (add TRUNCATE=1 to empty it first)
+	go run ./cmd/seed -database-url "$(DATABASE_URL)" -wallets $(WALLETS) $(if $(TRUNCATE),-truncate)
