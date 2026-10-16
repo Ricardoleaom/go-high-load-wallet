@@ -44,14 +44,14 @@ func (p *OutboxPublisher) Run(ctx context.Context, interval time.Duration) error
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			published, err := p.outbox.PublishDue(ctx, p.batch, backoff, p.publish)
+			roundCtx, span := tracer.Start(ctx, "outbox.publish_batch")
+			published, err := p.outbox.PublishDue(roundCtx, p.batch, backoff, p.publish)
 			if err != nil {
-				slog.Error("publish outbox batch", "error", err)
-				continue
+				slog.ErrorContext(roundCtx, "publish outbox batch", "error", err)
+			} else if published > 0 {
+				slog.InfoContext(roundCtx, "published outbox events", "count", published)
 			}
-			if published > 0 {
-				slog.Info("published outbox events", "count", published)
-			}
+			span.End()
 		}
 	}
 }

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
 	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
@@ -64,7 +66,7 @@ func NewHandler(deps Dependencies) http.Handler {
 	// never reach this inner wrapper at all.
 	mux.Handle("/", deps.Auth.Middleware(metricsMiddleware(deps.Metrics, protected)))
 
-	return mux
+	return otelhttp.NewHandler(mux, "http.server")
 }
 
 // metricsMiddleware records every response by route pattern, method and

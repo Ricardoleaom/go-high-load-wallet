@@ -53,6 +53,7 @@ func TestFxAppStartsAndStopsCleanly(t *testing.T) {
 		messagingModule,
 		httpModule,
 		fx.Invoke(
+			registerTracing,
 			registerHTTPServer,
 			registerSQSConsumer,
 			registerOutboxPublisher,

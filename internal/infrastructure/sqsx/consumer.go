@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+	"go.opentelemetry.io/otel/trace"
 
 	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
@@ -115,6 +116,9 @@ func (c *Consumer) Run(ctx context.Context) error {
 }
 
 func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
+	ctx, span := tracer.Start(ctx, "sqs.process_message", trace.WithSpanKind(trace.SpanKindConsumer))
+	defer span.End()
+
 	sqsMessageID := aws.ToString(msg.MessageId)
 
 	var envelope messageEnvelope
@@ -122,7 +126,7 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 		// A malformed body will never parse; let it exhaust the redrive
 		// policy's maxReceiveCount and land in the DLQ instead of looping
 		// here forever.
-		slog.Error("invalid SQS message body", "error", err, "sqsMessageId", sqsMessageID)
+		slog.ErrorContext(ctx, "invalid SQS message body", "error", err, "sqsMessageId", sqsMessageID)
 		return
 	}
 
@@ -130,7 +134,7 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 	// producer that resends the same envelope gets a brand new SQS MessageId.
 	messageID := envelope.MessageID
 	if messageID == "" {
-		slog.Error("SQS message without envelope messageId", "sqsMessageId", sqsMessageID)
+		slog.ErrorContext(ctx, "SQS message without envelope messageId", "sqsMessageId", sqsMessageID)
 		return
 	}
 
@@ -144,7 +148,7 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 
 	amount, err := money.New(envelope.Data.Money.Amount, envelope.Data.Money.Currency)
 	if err != nil {
-		logger.Error("invalid money in SQS message", "error", err)
+		logger.ErrorContext(ctx, "invalid money in SQS message", "error", err)
 		return
 	}
 
@@ -164,33 +168,33 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 
 	payloadHash, err := wagerapp.ComputePayloadHash(input)
 	if err != nil {
-		logger.Error("compute payload hash", "error", err)
+		logger.ErrorContext(ctx, "compute payload hash", "error", err)
 		return
 	}
 
 	alreadyCompleted, err := c.recordInbox(ctx, messageID, payloadHash)
 	if err != nil {
-		logger.Error("record inbox message", "error", err)
+		logger.ErrorContext(ctx, "record inbox message", "error", err)
 		return
 	}
 	if alreadyCompleted {
-		logger.Info("duplicate SQS delivery acknowledged from inbox")
+		logger.InfoContext(ctx, "duplicate SQS delivery acknowledged from inbox")
 		c.ack(ctx, msg, logger)
 		return
 	}
 
 	result, err := c.wager.Submit(ctx, input)
 	if err != nil {
-		logger.Error("process wager transaction from SQS", "error", err)
+		logger.ErrorContext(ctx, "process wager transaction from SQS", "error", err)
 		return
 	}
 
 	if err := c.completeInbox(ctx, messageID); err != nil {
-		logger.Error("complete inbox message", "error", err)
+		logger.ErrorContext(ctx, "complete inbox message", "error", err)
 		return
 	}
 
-	logger.Info("wager transaction handled",
+	logger.InfoContext(ctx, "wager transaction handled",
 		"transactionId", result.TransactionID,
 		"status", result.Status,
 		"failureCode", result.FailureCode,
@@ -238,6 +242,6 @@ func (c *Consumer) ack(ctx context.Context, msg sqstypes.Message, logger *slog.L
 		ReceiptHandle: msg.ReceiptHandle,
 	})
 	if err != nil {
-		logger.Error("delete processed SQS message", "error", err)
+		logger.ErrorContext(ctx, "delete processed SQS message", "error", err)
 	}
 }

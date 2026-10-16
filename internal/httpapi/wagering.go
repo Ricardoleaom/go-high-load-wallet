@@ -89,14 +89,14 @@ func (h *handler) submitWagerTransaction(w http.ResponseWriter, r *http.Request)
 	})
 	logger := slog.With("transport", "http", "providerId", providerID, "walletId", req.WalletID)
 	if err != nil {
-		logger.Error("submit wager transaction", "externalTransactionId", req.ExternalTransactionID, "error", err)
+		logger.ErrorContext(r.Context(), "submit wager transaction", "externalTransactionId", req.ExternalTransactionID, "error", err)
 		writeSubmitError(w, err)
 		return
 	}
 
 	// Without an inbound correlation ID, the use case correlates the outbox
 	// events by transaction ID, so the log uses the same value.
-	logger.Info("wager transaction handled",
+	logger.InfoContext(r.Context(), "wager transaction handled",
 		"correlationId", result.TransactionID,
 		"transactionId", result.TransactionID,
 		"status", result.Status,

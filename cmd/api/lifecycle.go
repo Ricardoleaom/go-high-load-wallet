@@ -14,6 +14,7 @@ import (
 	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/config"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 )
 
 // runBackground starts fn in a goroutine on OnStart and, on OnStop, cancels
@@ -48,6 +49,24 @@ func runBackground(lc fx.Lifecycle, name string, fn func(ctx context.Context) er
 			}
 		},
 	})
+}
+
+// registerTracing installs the OpenTelemetry provider before anything else
+// starts and flushes it last on the way down.
+func registerTracing(lc fx.Lifecycle) error {
+	shutdown, err := observability.SetupTracing(context.Background())
+	if err != nil {
+		return err
+	}
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			if err := shutdown(ctx); err != nil {
+				slog.Warn("flush traces on shutdown", "error", err)
+			}
+			return nil
+		},
+	})
+	return nil
 }
 
 func registerHTTPServer(lc fx.Lifecycle, cfg config.Config, handler http.Handler) {

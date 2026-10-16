@@ -9,6 +9,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"go.opentelemetry.io/otel"
 )
 
 type Config struct {
@@ -38,3 +39,5 @@ func NewClient(ctx context.Context, cfg Config) (*sqs.Client, error) {
 		}
 	}), nil
 }
+
+var tracer = otel.Tracer("github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx")

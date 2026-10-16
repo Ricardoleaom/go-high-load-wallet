@@ -67,7 +67,14 @@ var httpModule = fx.Module("http",
 func main() {
 	// Set before Fx starts so its own lifecycle events and every component
 	// logging through slog's default share the same JSON output.
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	level, err := config.ParseLogLevel(os.Getenv("LOG_LEVEL"))
+	if err != nil {
+		slog.Error("invalid configuration", "error", err)
+		os.Exit(1)
+	}
+	logger := slog.New(observability.NewTraceHandler(
+		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}),
+	))
 	slog.SetDefault(logger)
 	logger.Info("starting wallet", "version", buildinfo.Version, "goVersion", runtime.Version())
 
@@ -83,6 +90,7 @@ func main() {
 		messagingModule,
 		httpModule,
 		fx.Invoke(
+			registerTracing,
 			registerHTTPServer,
 			registerSQSConsumer,
 			registerOutboxPublisher,

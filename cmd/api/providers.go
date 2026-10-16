@@ -23,7 +23,11 @@ func newDB(lc fx.Lifecycle, cfg config.Config) (*sql.DB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	db, err := postgres.Open(ctx, cfg.DatabaseURL)
+	db, err := postgres.Open(ctx, cfg.DatabaseURL,
+		postgres.WithMaxOpenConns(cfg.DBMaxOpenConns),
+		postgres.WithMaxIdleConns(cfg.DBMaxIdleConns),
+		postgres.WithQueryTracing(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
