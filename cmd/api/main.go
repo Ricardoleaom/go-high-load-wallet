@@ -3,11 +3,13 @@ package main
 import (
 	"log/slog"
 	"os"
+	"runtime"
 
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 
 	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/buildinfo"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/config"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
@@ -67,6 +69,7 @@ func main() {
 	// logging through slog's default share the same JSON output.
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
+	logger.Info("starting wallet", "version", buildinfo.Version, "goVersion", runtime.Version())
 
 	fx.New(
 		fx.WithLogger(func() fxevent.Logger {

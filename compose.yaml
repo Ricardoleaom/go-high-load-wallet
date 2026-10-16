@@ -56,7 +56,10 @@ services:
       retries: 20
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-dev}
     depends_on:
       postgres:
         condition: service_healthy
