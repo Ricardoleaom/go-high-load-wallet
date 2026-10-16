@@ -12,7 +12,7 @@ autenticação OAuth2/OIDC via Keycloak. As decisões técnicas estão em
 ## Pré-requisitos
 
 - Docker e Docker Compose
-- Go 1.27.1 (a mesma versão do `go.mod` e do `Dockerfile`), só para rodar
+- Go 1.27.2 (a mesma versão do `go.mod` e do `Dockerfile`), só para rodar
   os testes fora do container
 - `curl` e `jq` para os exemplos
 
