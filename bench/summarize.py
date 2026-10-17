@@ -37,6 +37,33 @@ def peak(points, start, end):
     return max(values) if values else None
 
 
+def container_cpu(directory):
+    """Per-container CPU samples from docker-stats.csv: {role: [(t, percent)]}.
+    100% is one full core."""
+    samples = {"app": [], "postgres": [], "k6": []}
+    try:
+        with open(os.path.join(directory, "docker-stats.csv")) as f:
+            for line in f:
+                parts = line.strip().split(",")
+                if len(parts) < 3 or not parts[2].endswith("%"):
+                    continue
+                t, name, cpu = int(parts[0]), parts[1], float(parts[2][:-1])
+                for role in samples:
+                    if name.startswith(f"wallet-bench-{role}-"):
+                        samples[role].append((t, cpu))
+    except OSError:
+        pass
+    return samples
+
+
+def cpu_cell(samples, start, end):
+    cells = []
+    for role in ("app", "postgres", "k6"):
+        value = mean(samples[role], start, end)
+        cells.append("—" if value is None else f"{value:.0f}")
+    return "/".join(cells)
+
+
 def verify_ok(directory):
     report = load(os.path.join(directory, "verify.json"), {})
     return "pass" if report.get("ok") else "FAIL"
@@ -60,14 +87,15 @@ def steady_row(directory, meta, summary, prom):
         f"{'—' if produced is None else f'{produced:.1f}'} | {'—' if published is None else f'{published:.1f}'} | "
         f"{peak(series.get('outbox_pending', []), start, end) or 0:.0f} | "
         f"{peak(series.get('outbox_oldest_seconds', []), start, end) or 0:.0f} | "
-        f"{mean(series.get('pool_in_use', []), start + 30, end) or 0:.1f} | {verify_ok(directory)} |"
+        f"{mean(series.get('pool_in_use', []), start + 30, end) or 0:.1f} | "
+        f"{cpu_cell(container_cpu(directory), start + 30, end)} | {verify_ok(directory)} |"
     )
 
 
 STEADY_HEADER = (
     "| run | target rps | achieved rps | p50 ms | p95 ms | p99 ms | failed | dropped | "
-    "transactions/s | outbox published/s | outbox backlog (peak) | oldest pending s (peak) | pool in use (avg) | verify |\n"
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
+    "transactions/s | outbox published/s | outbox backlog (peak) | oldest pending s (peak) | pool in use (avg) | CPU % app/pg/k6 | verify |\n"
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
 )
 
 
@@ -77,6 +105,7 @@ def knee_rows(directory, meta, prom):
     hold = settings.get("KNEE_STEP_DURATION", "60s")
     hold_seconds = int(hold[:-1]) * (60 if hold.endswith("m") else 1)
     series = prom.get("series", {})
+    cpu = container_cpu(directory)
     rows = []
     t = prom.get("start", 0)
     for rate in range(start_rate, top + 1, step):
@@ -88,15 +117,16 @@ def knee_rows(directory, meta, prom):
             f"{mean(series.get('server_5xx_rps', []), window_start, window_end) or 0:.2f} | "
             f"{mean(series.get('k6_dropped_per_second', []), window_start, window_end) or 0:.1f} | "
             f"{mean(series.get('pool_waits_per_second', []), window_start, window_end) or 0:.1f} | "
-            f"{mean(series.get('app_cpu_cores', []), window_start, window_end) or 0:.2f} |"
+            f"{mean(series.get('app_cpu_cores', []), window_start, window_end) or 0:.2f} | "
+            f"{cpu_cell(cpu, window_start, window_end)} |"
         )
         t += 5 + hold_seconds
     return rows
 
 
 KNEE_HEADER = (
-    "| target rps | server rps | p50 ms | p99 ms | 5xx/s | dropped/s | pool waits/s | API CPU cores |\n"
-    "| --- | --- | --- | --- | --- | --- | --- | --- |"
+    "| target rps | server rps | p50 ms | p99 ms | 5xx/s | dropped/s | pool waits/s | API CPU cores | CPU % app/pg/k6 |\n"
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"
 )
 
 
