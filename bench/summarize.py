@@ -6,6 +6,7 @@ from the server-side series over the step's hold window.
 """
 import json
 import os
+import re
 import sys
 
 
@@ -37,10 +38,18 @@ def peak(points, start, end):
     return max(values) if values else None
 
 
+# Compose names the services' containers wallet-bench-<service>-<n> and
+# one-off `compose run` containers wallet-bench-<service>-run-<id>; anchoring
+# keeps postgres-exporter out of postgres.
+CONTAINER_ROLES = {
+    role: re.compile(rf"^wallet-bench-{role}-(\d+|run-[0-9a-f]+)$") for role in ("app", "postgres", "k6")
+}
+
+
 def container_cpu(directory):
     """Per-container CPU samples from docker-stats.csv: {role: [(t, percent)]}.
     100% is one full core."""
-    samples = {"app": [], "postgres": [], "k6": []}
+    samples = {role: [] for role in CONTAINER_ROLES}
     try:
         with open(os.path.join(directory, "docker-stats.csv")) as f:
             for line in f:
@@ -48,8 +57,8 @@ def container_cpu(directory):
                 if len(parts) < 3 or not parts[2].endswith("%"):
                     continue
                 t, name, cpu = int(parts[0]), parts[1], float(parts[2][:-1])
-                for role in samples:
-                    if name.startswith(f"wallet-bench-{role}-"):
+                for role, pattern in CONTAINER_ROLES.items():
+                    if pattern.match(name):
                         samples[role].append((t, cpu))
     except OSError:
         pass
@@ -132,7 +141,7 @@ KNEE_HEADER = (
 
 def main():
     steady, knees = [], []
-    for directory in sys.argv[1:]:
+    for directory in map(os.path.normpath, sys.argv[1:]):
         meta = load(os.path.join(directory, "meta.json"), {})
         prom = load(os.path.join(directory, "prometheus.json"), {})
         if meta.get("settings", {}).get("MODE") == "knee":
