@@ -1,265 +1,144 @@
-# Desafio Backend: Processamento Distribuído de Apostas
+# go-high-load-wallet
 
-> Este repositório evolui o desafio entregue em
-> [backend-challenge-go](https://github.com/Ricardoleaom/backend-challenge-go)
-> (tag `v0.1.0-challenge`) para um serviço focado em alta volumetria.
+[![ci](https://github.com/Ricardoleaom/go-high-load-wallet/actions/workflows/ci.yml/badge.svg)](https://github.com/Ricardoleaom/go-high-load-wallet/actions/workflows/ci.yml)
 
-Serviço em Go que movimenta carteiras de jogadores via HTTP e SQS, com
-idempotência persistente, ledger auditável, transactional outbox e
-autenticação OAuth2/OIDC via Keycloak. As decisões técnicas estão em
-[`ARCHITECTURE.md`](ARCHITECTURE.md).
+A wallet service for online gaming written in Go: players' balances move
+through bets, wins, refunds and rollbacks sent by game providers over HTTP
+and a message queue. The point of the project is to take it to **high
+volume without giving up a wallet's guarantees** — no negative balance,
+every operation applied at most once, an append-only ledger that always
+explains the balance, an event for every change — and to prove each step
+with measurements.
 
-## Pré-requisitos
+It started as a hiring-challenge delivery
+([backend-challenge-go](https://github.com/Ricardoleaom/backend-challenge-go),
+tag `v0.1.0-challenge`) and grows phase by phase along the
+[roadmap](ROADMAP.md).
 
-- Docker e Docker Compose
-- Go 1.27.2 (a mesma versão do `go.mod` e do `Dockerfile`), só para rodar
-  os testes fora do container
-- `curl` e `jq` para os exemplos
-
-## Subindo o ambiente
-
-```sh
-docker compose up --build
-```
-
-Ordem de subida: Postgres, migrations (o serviço `migrate` roda uma vez e
-sai), Keycloak (importa o realm), LocalStack (cria as filas) e a API.
-
-| Serviço | Endereço |
+| Read | For |
 | --- | --- |
-| API | `http://localhost:8080` |
-| Keycloak | `http://localhost:8081` (admin/admin) |
-| LocalStack (SQS) | `http://localhost:4566` |
-| Postgres | `localhost:5432` (app/local_dev_password); outra porta com `POSTGRES_HOST_PORT` se a 5432 já estiver em uso |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | how it works: concurrency, idempotency, ledger, outbox, contract |
+| [docs/adr](docs/adr/README.md) | why: the decisions and the alternatives rejected |
+| [docs/benchmarks](docs/benchmarks/README.md) | how it performs, measured and reproducible |
+| [ROADMAP.md](ROADMAP.md) / [CHANGELOG.md](CHANGELOG.md) | where it is going and what changed |
 
-Pronto quando `curl localhost:8080/health/ready` responder
-`{"status":"ok",...}`. O Keycloak leva uns 20 segundos na primeira
-subida; a API tenta buscar as chaves por até 2 minutos antes de desistir.
+## What it guarantees
 
-## Variáveis de ambiente
+- **Exact money**: `int64` minor units, never floats, never rounded.
+- **No lost updates**: every movement is one conditional `UPDATE`;
+  concurrent bets on one wallet serialize on its row, different wallets run
+  in parallel, with one instance or many.
+- **Idempotency** by `(provider, idempotency key)` with a canonical payload
+  hash, enforced by unique indexes: resends, races and HTTP plus queue
+  duplicates move money once.
+- **Append-only ledger** enforced by a trigger, with reconciliation.
+- **Transactional outbox**: an event exists if and only if its change
+  committed; delivery at least once.
+- **Out-of-order reversals** wait as `PENDING_REFERENCE` with a durable,
+  multi-instance retry.
+- **OAuth2** client credentials with Keycloak; providers only see their own
+  transactions.
 
-Valores locais de exemplo em [`.env.example`](.env.example). No Compose
-elas já vêm definidas no serviço `app`, apontando para os nomes dos
-containers.
+## Quick start
 
-| Variável | Obrigatória | Uso |
-| --- | --- | --- |
-| `DATABASE_URL` | sim | conexão com o Postgres |
-| `JWKS_URL` | sim | chaves públicas do Keycloak para validar tokens |
-| `JWKS_REFRESH_INTERVAL` | não | segundos entre releituras do JWKS, que descartam chaves revogadas (padrão `3600`) |
-| `SQS_TRANSACTIONS_QUEUE_URL` | sim | fila de entrada `wager-transactions.fifo` |
-| `SQS_EVENTS_QUEUE_URL` | sim | fila de saída `wager-events.fifo` |
-| `SQS_ENDPOINT` | não | endpoint do LocalStack |
-| `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | não | credenciais do SQS (padrão `us-east-1`/`test`/`test`) |
-| `HTTP_PORT` | não | porta da API (padrão `8080`) |
-| `OUTBOX_PUBLISH_INTERVAL` | não | segundos entre rodadas do publisher do outbox (padrão `2`) |
-| `REFERENCE_RETRY_INTERVAL` | não | segundos entre rodadas do worker de referências pendentes (padrão `15`) |
-
-## Filas SQS
-
-O script [`deploy/localstack/init-queues.sh`](deploy/localstack/init-queues.sh)
-roda automaticamente quando o LocalStack fica pronto e cria:
-
-| Fila | DLQ | Uso |
-| --- | --- | --- |
-| `wager-transactions.fifo` | `wager-transactions-dlq.fifo` | operações recebidas |
-| `wager-events.fifo` | `wager-events-dlq.fifo` | eventos publicados pelo outbox |
-
-Todas FIFO, visibility timeout de 30s e redrive para a DLQ após 5
-recebimentos. Para conferir:
+Requires Docker with Compose, and Go 1.27.2 to run tests or the load
+harness from the host.
 
 ```sh
-docker compose exec localstack awslocal sqs list-queues
+make up        # PostgreSQL, Keycloak, LocalStack (SQS), migrations, API
+make up-obs    # the same plus Prometheus, Grafana, Jaeger; tracing on
+make down      # stop (make clean also drops the data)
 ```
 
-## Migrations
+If port 5432 is taken on your machine, prefix the commands with
+`POSTGRES_HOST_PORT=55432`.
 
-O serviço `migrate` aplica tudo no `docker compose up`. Manualmente:
+| Service | Address |
+| --- | --- |
+| API | <http://localhost:8080> (`/health/ready` says when it is up) |
+| Admin (metrics, pprof when `PPROF_ENABLED=true`) | <http://127.0.0.1:6060/metrics> |
+| Keycloak | <http://localhost:8081> (admin/admin) |
+| Grafana, dashboard "Wallet / Overview" | <http://localhost:3000> (`make up-obs`) |
+| Prometheus | <http://localhost:9090> (`make up-obs`) |
+| Jaeger | <http://localhost:16686> (`make up-obs`) |
 
-```sh
-MIGRATE="docker run --rm -v $(pwd)/migrations:/migrations --network host migrate/migrate \
-  -path=/migrations -database postgres://app:local_dev_password@localhost:5432/wallet?sslmode=disable"
+Configuration is environment variables, listed with their defaults in
+[ARCHITECTURE.md §16](ARCHITECTURE.md#16-configuration) and
+[`.env.example`](.env.example).
 
-$MIGRATE up        # aplicar todas
-$MIGRATE down 1    # reverter a última
-$MIGRATE down -all # reverter todas
-$MIGRATE version   # versão atual
-```
+## Using the API
 
-## Identidades de teste (Keycloak)
-
-O realm `wagering` é importado de
-[`deploy/keycloak/realm-export.json`](deploy/keycloak/realm-export.json)
-com três clients `client_credentials`:
-
-| Client | Secret | Identidade | Acesso |
-| --- | --- | --- | --- |
-| `provider-a` | `provider-a-secret` | `provider_id=provider-a` | apostas |
-| `provider-b` | `provider-b-secret` | `provider_id=provider-b` | apostas |
-| `internal-service` | `internal-service-secret` | role `internal` | carteiras |
+The `wagering` realm has `client_credentials` clients: `provider-a` and
+`provider-b` (wagers), `internal-service` (wallets), and `bench-provider`
+and `bench-internal` with two-hour tokens for load tests. Secrets are the
+client ID plus `-secret`.
 
 ```sh
 token() {
   curl -s -X POST http://localhost:8081/realms/wagering/protocol/openid-connect/token \
-    -d grant_type=client_credentials -d client_id="$1" -d client_secret="$1-secret" \
-    | jq -r .access_token
+    -d grant_type=client_credentials -d client_id="$1" -d client_secret="$1-secret" | jq -r .access_token
 }
 INTERNAL_TOKEN=$(token internal-service)
 PROVIDER_TOKEN=$(token provider-a)
-```
 
-O token vale 5 minutos; gere de novo se receber 401.
-
-## Exemplos de chamada
-
-Abrir carteira (`internal-service`):
-
-```sh
-curl -s -X POST http://localhost:8080/wallets \
+# open a wallet
+WALLET_ID=$(curl -s -X POST localhost:8080/wallets \
   -H "Authorization: Bearer $INTERNAL_TOKEN" -H "Content-Type: application/json" \
-  -d '{"playerId":"0192f28f-5dc0-7d58-bdb2-814ad6a0f4a1","initialBalance":{"amount":"1000.00","currency":"BRL"}}'
-```
+  -d '{"playerId":"0192f28f-5dc0-7d58-bdb2-814ad6a0f4a1","initialBalance":{"amount":"1000.00","currency":"BRL"}}' | jq -r .id)
 
-Guarde o `id` retornado em `WALLET_ID`.
-
-Enviar uma aposta (provider). Reenviar o mesmo comando devolve o mesmo
-resultado com `idempotentReplay: true`:
-
-```sh
-curl -s -X POST http://localhost:8080/wagering/transactions \
+# place a bet; sending it again replays the same result with idempotentReplay: true
+curl -s -X POST localhost:8080/wagering/transactions \
   -H "Authorization: Bearer $PROVIDER_TOKEN" -H "Content-Type: application/json" \
   -H "Idempotency-Key: provider-a:transaction-123" \
-  -d '{
-    "providerId": "provider-a",
-    "externalTransactionId": "transaction-123",
-    "playerId": "0192f28f-5dc0-7d58-bdb2-814ad6a0f4a1",
-    "walletId": "'"$WALLET_ID"'",
-    "roundId": "round-987",
-    "gameId": "fortune-chimp",
-    "kind": "BET",
-    "money": {"amount": "25.00", "currency": "BRL"}
-  }'
-```
+  -d '{"providerId":"provider-a","externalTransactionId":"transaction-123",
+       "playerId":"0192f28f-5dc0-7d58-bdb2-814ad6a0f4a1","walletId":"'"$WALLET_ID"'",
+       "roundId":"round-987","gameId":"fortune-chimp","kind":"BET",
+       "money":{"amount":"25.00","currency":"BRL"}}'
 
-Para `REFUND` e `ROLLBACK`, acrescente
-`"referenceExternalTransactionId": "transaction-123"` ao corpo.
-
-A mesma operação pelo SQS (`MessageGroupId` = carteira):
-
-```sh
-docker compose exec localstack awslocal sqs send-message \
-  --queue-url http://localhost:4566/000000000000/wager-transactions.fifo \
-  --message-group-id "$WALLET_ID" \
-  --message-deduplication-id "provider-a:transaction-456" \
-  --message-body '{
-    "messageId": "msg-456",
-    "type": "WagerTransactionRequested",
-    "occurredAt": "2026-10-15T12:00:00.000Z",
-    "data": {
-      "providerId": "provider-a",
-      "externalTransactionId": "transaction-456",
-      "idempotencyKey": "provider-a:transaction-456",
-      "playerId": "0192f28f-5dc0-7d58-bdb2-814ad6a0f4a1",
-      "walletId": "'"$WALLET_ID"'",
-      "roundId": "round-987",
-      "gameId": "fortune-chimp",
-      "kind": "BET",
-      "money": {"amount": "25.00", "currency": "BRL"}
-    }
-  }'
-```
-
-Consultas:
-
-```sh
-# carteira, ledger paginado e reconciliação (internal-service)
+# balance, ledger and reconciliation
 curl -s -H "Authorization: Bearer $INTERNAL_TOKEN" localhost:8080/wallets/$WALLET_ID
 curl -s -H "Authorization: Bearer $INTERNAL_TOKEN" "localhost:8080/wallets/$WALLET_ID/ledger?limit=50"
 curl -s -X POST -H "Authorization: Bearer $INTERNAL_TOKEN" localhost:8080/wallets/$WALLET_ID/reconciliation
-
-# transação pelo ID externo (provider dono)
-curl -s -H "Authorization: Bearer $PROVIDER_TOKEN" \
-  localhost:8080/providers/provider-a/wagering/transactions/transaction-123
-
-# eventos publicados pelo outbox
-docker compose exec localstack awslocal sqs receive-message \
-  --queue-url http://localhost:4566/000000000000/wager-events.fifo --max-number-of-messages 10
-
-# saúde e métricas
-curl -s localhost:8080/health/ready
-curl -s localhost:8080/metrics | grep -E "^(wager|outbox|wallet)_"
 ```
 
-Lista completa de endpoints, códigos HTTP, corpos de erro e
-`failureCode`: seção 11 do [`ARCHITECTURE.md`](ARCHITECTURE.md).
+`REFUND` and `ROLLBACK` add `"referenceExternalTransactionId"`. The same
+operation can arrive through the `wager-transactions.fifo` queue
+(`MessageGroupId` = wallet) with the envelope documented in
+[ARCHITECTURE.md §10](ARCHITECTURE.md#10-sqs-consumer); events leave
+through `wager-events.fifo`. Every endpoint, status code and
+`failureCode` is in [§12](ARCHITECTURE.md#12-http-contract).
 
-## Testes
+## Testing
 
 ```sh
-make test        # tudo, inclusive integração (precisa de Docker)
-make test-short  # só unitários, sem Docker
-make lint
+make test         # everything, integration included (needs Docker)
+make test-short   # unit tests only, no Docker
+make lint lint-ci vuln
 ```
 
-Os testes de integração sobem sozinhos o que precisam, com
-testcontainers-go: um Postgres com as migrations aplicadas, um LocalStack
-com as filas e um JWKS falso no lugar do Keycloak (`internal/testsupport`).
-Sem Docker e sem `DATABASE_URL` eles **falham** dizendo o que falta, em vez
-de serem pulados. Para reaproveitar um Postgres já no ar (o do Compose, por
-exemplo), defina `DATABASE_URL`; as migrations pendentes são aplicadas
-antes dos testes.
+Integration tests start what they need with testcontainers — a migrated
+PostgreSQL, LocalStack and an in-process identity provider — and fail
+instead of skipping when Docker is missing. Setting `DATABASE_URL` reuses a
+running PostgreSQL. The concurrency scenarios (two bets racing for the same
+balance, fifty duplicates across three instances, out-of-order reversals)
+run against real PostgreSQL with the race detector; the list is in
+[ARCHITECTURE.md §18](ARCHITECTURE.md#18-testing).
 
-| Cenário do edital | Teste |
-| --- | --- |
-| 100.00 com duas apostas de 80.00 simultâneas | `TestConcurrentBetsOnSameWallet` |
-| Mesma aposta 50 vezes em paralelo | `TestFiftyConcurrentDuplicateSubmissions` |
-| Carteiras distintas ao mesmo tempo | `TestDistinctWalletsProcessConcurrently` |
-| Três instâncias independentes | `TestConcurrentBetsAcrossThreeIndependentInstances` (e os três acima também usam várias instâncias) |
-| Reversão antes da referência | `TestSubmitRefundBeforeReferenceArrivesGoesPendingThenResolves` |
-| Worker de referências em várias instâncias | `TestListDuePendingReferencesClaimsEachRowOnce` |
-| Conflito de payload na mesma chave | `TestSubmitRejectsSameKeyDifferentPayload` |
-| Reconciliação | `TestReconciliationSnapshot` |
-| Início e encerramento do Fx | `TestFxAppStartsAndStopsCleanly` |
+## Benchmarks
 
-### Múltiplas instâncias
+BENCHMARKS_SUMMARY
 
-Cada "instância" nos testes de concorrência é um `Service` com o seu
-próprio `*sql.DB` (pool de conexões e memória próprios) disputando as
-mesmas linhas no Postgres. O `compose.yaml` sobe uma única API; o
-controle de concorrência está no banco, não no processo (seção 4 do
-`ARCHITECTURE.md`).
+## Layout
 
-### Simulações de falha (manuais)
-
-Com o ambiente no ar e os tokens gerados:
-
-- **Reinício**: envie operações, rode `docker compose restart app`,
-  reenvie a mesma operação (volta como replay, mesmo saldo) e chame a
-  reconciliação (`consistent: true`).
-- **Postgres fora**: `docker compose stop postgres`. O `/health/ready`
-  responde 503, o HTTP responde 500 e uma mensagem enviada ao SQS fica na
-  fila. `docker compose start postgres`: a mensagem é processada na
-  reentrega, sem duplicar.
-- **Reversão fora de ordem**: envie um `REFUND` com
-  `referenceExternalTransactionId` de uma aposta que ainda não existe
-  (202, `PENDING_REFERENCE`), depois envie a aposta. Em até uns 20
-  segundos a consulta do `REFUND` mostra `PROCESSED`.
-- **Reentrega no SQS**: mande o mesmo envelope duas vezes com
-  `--message-deduplication-id` diferentes. O log mostra
-  `duplicate SQS delivery acknowledged from inbox` e o saldo muda uma vez.
-- **HTTP e SQS na mesma operação**: envie por HTTP e depois a mesma
-  operação pelo SQS com a mesma `idempotencyKey`. O SQS registra
-  `idempotentReplay: true` e há um único débito.
-
-## Lint
-
-```sh
-golangci-lint run ./...
 ```
-
-Configuração em [`.golangci.yml`](.golangci.yml).
-
-## Limitações conhecidas
-
-Ver "Limitações e trabalho não concluído" no
-[`ARCHITECTURE.md`](ARCHITECTURE.md).
+cmd/api            the service (Fx composition)
+cmd/seed, verify   load-test seeding and invariant checks
+internal/domain    money, wallet, wager transaction, ledger
+internal/application  use cases
+internal/infrastructure  PostgreSQL and SQS adapters
+internal/httpapi   HTTP handlers and authentication
+internal/observability  metrics, tracing, admin endpoints
+bench/             k6 scenarios and the benchmark runner
+deploy/            Keycloak realm, LocalStack queues, Prometheus, Grafana
+migrations/        SQL schema
+```
