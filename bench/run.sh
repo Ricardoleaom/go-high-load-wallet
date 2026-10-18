@@ -7,6 +7,7 @@
 #
 # Knee mode reads KNEE_START, KNEE_STEP, KNEE_MAX and KNEE_STEP_DURATION.
 # Any app setting (DB_MAX_OPEN_CONNS, OUTBOX_BATCH_SIZE, ...) passes through.
+# Exits 1 when any repeat's k6 run or invariant check failed.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -93,6 +94,7 @@ fi
 profile_seconds=30
 [ "$run_seconds" -ge 60 ] || profile_seconds=$(( run_seconds / 3 ))
 
+status=0
 for run in $(seq 1 "$REPEAT"); do
   suffix=""
   [ "$REPEAT" -gt 1 ] && suffix="-r${run}"
@@ -197,4 +199,9 @@ json.dump(meta, open(os.path.join(dir, "meta.json"), "w"), indent=2)
 PY
 
   echo "   k6 exit ${k6_exit}, verify exit ${verify_exit} -> ${dir}"
+  if [ "$k6_exit" -ne 0 ] || [ "$verify_exit" -ne 0 ]; then
+    status=1
+  fi
 done
+
+exit "$status"
