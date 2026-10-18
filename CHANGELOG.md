@@ -47,6 +47,9 @@ from the post-phase-1 audit.
 - A transaction rejected for its currency reads back in the currency it
   was requested in, not the wallet's.
 - Malformed IDs arriving over SQS are counted as invalid messages.
+- A wallet or player ID sent in upper case is the same ID: it no longer
+  fails the wallet ownership check with `WALLET_NOT_FOUND`, and the same
+  operation sent again in another case replays.
 
 ## [0.2.0] - 2026-10-17
 
