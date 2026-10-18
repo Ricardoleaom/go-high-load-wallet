@@ -8,6 +8,7 @@ with the harness in [`bench/`](../../bench) and the method in
 | --- | --- |
 | [001](001-baseline-as-delivered.md) | The service as delivered for the challenge |
 | [002](002-baseline-config-tuned.md) | The same code with only configuration changed, the diagnosis of its ceiling, and the targets for phases 2 and 3 |
+| [003](003-fixes-measured.md) | The same hot path with the defects fixed and every request bounded (0.2.1) |
 
 ## Running one
 

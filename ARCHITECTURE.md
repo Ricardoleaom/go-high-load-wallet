@@ -329,8 +329,8 @@ Per message (long polling of 10 s, up to 10 per call), inside a
 | --- | --- | --- |
 | `PROCESSED`, `REJECTED`, `PENDING_REFERENCE` or replay | deleted; business rejection is final | `processed` |
 | Already completed in the inbox | deleted | `duplicate` |
-| Malformed JSON, no `messageId`, invalid money | not deleted; after 5 receptions, DLQ | `invalid` |
-| Validation error, unknown wallet, idempotency conflict, transient failure | not deleted; redelivered after 30 s, eventually DLQ | `error` |
+| Malformed JSON, no `messageId`, invalid money, malformed IDs, fields over 255 characters, other validation errors | not deleted; after 5 receptions, DLQ | `invalid` |
+| Unknown wallet, idempotency conflict, transient failure | not deleted; redelivered after 30 s, eventually DLQ | `error` |
 
 On shutdown the consumer's context is cancelled: no new receive starts, a
 message in flight has its SQL transaction aborted, is not deleted and is
@@ -392,19 +392,27 @@ Errors always have the body `{"code": "CODE", "error": "message"}`.
 | Processed (replays included) | 200 | `transactionId`, `status: PROCESSED`, `balance`, `idempotentReplay` |
 | Waiting for its reference | 202 | `status: PENDING_REFERENCE` |
 | Business rejection | 422 | `status: REJECTED`, `failureCode` |
-| Invalid input | 400 | `INVALID_BODY`, `MISSING_IDEMPOTENCY_KEY`, `INVALID_MONEY`, `VALIDATION_ERROR`, `OPENING_NOT_ALLOWED` |
+| Invalid input | 400 | `INVALID_BODY`, `MISSING_IDEMPOTENCY_KEY`, `INVALID_MONEY`, `INVALID_ID`, `VALIDATION_ERROR`, `OPENING_NOT_ALLOWED` |
+| Body over 64 KiB | 413 | `BODY_TOO_LARGE` |
 | Missing, invalid or expired token | 401 | `UNAUTHENTICATED` |
 | Token without permission, body provider differs from the token | 403 | `FORBIDDEN`, `PROVIDER_MISMATCH` |
 | Wallet not found (or another player's) | 404 | `WALLET_NOT_FOUND` |
 | Idempotency conflict | 409 | `IDEMPOTENCY_CONFLICT`, `IDEMPOTENCY_KEY_MISMATCH` |
-| Transient unavailability | 500 | `INTERNAL_ERROR` |
+| Out of time (request deadline, statement or lock timeout) | 503 | `TIMEOUT`, with `Retry-After` |
+| Unexpected failure | 500 | `INTERNAL_ERROR` |
 
 Wallet endpoints also use `INVALID_PLAYER_ID`, `INVALID_LIMIT`,
 `INVALID_CURSOR` (400) and `WALLET_CONFLICT` (409), and answer 201 on
-opening. 400 and 409 store nothing and can be corrected and resent. A 500
-means the operation did not commit or its outcome is unknown; resending
-with the same `Idempotency-Key` is safe. A 422 is final for that
-operation: the replay returns the same rejection.
+opening. Identifiers in paths, bodies and the ledger cursor must be
+canonical UUIDs (`INVALID_ID` otherwise); `externalTransactionId`,
+`referenceExternalTransactionId`, `roundId`, `gameId` and the
+`Idempotency-Key` are limited to 255 characters (`VALIDATION_ERROR`).
+400, 409 and 413 store nothing and can be corrected and resent. A 503
+`TIMEOUT` means the operation did not commit: its transaction rolled back,
+and resending it with the same `Idempotency-Key` is safe. A 500 means the
+outcome is unknown; resending with the same key is safe too. A 422 is
+final for that operation: the replay returns the same rejection. See
+[ADR 0012](docs/adr/0012-time-budgets-and-input-limits.md).
 
 | `failureCode` | Meaning |
 | --- | --- |
@@ -438,9 +446,13 @@ The IdP is Keycloak. The realm `wagering` is imported at startup
 with two-hour tokens, `bench-provider` and `bench-internal`.
 
 `httpapi.Authenticator` validates JWTs against Keycloak's JWKS
-(`MicahParks/keyfunc/v3` with `golang-jwt/jwt/v5`): signature, expiry and
-algorithm. Only `RS256` is accepted, which blocks algorithm confusion
-(an HS256 token signed with the public key as secret).
+(`MicahParks/keyfunc/v3` with `golang-jwt/jwt/v5`): signature, algorithm,
+issuer (`JWT_ISSUER`), audience (`JWT_AUDIENCE`) and a mandatory expiry.
+Only `RS256` is accepted, which blocks algorithm confusion (an HS256 token
+signed with the public key as secret). Every realm client adds the
+`wallet-api` audience, and Keycloak runs with a fixed hostname so a token
+carries the same issuer whether it was requested from the host or from
+inside the Compose network.
 
 - **Startup.** The first JWKS fetch must succeed; the API retries for up
   to 2 minutes while Keycloak starts and fails the boot otherwise, instead
@@ -496,6 +508,7 @@ The domain does not import Fx, HTTP, SQS or the database library; only
 | --- | --- | --- |
 | `DATABASE_URL` | required | PostgreSQL connection |
 | `JWKS_URL` | required | Keycloak's public keys |
+| `JWT_ISSUER`, `JWT_AUDIENCE` | required | tokens must come from this issuer and be meant for this audience |
 | `SQS_TRANSACTIONS_QUEUE_URL`, `SQS_EVENTS_QUEUE_URL` | required | inbound and outbound queues |
 | `SQS_ENDPOINT`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | LocalStack defaults | SQS access |
 | `HTTP_PORT` | `8080` | public API |
@@ -503,6 +516,8 @@ The domain does not import Fx, HTTP, SQS or the database library; only
 | `PPROF_ENABLED` | `false` | serve the Go profiler on the admin port |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
 | `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS` | `10`, `5` | connection pool |
+| `DB_STATEMENT_TIMEOUT`, `DB_IDLE_IN_TRANSACTION_TIMEOUT`, `DB_LOCK_TIMEOUT` | `5s`, `10s`, `2s` | PostgreSQL session limits on every pooled connection |
+| `REQUEST_TIMEOUT` | `5s` | deadline of every authenticated request; past it the API answers 503 `TIMEOUT` |
 | `OUTBOX_PUBLISH_INTERVAL`, `OUTBOX_BATCH_SIZE` | `2s`, `20` | outbox publisher |
 | `REFERENCE_RETRY_INTERVAL` | `15s` | pending-reference worker |
 | `JWKS_REFRESH_INTERVAL` | `1h` | JWKS re-read |
@@ -593,7 +608,7 @@ tests only.
 - `bench/k6/` holds five open-model scenarios; `bench/run.sh` (`make
   bench`) runs one on a fresh, pinned, seeded stack and collects the
   summary, profiles, container stats, a Prometheus snapshot and the
-  verification. Method in
+  verification, and exits 1 when k6 or the verification failed. Method in
   [ADR 0009](docs/adr/0009-benchmark-methodology.md), results in
   [`docs/benchmarks`](docs/benchmarks/README.md).
 
@@ -625,26 +640,19 @@ challenge never defined that relationship.
 
 ## 22. Limitations and known gaps
 
-- **The idempotency lookups cannot use their indexes.** The unique indexes
-  on `(provider_id, idempotency_key)` and `(provider_id, external_id)` are
-  partial (`WHERE kind != 'OPENING'`) and the lookups do not state that
-  condition, so each one reads the whole `transactions` table. It is the
-  first throughput ceiling
-  ([benchmark 002](docs/benchmarks/002-baseline-config-tuned.md#where-postgresqls-cpu-goes))
-  and the first fix of phase 2.
-- **Reversals can deadlock the connection pool under overload.**
-  `LockByID` locks the original inside the reversal's transaction and
-  reads it back through the pool; with as many concurrent reversals as
-  connections, every connection waits for another until clients time out
-  ([benchmark 002](docs/benchmarks/002-baseline-config-tuned.md#a-pool-deadlock-under-overload)).
-  Fixed early in phase 2.
-- **No admission control.** A saturated service queues requests without
-  bound instead of rejecting the excess.
-- **About eleven SQL round trips per bet** and **an outbox that publishes
-  about 10 events per second per instance**, one at a time, while a money
-  movement produces two. Both are measured in the
-  [baselines](docs/benchmarks/README.md) and are the targets of phases 2
-  and 3.
+- **No admission control.** A saturated service queues requests up to
+  their deadline instead of rejecting the excess at once
+  ([benchmark 003](docs/benchmarks/003-fixes-measured.md)); phase 2c adds
+  it.
+- **A hot wallet serializes at about 240 bets a second.** Each bet holds
+  the wallet's row lock for its whole multi-statement transaction; past
+  that, waits end as 503s from the lock and request timeouts.
+- **About eleven SQL round trips and four commits per bet** and **an
+  outbox that publishes about 10 events per second per instance**, one at
+  a time, while a money movement produces two. Both are measured in the
+  [benchmarks](docs/benchmarks/README.md) and are the targets of phases 2b
+  and 3. Benchmarks 002 and 003 also show short stalls of a few hundred
+  milliseconds, likely checkpoints, to look into with phase 2c's tuning.
 - **Inbox and business operation in separate commits** (section 9). The
   financial guarantee rests on the idempotency index.
 - **SQS retries on a fixed visibility timeout** and do not tell transient

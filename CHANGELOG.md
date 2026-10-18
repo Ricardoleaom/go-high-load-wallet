@@ -4,7 +4,51 @@ All notable changes to this project. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 uses [semantic versioning](https://semver.org/).
 
-## [0.2.0] - unreleased
+## [0.2.1] - unreleased
+
+Phase 2a: the defects benchmark 002 found, fixed and measured in
+[benchmark 003](docs/benchmarks/003-fixes-measured.md), plus the hardening
+from the post-phase-1 audit.
+
+### Changed (breaking)
+
+- `JWT_ISSUER` and `JWT_AUDIENCE` are required, and tokens must carry a
+  matching issuer, the audience and an expiry. The bundled Keycloak realm
+  adds the `wallet-api` audience to every client and runs with a fixed
+  hostname.
+- Migration `000011` adds `transactions.currency`, filled from the wallets
+  for existing rows.
+- Malformed identifiers, oversized fields and bodies now answer 400
+  (`INVALID_ID`, `VALIDATION_ERROR`) or 413 (`BODY_TOO_LARGE`) instead of
+  500, and a request out of time answers 503 `TIMEOUT`.
+- The local stack publishes its ports on `127.0.0.1` only.
+
+### Added
+
+- `REQUEST_TIMEOUT`, `DB_STATEMENT_TIMEOUT`,
+  `DB_IDLE_IN_TRANSACTION_TIMEOUT` and `DB_LOCK_TIMEOUT`; HTTP servers
+  bound reads, writes and idle connections
+  ([ADR 0012](docs/adr/0012-time-budgets-and-input-limits.md)).
+- Dependabot for Go modules, Actions and the Dockerfile; Actions pinned by
+  commit SHA.
+- Tests for readiness, the submit error mapping and the outbox backoff,
+  and a fuzz test for money parsing.
+
+### Fixed
+
+- The idempotency and external-ID lookups use their unique indexes
+  instead of scanning the `transactions` table on every submission.
+- Reversals and the pending-reference retry no longer need a second pool
+  connection while holding one, which deadlocked the pool under overload.
+- Concurrent submissions with the same external ID and different
+  idempotency keys answer 409 `IDEMPOTENCY_KEY_MISMATCH` instead of 500.
+- One pending reference that keeps failing no longer stops the retry of
+  the others claimed with it.
+- A transaction rejected for its currency reads back in the currency it
+  was requested in, not the wallet's.
+- Malformed IDs arriving over SQS are counted as invalid messages.
+
+## [0.2.0] - 2026-10-17
 
 Phase 1: foundation and baseline. See [ROADMAP.md](ROADMAP.md).
 
@@ -52,9 +96,9 @@ Phase 1: foundation and baseline. See [ROADMAP.md](ROADMAP.md).
 
 ### Known issues
 
-Found by the benchmarks of this release and fixed first in 0.3.0; the
-hot path is unchanged from 0.1.0-challenge on purpose, so the baselines
-measure it as delivered.
+Found by the benchmarks of this release and fixed in 0.2.1; the hot path
+is unchanged from 0.1.0-challenge on purpose, so the baselines measure it
+as delivered.
 
 - The idempotency and external-ID lookups cannot use their partial unique
   indexes and scan the `transactions` table on every submission.
@@ -68,5 +112,6 @@ and SQS with persistent idempotency, an append-only ledger, a
 transactional outbox, pending-reference handling for early reversals and
 OAuth2 authentication with Keycloak.
 
-[0.2.0]: https://github.com/Ricardoleaom/go-high-load-wallet/compare/v0.1.0-challenge...HEAD
+[0.2.1]: https://github.com/Ricardoleaom/go-high-load-wallet/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Ricardoleaom/go-high-load-wallet/compare/v0.1.0-challenge...v0.2.0
 [0.1.0-challenge]: https://github.com/Ricardoleaom/go-high-load-wallet/releases/tag/v0.1.0-challenge

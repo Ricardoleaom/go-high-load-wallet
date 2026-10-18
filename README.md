@@ -136,21 +136,26 @@ from a report in [docs/benchmarks](docs/benchmarks/README.md).
 | [001](docs/benchmarks/001-baseline-as-delivered.md), as delivered | 40 rps | 18 ms | 82 rps, then falling | 10 a second, whatever the load |
 | [002](docs/benchmarks/002-baseline-config-tuned.md), configuration only | no better | 18 ms | 86 rps | up to 57 a second; one publisher tops out near 240 |
 | [002](docs/benchmarks/002-baseline-config-tuned.md#where-postgresqls-cpu-goes), same code with two indexes | 100 rps | 4.7 ms | 443 rps | |
+| [003](docs/benchmarks/003-fixes-measured.md), defects fixed (0.2.1) | 150 rps | 4.5 ms | 495 rps; 568 at 750 offered, no stall | 10 a second |
 | phase 2 target | ≥ 1,000 rps | ≤ 5 ms | | |
 | phase 3 target | | | | ≥ 2,000 a second, p99 age under 1 s |
 
-What the measurements found, and phase 2 fixes first:
+What the measurements found:
 
 - The first ceiling was not the design but two idempotency lookups that
-  cannot use their partial unique indexes: they read the whole
+  could not use their partial unique indexes: they read the whole
   `transactions` table on every bet and took 98% of PostgreSQL's CPU.
-- Under overload, reversals can deadlock the connection pool until
-  clients time out.
+- Under overload, reversals could deadlock the connection pool until
+  clients timed out.
 - The outbox publishes exactly `batch / interval` events a second, one
   event at a time.
 
-Every run, the overloaded ones included, passed all eight invariant
-checks.
+Version 0.2.1 fixes the first two, bounds every request in time and size
+([ADR 0012](docs/adr/0012-time-budgets-and-input-limits.md)), and
+[benchmark 003](docs/benchmarks/003-fixes-measured.md) measures the
+result: six times the as-delivered throughput, and no stall under 1.5
+times the peak. Every run, the overloaded ones included, passed all
+eight invariant checks.
 
 ## Layout
 
