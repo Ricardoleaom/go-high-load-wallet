@@ -160,7 +160,7 @@ for run in $(seq 1 "$REPEAT"); do
   # Let the outbox publisher work through what the run left behind for a
   # moment, then sample the app's own view of the backlog.
   sleep 10
-  curl -fsS localhost:6060/metrics | grep -E '^(outbox_|wager_transactions_total|outbox_events_published_total|auth_token_cache_total)' > "$dir/metrics-after.txt" || true
+  curl -fsS localhost:6060/metrics | grep -E '^(outbox_|wager_transactions_total|outbox_events_published_total|auth_token_cache_total|http_requests_total)' > "$dir/metrics-after.txt" || true
   # What PostgreSQL counted over the run (the backends flushed their
   # statistics while the relay drained): scans, HOT updates, index use.
   compose exec -T postgres psql -U app -d wallet --csv -c \
