@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: local_dev_password
     ports:
-      - "${POSTGRES_HOST_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -42,7 +42,7 @@ services:
     volumes:
       - ./deploy/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     ports:
-      - "8081:8080"
+      - "127.0.0.1:8081:8080"
 
   localstack:
     image: localstack/localstack:3.8
@@ -50,7 +50,7 @@ services:
       SERVICES: sqs
       DEFAULT_REGION: us-east-1
     ports:
-      - "4566:4566"
+      - "127.0.0.1:4566:4566"
     volumes:
       - ./deploy/localstack/init-queues.sh:/etc/localstack/init/ready.d/init-queues.sh:ro
     healthcheck:
@@ -104,7 +104,7 @@ services:
       OTEL_TRACES_SAMPLER: parentbased_traceidratio
       OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-1}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
       - "127.0.0.1:6060:6060"
 
   prometheus:
@@ -118,7 +118,7 @@ services:
     volumes:
       - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
 
   grafana:
     image: grafana/grafana:13.2.4
@@ -134,13 +134,13 @@ services:
       - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
   jaeger:
     image: jaegertracing/jaeger:2.22.0
     profiles: [obs]
     ports:
-      - "16686:16686"
+      - "127.0.0.1:16686:16686"
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.20.1
