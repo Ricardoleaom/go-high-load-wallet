@@ -72,25 +72,10 @@ type Input struct {
 // New creates a transaction in PENDING state. OPENING is reserved for
 // internal wallet creation and does not carry provider/external metadata.
 func New(input Input) (Transaction, error) {
-	if input.ID == "" ||
-		input.WalletID == "" ||
-		input.PlayerID == "" ||
-		input.Amount.Currency() == "" {
+	if input.ID == "" || (input.Kind != KindOpening && input.PayloadHash == "") {
 		return Transaction{}, ErrInvalidTransaction
 	}
-
-	if input.Kind != KindOpening {
-		if input.ProviderID == "" ||
-			input.ExternalID == "" ||
-			input.IdempotencyKey == "" ||
-			input.PayloadHash == "" ||
-			input.RoundID == "" ||
-			input.GameID == "" {
-			return Transaction{}, ErrInvalidTransaction
-		}
-	}
-
-	if err := validateOperation(input.Kind, input.Amount, input.ReferenceExternalID); err != nil {
+	if err := ValidateRequest(input); err != nil {
 		return Transaction{}, err
 	}
 
@@ -113,6 +98,29 @@ func New(input Input) (Transaction, error) {
 		createdAt:           now,
 		updatedAt:           now,
 	}, nil
+}
+
+// ValidateRequest checks everything New checks except the transaction ID
+// and the payload hash, which the service derives from a request that
+// passed it.
+func ValidateRequest(input Input) error {
+	if input.WalletID == "" ||
+		input.PlayerID == "" ||
+		input.Amount.Currency() == "" {
+		return ErrInvalidTransaction
+	}
+
+	if input.Kind != KindOpening {
+		if input.ProviderID == "" ||
+			input.ExternalID == "" ||
+			input.IdempotencyKey == "" ||
+			input.RoundID == "" ||
+			input.GameID == "" {
+			return ErrInvalidTransaction
+		}
+	}
+
+	return validateOperation(input.Kind, input.Amount, input.ReferenceExternalID)
 }
 
 func validateOperation(kind Kind, amount money.Money, referenceExternalID string) error {

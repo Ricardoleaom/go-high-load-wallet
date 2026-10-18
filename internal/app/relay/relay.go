@@ -3,8 +3,13 @@ package relay
 
 import (
 	"context"
+	"log/slog"
 	"time"
+
+	"go.opentelemetry.io/otel"
 )
+
+var tracer = otel.Tracer("github.com/Ricardoleaom/go-high-load-wallet/internal/app/relay")
 
 // Event is an outbox row ready to send.
 type Event struct {
@@ -46,4 +51,57 @@ func Backoff(attempts int) time.Duration {
 		return maxBackoff
 	}
 	return d
+}
+
+// Observer is told how each publishing round went.
+type Observer interface {
+	Batch(ctx context.Context, published, failed int, took time.Duration)
+}
+
+// Relay polls the store and sends what is due to the sink. Several relays
+// can run at once: the store never hands the same event to two of them.
+type Relay struct {
+	store    Store
+	sink     Sink
+	batch    int
+	observer Observer
+}
+
+func New(store Store, sink Sink, batch int, observer Observer) *Relay {
+	return &Relay{store: store, sink: sink, batch: batch, observer: observer}
+}
+
+// Run publishes on a fixed interval until ctx ends.
+func (r *Relay) Run(ctx context.Context, interval time.Duration) error {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			if _, err := r.PublishOnce(ctx); err != nil {
+				slog.ErrorContext(ctx, "publish outbox batch", "error", err)
+			}
+		}
+	}
+}
+
+// PublishOnce runs one round: up to the batch size of due events go to
+// the sink, and the round is reported to the observer.
+func (r *Relay) PublishOnce(ctx context.Context) (int, error) {
+	ctx, span := tracer.Start(ctx, "outbox.publish_batch")
+	defer span.End()
+
+	started := time.Now()
+	published, failed, err := r.store.PublishDue(ctx, r.batch, Backoff, r.sink.Send)
+	r.observer.Batch(ctx, published, failed, time.Since(started))
+	if err != nil {
+		return published, err
+	}
+	if published > 0 {
+		slog.InfoContext(ctx, "published outbox events", "count", published)
+	}
+	return published, nil
 }

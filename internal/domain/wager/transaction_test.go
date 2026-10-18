@@ -190,3 +190,37 @@ func TestKindKnown(t *testing.T) {
 		}
 	}
 }
+
+// ValidateRequest checks what a provider sends, before the service assigns
+// the transaction ID and the payload hash.
+func TestValidateRequest(t *testing.T) {
+	valid := testInput(t, KindBet, "25.00", "")
+	valid.ID, valid.PayloadHash = "", ""
+	if err := ValidateRequest(valid); err != nil {
+		t.Fatalf("a valid bet without ID and hash: %v", err)
+	}
+
+	for name, tc := range map[string]struct {
+		change func(*Input)
+		want   error
+	}{
+		"no wallet":                  {func(in *Input) { in.WalletID = "" }, ErrInvalidTransaction},
+		"no player":                  {func(in *Input) { in.PlayerID = "" }, ErrInvalidTransaction},
+		"no provider":                {func(in *Input) { in.ProviderID = "" }, ErrInvalidTransaction},
+		"no external ID":             {func(in *Input) { in.ExternalID = "" }, ErrInvalidTransaction},
+		"no idempotency key":         {func(in *Input) { in.IdempotencyKey = "" }, ErrInvalidTransaction},
+		"no round":                   {func(in *Input) { in.RoundID = "" }, ErrInvalidTransaction},
+		"no game":                    {func(in *Input) { in.GameID = "" }, ErrInvalidTransaction},
+		"unknown kind":               {func(in *Input) { in.Kind = "JACKPOT" }, ErrInvalidTransaction},
+		"zero bet":                   {func(in *Input) { in.Amount = mustMoney(t, "0.00") }, ErrInvalidAmount},
+		"loss with an amount":        {func(in *Input) { in.Kind = KindLoss }, ErrInvalidAmount},
+		"refund without reference":   {func(in *Input) { in.Kind = KindRefund }, ErrInvalidAmount},
+		"rollback without reference": {func(in *Input) { in.Kind = KindRollback }, ErrInvalidAmount},
+	} {
+		in := valid
+		tc.change(&in)
+		if err := ValidateRequest(in); !errors.Is(err, tc.want) {
+			t.Errorf("%s: err = %v, want %v", name, err, tc.want)
+		}
+	}
+}
