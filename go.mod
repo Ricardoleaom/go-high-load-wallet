@@ -24,6 +24,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
 	go.uber.org/fx v1.24.0
+	pgregory.net/rapid v1.3.0
 )
 
 require (
