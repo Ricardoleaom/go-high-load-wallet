@@ -62,6 +62,21 @@ done
 cleanup() { compose down -v --remove-orphans > /dev/null 2>&1 || true; }
 trap cleanup EXIT
 
+# k6 copies whatever setup() returns into the summary, and setup() hands
+# the VUs their access tokens: drop it so no result file carries a token.
+scrub_summary() {
+  [ -s "$1" ] || return 0
+  python3 -c '
+import json, sys
+path = sys.argv[1]
+with open(path) as f:
+    summary = json.load(f)
+summary.pop("setup_data", None)
+with open(path, "w") as f:
+    json.dump(summary, f, indent=2)
+' "$1"
+}
+
 if [ "$MODE" = knee ]; then
   steps=$(( (KNEE_MAX - KNEE_START) / KNEE_STEP + 1 ))
   run_seconds=$(( steps * ($(seconds "$KNEE_STEP_DURATION") + 5) ))
@@ -131,6 +146,7 @@ for run in $(seq 1 "$REPEAT"); do
   k6_exit=$?
   set -e
   finished=$(date -u +%s)
+  scrub_summary "$dir/summary.json"
 
   wait "$profile_pid" || true
   kill "$stats_pid" 2> /dev/null || true
