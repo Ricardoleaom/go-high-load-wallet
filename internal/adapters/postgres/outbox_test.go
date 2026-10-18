@@ -182,3 +182,45 @@ func TestConcurrentPublishersNeverSendAnEventTwice(t *testing.T) {
 		t.Errorf("%d distinct events sent, want 40", len(counts))
 	}
 }
+
+// Under load the outbox fills faster than the relay drains it. Claiming the
+// next batch must cost the same with a large backlog as with a small one:
+// walk the pending events in order and stop at the batch, never sort them
+// all.
+func TestPublishDueDoesNotSortTheBacklog(t *testing.T) {
+	pool := openPool(t, pgtest.FreshURL(t))
+	if _, err := pool.Exec(testContext(t), `
+		INSERT INTO outbox_events (id, aggregate_id, event_type, payload, correlation_id, occurred_at)
+		SELECT gen_random_uuid(), 'aggregate', 'TestEvent', '{}', 'correlation', now() - i * interval '1 millisecond'
+		FROM generate_series(1, 50000) AS i`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(testContext(t), `ANALYZE outbox_events`); err != nil {
+		t.Fatal(err)
+	}
+
+	var plan []map[string]any
+	if err := pool.QueryRow(testContext(t), `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) `+postgres.ClaimDueEventsQuery, 20).Scan(&plan); err != nil {
+		t.Fatal(err)
+	}
+	root := plan[0]["Plan"].(map[string]any)
+	if blocks := root["Shared Hit Blocks"].(float64) + root["Shared Read Blocks"].(float64); blocks > 100 {
+		t.Errorf("claiming 20 of 50,000 pending events read %v blocks", blocks)
+	}
+	if sorts := findNodes(root, "Sort"); sorts > 0 {
+		t.Errorf("the claim sorts the backlog (%d sort nodes)", sorts)
+	}
+}
+
+func findNodes(node map[string]any, nodeType string) int {
+	n := 0
+	if node["Node Type"] == nodeType {
+		n++
+	}
+	if children, ok := node["Plans"].([]any); ok {
+		for _, child := range children {
+			n += findNodes(child.(map[string]any), nodeType)
+		}
+	}
+	return n
+}

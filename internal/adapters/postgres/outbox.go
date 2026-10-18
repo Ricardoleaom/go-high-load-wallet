@@ -11,6 +11,17 @@ import (
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/relay"
 )
 
+// ClaimDueEventsQuery claims the oldest due events, skipping those another
+// relay holds. Exported for the plan test.
+const ClaimDueEventsQuery = `
+	SELECT id::text, aggregate_id, event_type, payload::text, correlation_id,
+	       COALESCE(causation_id, ''), occurred_at, attempts
+	FROM outbox_events
+	WHERE published_at IS NULL AND next_attempt_at <= now()
+	ORDER BY occurred_at
+	LIMIT $1
+	FOR UPDATE SKIP LOCKED`
+
 // OutboxStore is the outbox table as a relay.Store.
 type OutboxStore struct {
 	pool *pgxpool.Pool
@@ -61,14 +72,7 @@ func (s *OutboxStore) PublishDue(
 		event    relay.Event
 		attempts int
 	}
-	rows, err := tx.Query(ctx, `
-		SELECT id::text, aggregate_id, event_type, payload::text, correlation_id,
-		       COALESCE(causation_id, ''), occurred_at, attempts
-		FROM outbox_events
-		WHERE published_at IS NULL AND next_attempt_at <= now()
-		ORDER BY occurred_at
-		LIMIT $1
-		FOR UPDATE SKIP LOCKED`, limit)
+	rows, err := tx.Query(ctx, ClaimDueEventsQuery, limit)
 	if err != nil {
 		return 0, 0, fmt.Errorf("claim outbox events: %w", err)
 	}
