@@ -1,0 +1,24 @@
+File: api
+Build ID: 1c012c4f6c7e25b25532e183d38298bdfbe7e53b
+Type: cpu
+Time: 2026-10-17 23:25:00 -03
+Duration: 30s, Total samples = 6.56s (21.87%)
+Showing nodes accounting for 3.63s, 55.34% of 6.56s total
+Dropped 506 nodes (cum <= 0.03s)
+Showing top 15 nodes out of 248
+      flat  flat%   sum%        cum   cum%
+     2.88s 43.90% 43.90%      2.88s 43.90%  internal/runtime/syscall/linux.Syscall6
+     0.13s  1.98% 45.88%      0.13s  1.98%  runtime.futex
+     0.09s  1.37% 47.26%      0.09s  1.37%  runtime.memmove
+     0.06s  0.91% 48.17%      0.06s  0.91%  encoding/json/internal/jsonwire.AppendQuote
+     0.06s  0.91% 49.09%      0.06s  0.91%  runtime.memclrNoHeapPointers
+     0.05s  0.76% 49.85%      0.05s  0.76%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.05s  0.76% 50.61%      0.05s  0.76%  runtime.findfunc
+     0.04s  0.61% 51.22%      0.05s  0.76%  context.value
+     0.04s  0.61% 51.83%      0.04s  0.61%  internal/runtime/maps.h2
+     0.04s  0.61% 52.44%      0.05s  0.76%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+     0.04s  0.61% 53.05%      0.05s  0.76%  runtime.(*unwinder).resolveInternal
+     0.04s  0.61% 53.66%      0.26s  3.96%  runtime.mallocgc
+     0.04s  0.61% 54.27%      0.04s  0.61%  sync.(*Pool).pin
+     0.04s  0.61% 54.88%      0.04s  0.61%  time.runtimeNow
+     0.03s  0.46% 55.34%      0.39s  5.95%  github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres.(*LedgerRepository).Append

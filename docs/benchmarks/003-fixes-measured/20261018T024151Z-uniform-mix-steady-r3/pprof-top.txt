@@ -1,0 +1,24 @@
+File: api
+Build ID: 1c012c4f6c7e25b25532e183d38298bdfbe7e53b
+Type: cpu
+Time: 2026-10-17 23:46:17 -03
+Duration: 30s, Total samples = 5.75s (19.17%)
+Showing nodes accounting for 3.59s, 62.43% of 5.75s total
+Dropped 409 nodes (cum <= 0.03s)
+Showing top 15 nodes out of 328
+      flat  flat%   sum%        cum   cum%
+     2.96s 51.48% 51.48%      2.96s 51.48%  internal/runtime/syscall/linux.Syscall6
+     0.10s  1.74% 53.22%      0.10s  1.74%  runtime.futex
+     0.07s  1.22% 54.43%      0.07s  1.22%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.05s  0.87% 55.30%      0.27s  4.70%  runtime.mallocgc
+     0.05s  0.87% 56.17%      0.05s  0.87%  runtime.memmove
+     0.05s  0.87% 57.04%      0.05s  0.87%  runtime.nextFreeFast (inline)
+     0.04s   0.7% 57.74%      0.05s  0.87%  context.value
+     0.04s   0.7% 58.43%      0.04s   0.7%  runtime.mallocgcTinySC2
+     0.04s   0.7% 59.13%      0.04s   0.7%  runtime.memclrNoHeapPointers
+     0.04s   0.7% 59.83%      0.07s  1.22%  runtime.tryDeferToSpanScan
+     0.03s  0.52% 60.35%      0.03s  0.52%  cmpbody
+     0.03s  0.52% 60.87%      0.06s  1.04%  context.AfterFunc.func1
+     0.03s  0.52% 61.39%      0.03s  0.52%  crypto/internal/fips140/bigmod.(*Nat).sub
+     0.03s  0.52% 61.91%      1.28s 22.26%  database/sql.(*DB).queryDC
+     0.03s  0.52% 62.43%      0.03s  0.52%  encoding/json/internal/jsonwire.AppendQuote

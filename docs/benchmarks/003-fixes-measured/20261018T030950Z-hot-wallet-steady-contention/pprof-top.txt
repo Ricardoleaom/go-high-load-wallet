@@ -1,0 +1,24 @@
+File: api
+Build ID: 1c012c4f6c7e25b25532e183d38298bdfbe7e53b
+Type: cpu
+Time: 2026-10-18 00:12:44 -03
+Duration: 30s, Total samples = 12.29s (40.97%)
+Showing nodes accounting for 6.69s, 54.43% of 12.29s total
+Dropped 702 nodes (cum <= 0.06s)
+Showing top 15 nodes out of 263
+      flat  flat%   sum%        cum   cum%
+     5.14s 41.82% 41.82%      5.14s 41.82%  internal/runtime/syscall/linux.Syscall6
+     0.36s  2.93% 44.75%      0.36s  2.93%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.19s  1.55% 46.30%      0.19s  1.55%  runtime.memmove
+     0.15s  1.22% 47.52%      0.15s  1.22%  runtime.memclrNoHeapPointers
+     0.11s   0.9% 48.41%      0.11s   0.9%  runtime.futex
+     0.09s  0.73% 49.15%      0.10s  0.81%  context.value
+     0.09s  0.73% 49.88%      0.11s   0.9%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.09s  0.73% 50.61%      0.09s  0.73%  runtime.nanotime
+     0.08s  0.65% 51.26%      0.08s  0.65%  runtime.mallocgcSmallScanNoHeaderSC7
+     0.07s  0.57% 51.83%      0.07s  0.57%  internal/runtime/maps.memHashAES
+     0.07s  0.57% 52.40%      0.07s  0.57%  runtime.mallocgcSmallScanNoHeaderSC4
+     0.07s  0.57% 52.97%      0.16s  1.30%  runtime.scanObjectsSmall
+     0.06s  0.49% 53.46%      0.74s  6.02%  github.com/jackc/pgx/v5/pgconn.(*ResultReader).readUntilRowDescription
+     0.06s  0.49% 53.95%      0.08s  0.65%  runtime.findfunc
+     0.06s  0.49% 54.43%      0.10s  0.81%  runtime.tryDeferToSpanScan

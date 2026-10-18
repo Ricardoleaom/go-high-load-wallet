@@ -1,0 +1,24 @@
+File: api
+Build ID: 1c012c4f6c7e25b25532e183d38298bdfbe7e53b
+Type: cpu
+Time: 2026-10-17 23:53:46 -03
+Duration: 30s, Total samples = 5.59s (18.63%)
+Showing nodes accounting for 3.42s, 61.18% of 5.59s total
+Dropped 433 nodes (cum <= 0.03s)
+Showing top 15 nodes out of 290
+      flat  flat%   sum%        cum   cum%
+     2.82s 50.45% 50.45%      2.82s 50.45%  internal/runtime/syscall/linux.Syscall6
+     0.10s  1.79% 52.24%      0.10s  1.79%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.06s  1.07% 53.31%      0.06s  1.07%  runtime.futex
+     0.05s  0.89% 54.20%      0.05s  0.89%  crypto/internal/fips140/sha256.blockAVX2
+     0.05s  0.89% 55.10%      0.06s  1.07%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.05s  0.89% 55.99%      0.05s  0.89%  runtime.memmove
+     0.04s  0.72% 56.71%      0.49s  8.77%  github.com/jackc/pgx/v5/pgproto3.(*Frontend).Receive
+     0.04s  0.72% 57.42%      0.22s  3.94%  runtime.mallocgc
+     0.03s  0.54% 57.96%      0.03s  0.54%  encoding/json/internal/jsonwire.ConsumeSimpleString
+     0.03s  0.54% 58.50%      0.04s  0.72%  encoding/json/v2.lookupArshaler
+     0.03s  0.54% 59.03%      0.03s  0.54%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+     0.03s  0.54% 59.57%      0.03s  0.54%  runtime.(*gcControllerState).releaseNextGCMarkWorker
+     0.03s  0.54% 60.11%      0.03s  0.54%  runtime.lock2
+     0.03s  0.54% 60.64%      0.03s  0.54%  runtime.mallocgcSmallScanNoHeaderSC4
+     0.03s  0.54% 61.18%      0.03s  0.54%  runtime.mallocgcSmallScanNoHeaderSC5
