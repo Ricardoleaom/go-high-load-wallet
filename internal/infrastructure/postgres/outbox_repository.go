@@ -94,6 +94,14 @@ func (r *OutboxRepository) PublishDue(
 	}
 	defer tx.Rollback()
 
+	// The batch waits on the broker between statements, which PostgreSQL
+	// sees as idle in transaction: lift the session's limit for this
+	// transaction only, so a slow broker cannot end it halfway and undo the
+	// bookkeeping of events already sent.
+	if _, err := tx.ExecContext(ctx, `SET LOCAL idle_in_transaction_session_timeout = 0`); err != nil {
+		return 0, fmt.Errorf("lift idle limit for outbox publish: %w", err)
+	}
+
 	const selectQuery = `
 		SELECT id, aggregate_id, event_type, payload, correlation_id,
 		       COALESCE(causation_id, ''), occurred_at, attempts
