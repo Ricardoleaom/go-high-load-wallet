@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 )
 
 // maxBodyBytes bounds every request body; the largest valid one is a small
@@ -50,6 +52,18 @@ func pathID(w http.ResponseWriter, r *http.Request, name string) (string, bool) 
 		return "", false
 	}
 	return id, true
+}
+
+// writeServerError answers a failure the client did not cause: 503 when the
+// request ran out of time, so the client knows a retry may succeed, and 500
+// otherwise.
+func writeServerError(w http.ResponseWriter, r *http.Request, err error, message string) {
+	if errors.Is(r.Context().Err(), context.DeadlineExceeded) || postgres.IsTimeout(err) {
+		w.Header().Set("Retry-After", "1")
+		writeError(w, http.StatusServiceUnavailable, "TIMEOUT", "the request did not finish within its time budget")
+		return
+	}
+	writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", message)
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

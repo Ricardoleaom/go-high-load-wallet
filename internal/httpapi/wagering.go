@@ -91,7 +91,7 @@ func (h *handler) submitWagerTransaction(w http.ResponseWriter, r *http.Request)
 	logger := slog.With("transport", "http", "providerId", providerID, "walletId", req.WalletID)
 	if err != nil {
 		logger.ErrorContext(r.Context(), "submit wager transaction", "externalTransactionId", req.ExternalTransactionID, "error", err)
-		writeSubmitError(w, err)
+		writeSubmitError(w, r, err)
 		return
 	}
 
@@ -113,7 +113,7 @@ func (h *handler) submitWagerTransaction(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, statusCodeForResult(result), toSubmitResponse(result))
 }
 
-func writeSubmitError(w http.ResponseWriter, err error) {
+func writeSubmitError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, wagerapp.ErrIdempotencyConflict):
 		writeError(w, http.StatusConflict, "IDEMPOTENCY_CONFLICT", "idempotency key reused with a different payload")
@@ -132,7 +132,7 @@ func writeSubmitError(w http.ResponseWriter, err error) {
 		errors.Is(err, money.ErrCurrencyMismatch):
 		writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 	default:
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not process the transaction")
+		writeServerError(w, r, err, "could not process the transaction")
 	}
 }
 
@@ -218,7 +218,7 @@ func (h *handler) getTransaction(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "TRANSACTION_NOT_FOUND", "transaction not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load transaction")
+		writeServerError(w, r, err, "could not load transaction")
 		return
 	}
 
@@ -249,7 +249,7 @@ func (h *handler) getTransactionByExternalID(w http.ResponseWriter, r *http.Requ
 			writeError(w, http.StatusNotFound, "TRANSACTION_NOT_FOUND", "transaction not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load transaction")
+		writeServerError(w, r, err, "could not load transaction")
 		return
 	}
 

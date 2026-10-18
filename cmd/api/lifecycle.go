@@ -69,25 +69,39 @@ func registerTracing(lc fx.Lifecycle) error {
 	return nil
 }
 
+// adminWriteTimeout leaves room for the longest admin response, a CPU
+// profile capped at 60 seconds.
+const adminWriteTimeout = 70 * time.Second
+
 func registerHTTPServer(lc fx.Lifecycle, cfg config.Config, handler http.Handler) {
-	serve(lc, "HTTP", ":"+cfg.HTTPPort, handler)
+	// The response may still be written for a moment after the request's
+	// own deadline, which answers 503 when it expires.
+	serve(lc, "HTTP", newServer(":"+cfg.HTTPPort, handler, cfg.RequestTimeout+5*time.Second))
 }
 
 // registerAdminServer serves metrics (and pprof when enabled) on their own
 // address, loopback by default, so they stay off the public network.
 func registerAdminServer(lc fx.Lifecycle, cfg config.Config, metrics *observability.Metrics) {
-	serve(lc, "admin", cfg.AdminAddr, observability.AdminHandler(metrics, cfg.PprofEnabled))
+	serve(lc, "admin", newServer(cfg.AdminAddr, observability.AdminHandler(metrics, cfg.PprofEnabled), adminWriteTimeout))
+}
+
+// newServer bounds how long a client may take to send a request and how
+// long an idle keep-alive connection is kept, so slow or idle clients
+// cannot hold connections indefinitely.
+func newServer(addr string, handler http.Handler, writeTimeout time.Duration) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       120 * time.Second,
+	}
 }
 
 // serve listens on OnStart, so a taken port fails the boot, and drains
 // in-flight requests on OnStop within the shutdown deadline.
-func serve(lc fx.Lifecycle, name, addr string, handler http.Handler) {
-	server := &http.Server{
-		Addr:              addr,
-		Handler:           handler,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
+func serve(lc fx.Lifecycle, name string, server *http.Server) {
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
 			listener, err := net.Listen("tcp", server.Addr)

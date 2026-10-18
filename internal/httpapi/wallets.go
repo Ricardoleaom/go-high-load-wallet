@@ -65,7 +65,7 @@ func (h *handler) openWallet(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusConflict, "WALLET_CONFLICT", "a wallet already exists for this player and currency")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not open wallet")
+		writeServerError(w, r, err, "could not open wallet")
 		return
 	}
 
@@ -92,7 +92,7 @@ func (h *handler) getWallet(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "WALLET_NOT_FOUND", "wallet not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load wallet")
+		writeServerError(w, r, err, "could not load wallet")
 		return
 	}
 
@@ -152,7 +152,7 @@ func (h *handler) getWalletLedger(w http.ResponseWriter, r *http.Request) {
 
 	entries, err := h.deps.Ledger.ListByWallet(r.Context(), walletID, afterCreatedAt, afterID, limit)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load ledger")
+		writeServerError(w, r, err, "could not load ledger")
 		return
 	}
 
@@ -228,13 +228,13 @@ func (h *handler) reconcileWallet(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "WALLET_NOT_FOUND", "wallet not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not reconcile wallet")
+		writeServerError(w, r, err, "could not reconcile wallet")
 		return
 	}
 
 	difference, err := snapshot.StoredBalance.Subtract(snapshot.CalculatedBalance)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not compare balances")
+		writeServerError(w, r, err, "could not compare balances")
 		return
 	}
 

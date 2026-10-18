@@ -27,6 +27,7 @@ func newDB(lc fx.Lifecycle, cfg config.Config) (*sql.DB, error) {
 		postgres.WithMaxOpenConns(cfg.DBMaxOpenConns),
 		postgres.WithMaxIdleConns(cfg.DBMaxIdleConns),
 		postgres.WithQueryTracing(),
+		postgres.WithSessionTimeouts(cfg.DBStatementTimeout, cfg.DBIdleInTransactionTimeout, cfg.DBLockTimeout),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
@@ -146,6 +147,7 @@ func newReferenceRetryWorker(wagerService *wagerapp.Service, metrics *observabil
 }
 
 func newHTTPHandlerDeps(
+	cfg config.Config,
 	db *sql.DB,
 	wallets *postgres.WalletRepository,
 	transactions *postgres.TransactionRepository,
@@ -166,5 +168,6 @@ func newHTTPHandlerDeps(
 		Auth:              auth,
 		Metrics:           metrics,
 		ReadinessCheckers: []httpapi.ReadinessChecker{sqsReadiness},
+		RequestTimeout:    cfg.RequestTimeout,
 	}
 }

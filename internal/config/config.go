@@ -23,9 +23,17 @@ type Config struct {
 	AdminAddr    string
 	PprofEnabled bool
 
+	// RequestTimeout bounds every authenticated HTTP request.
+	RequestTimeout time.Duration
+
 	DatabaseURL    string
 	DBMaxOpenConns int
 	DBMaxIdleConns int
+
+	// Session limits PostgreSQL enforces on every pooled connection.
+	DBStatementTimeout         time.Duration
+	DBIdleInTransactionTimeout time.Duration
+	DBLockTimeout              time.Duration
 
 	JWKSURL             string
 	JWKSRefreshInterval time.Duration
@@ -82,6 +90,14 @@ func Load() (Config, error) {
 	cfg.ReferenceRetryInterval, err = durationEnv("REFERENCE_RETRY_INTERVAL", 15*time.Second)
 	collect(err)
 	cfg.JWKSRefreshInterval, err = durationEnv("JWKS_REFRESH_INTERVAL", time.Hour)
+	collect(err)
+	cfg.RequestTimeout, err = durationEnv("REQUEST_TIMEOUT", 5*time.Second)
+	collect(err)
+	cfg.DBStatementTimeout, err = durationEnv("DB_STATEMENT_TIMEOUT", 5*time.Second)
+	collect(err)
+	cfg.DBIdleInTransactionTimeout, err = durationEnv("DB_IDLE_IN_TRANSACTION_TIMEOUT", 10*time.Second)
+	collect(err)
+	cfg.DBLockTimeout, err = durationEnv("DB_LOCK_TIMEOUT", 2*time.Second)
 	collect(err)
 
 	for key, value := range map[string]string{

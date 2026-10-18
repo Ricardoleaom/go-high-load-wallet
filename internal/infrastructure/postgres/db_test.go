@@ -72,3 +72,28 @@ func TestOpenTracesQueriesWhenAsked(t *testing.T) {
 	}
 	t.Fatalf("no span carried the query text; %d spans ended", len(recorder.Ended()))
 }
+
+func TestOpenAppliesSessionTimeouts(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	db, err := Open(ctx, pgtest.URL(t), WithSessionTimeouts(5*time.Second, 10*time.Second, 2*time.Second))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	for setting, want := range map[string]string{
+		"statement_timeout":                   "5s",
+		"idle_in_transaction_session_timeout": "10s",
+		"lock_timeout":                        "2s",
+	} {
+		var got string
+		if err := db.QueryRowContext(ctx, "SHOW "+setting).Scan(&got); err != nil {
+			t.Fatalf("SHOW %s: %v", setting, err)
+		}
+		if got != want {
+			t.Errorf("%s = %s, want %s", setting, got, want)
+		}
+	}
+}
