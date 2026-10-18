@@ -1,0 +1,11 @@
+71|idle|Client|ClientRead||00:00:02.05909|{}|SELECT * FROM pg_stat_database_conflicts;
+965|idle in transaction|Client|ClientRead|00:00:02.569894|00:00:02.569649|{}|SELECT id FROM transactions WHERE id = $1 FOR UPDATE
+1069|idle in transaction|Client|ClientRead|00:00:02.63569|00:00:02.635464|{}|SELECT id FROM transactions WHERE id = $1 FOR UPDATE
+1071|idle in transaction|Client|ClientRead|00:00:02.935709|00:00:02.934165|{}|SELECT id FROM transactions WHERE id = $1 FOR UPDATE
+1072|idle in transaction|Client|ClientRead|00:00:02.908092|00:00:02.907655|{}|SELECT id FROM transactions WHERE id = $1 FOR UPDATE
+1252|idle in transaction|Client|ClientRead|00:00:02.707459|00:00:02.707295|{}|SELECT id FROM transactions WHERE id = $1 FOR UPDATE
+1238|idle in transaction|Client|ClientRead|00:00:02.755725|00:00:02.752711|{}|SELECT id FROM transactions WHERE id = $1 FOR UPDATE
+808|idle in transaction|Client|ClientRead|00:00:02.386336|00:00:02.386096|{}|SELECT id FROM transactions WHERE id = $1 FOR UPDATE
+1172|idle in transaction|Client|ClientRead|00:00:02.590742|00:00:02.59024|{}|SELECT id FROM transactions WHERE id = $1 FOR UPDATE
+807|idle in transaction|Client|ClientRead|00:00:02.65791|00:00:02.657681|{}|SELECT id FROM transactions WHERE id = $1 FOR UPDATE
+918|idle in transaction|Client|ClientRead|00:00:02.630559|00:00:02.63045|{}|SELECT id FROM transactions WHERE id = $1 FOR UPDATE

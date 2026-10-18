@@ -1,0 +1,54 @@
+1|16|postgres 
+130|723|postgres: app wallet 172.23.0.8(49940) idle 
+154|169|postgres: app wallet 172.23.0.8(40388) idle in transaction 
+155|983|postgres: app wallet 172.23.0.8(40390) idle 
+180|105|postgres: app wallet 172.23.0.8(46732) idle in transaction 
+272|103|postgres: app wallet 172.23.0.8(35784) idle 
+273|99|postgres: app wallet 172.23.0.8(35800) SELECT 
+274|104|postgres: app wallet 172.23.0.8(35806) idle in transaction 
+275|106|postgres: app wallet 172.23.0.8(35822) SELECT 
+276|103|postgres: app wallet 172.23.0.8(35836) SELECT 
+277|100|postgres: app wallet 172.23.0.8(35848) idle 
+278|99|postgres: app wallet 172.23.0.8(35854) SELECT 
+279|104|postgres: app wallet 172.23.0.8(35866) idle 
+280|105|postgres: app wallet 172.23.0.8(35878) SELECT 
+281|105|postgres: app wallet 172.23.0.8(35888) idle 
+282|101|postgres: app wallet 172.23.0.8(35898) idle 
+283|103|postgres: app wallet 172.23.0.8(35902) SELECT 
+284|107|postgres: app wallet 172.23.0.8(35906) SELECT 
+285|106|postgres: app wallet 172.23.0.8(35918) SELECT 
+286|103|postgres: app wallet 172.23.0.8(35920) idle 
+287|102|postgres: app wallet 172.23.0.8(35926) SELECT 
+288|102|postgres: app wallet 172.23.0.8(35942) SELECT 
+289|99|postgres: app wallet 172.23.0.8(35956) SELECT 
+290|102|postgres: app wallet 172.23.0.8(35958) idle 
+291|107|postgres: app wallet 172.23.0.8(35966) SELECT 
+292|102|postgres: app wallet 172.23.0.8(35978) idle 
+293|102|postgres: app wallet 172.23.0.8(35980) SELECT 
+294|102|postgres: app wallet 172.23.0.8(35982) SELECT 
+295|104|postgres: app wallet 172.23.0.8(35990) idle 
+296|109|postgres: app wallet 172.23.0.8(36002) SELECT 
+297|102|postgres: app wallet 172.23.0.8(36004) SELECT 
+298|103|postgres: app wallet 172.23.0.8(36016) SELECT 
+299|105|postgres: app wallet 172.23.0.8(36026) idle in transaction 
+300|102|postgres: app wallet 172.23.0.8(36030) INSERT waiting 
+301|105|postgres: app wallet 172.23.0.8(36034) SELECT 
+302|106|postgres: app wallet 172.23.0.8(36038) SELECT 
+303|107|postgres: app wallet 172.23.0.8(36042) SELECT 
+304|101|postgres: app wallet 172.23.0.8(36046) idle 
+305|104|postgres: app wallet 172.23.0.8(36060) SELECT 
+306|104|postgres: app wallet 172.23.0.8(36062) idle 
+307|100|postgres: app wallet 172.23.0.8(36066) SELECT 
+348|5|sh -c 
+    for p in /proc/[0-9]*; do
+      [ -r "$p/stat" ] || continue
+      t=$(awk "{print \$14 + \$15}" "$p/stat" 2> /dev/null) || continue
+      c=$(tr "\0" " " < "$p/cmdline" 2> /dev/null)
+      echo "${p#/proc/}|$t|$c"
+    done 
+54|0|postgres: checkpointer  
+55|2|postgres: background writer  
+57|10|postgres: walwriter  
+58|0|postgres: autovacuum launcher  
+59|0|postgres: logical replication launcher  
+70|1|postgres: app wallet 172.23.0.7(40126) idle 

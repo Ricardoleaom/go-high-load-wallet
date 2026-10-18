@@ -1,0 +1,2 @@
+sync-on seconds=60 served=12434 commits=52719 wal_before=1223454|2651|14045 wal_after=1539505|12985|24389
+sync-off seconds=60 served=-17171 commits=-74110 wal_before=1591702|13287|24692 wal_after=

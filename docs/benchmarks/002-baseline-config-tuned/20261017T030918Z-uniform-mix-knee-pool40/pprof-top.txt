@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-17 00:20:03 -03
+Duration: 30s, Total samples = 2.41s ( 8.03%)
+Showing nodes accounting for 1.18s, 48.96% of 2.41s total
+Dropped 252 nodes (cum <= 0.01s)
+Showing top 15 nodes out of 318
+      flat  flat%   sum%        cum   cum%
+     0.74s 30.71% 30.71%      0.74s 30.71%  internal/runtime/syscall/linux.Syscall6
+     0.09s  3.73% 34.44%      0.09s  3.73%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.04s  1.66% 36.10%      0.04s  1.66%  memeqbody
+     0.03s  1.24% 37.34%      0.03s  1.24%  context.(*valueCtx).Done
+     0.03s  1.24% 38.59%      0.03s  1.24%  runtime.futex
+     0.03s  1.24% 39.83%      0.03s  1.24%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.03s  1.24% 41.08%      0.03s  1.24%  runtime.mallocgcSmallScanNoHeaderSC4
+     0.03s  1.24% 42.32%      0.03s  1.24%  runtime.memclrNoHeapPointers
+     0.03s  1.24% 43.57%      0.03s  1.24%  runtime.nextFreeFast
+     0.03s  1.24% 44.81%      0.04s  1.66%  runtime.scanObjectsSmall
+     0.02s  0.83% 45.64%      0.02s  0.83%  encoding/json/internal/jsonwire.ConsumeSimpleString
+     0.02s  0.83% 46.47%      0.02s  0.83%  encoding/json/jsontext.(*encoderState).WriteToken
+     0.02s  0.83% 47.30%      0.02s  0.83%  github.com/cespare/xxhash/v2.(*Digest).Write
+     0.02s  0.83% 48.13%      0.03s  1.24%  github.com/felixge/httpsnoop.Wrap
+     0.02s  0.83% 48.96%      0.03s  1.24%  github.com/jackc/pgx/v5/pgconn.(*PgConn).execExtendedPrefix

@@ -1,0 +1,4 @@
+relation|RowShareLock|t|20
+virtualxid|ExclusiveLock|t|11
+transactionid|ExclusiveLock|t|10
+relation|AccessShareLock|t|1

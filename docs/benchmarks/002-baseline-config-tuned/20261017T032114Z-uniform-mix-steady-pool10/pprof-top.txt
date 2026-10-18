@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-17 00:26:13 -03
+Duration: 30s, Total samples = 3.36s (11.20%)
+Showing nodes accounting for 2.17s, 64.58% of 3.36s total
+Dropped 244 nodes (cum <= 0.02s)
+Showing top 15 nodes out of 311
+      flat  flat%   sum%        cum   cum%
+     1.75s 52.08% 52.08%      1.75s 52.08%  internal/runtime/syscall/linux.Syscall6
+     0.07s  2.08% 54.17%      0.07s  2.08%  runtime.futex
+     0.04s  1.19% 55.36%      0.28s  8.33%  github.com/jackc/pgx/v5/pgproto3.(*chunkReader).Next
+     0.04s  1.19% 56.55%      0.04s  1.19%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.03s  0.89% 57.44%      0.03s  0.89%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.03s  0.89% 58.33%      0.03s  0.89%  go.opentelemetry.io/otel/internal/global.(*sfHistogram).Enabled
+     0.03s  0.89% 59.23%      0.26s  7.74%  io.ReadAtLeast
+     0.03s  0.89% 60.12%      0.19s  5.65%  runtime.mallocgc
+     0.03s  0.89% 61.01%      0.08s  2.38%  runtime.mapaccess2_faststr
+     0.02s   0.6% 61.61%      0.02s   0.6%  context.(*valueCtx).Done
+     0.02s   0.6% 62.20%      0.02s   0.6%  context.value
+     0.02s   0.6% 62.80%      0.03s  0.89%  github.com/exaring/otelpgx.(*Tracer).TraceQueryStart
+     0.02s   0.6% 63.39%      0.70s 20.83%  github.com/jackc/pgx/v5.(*Conn).Query
+     0.02s   0.6% 63.99%      0.02s   0.6%  github.com/jackc/pgx/v5/pgtype.(*scanPlanBinaryTimestamptzToTimestamptzScanner).Scan
+     0.02s   0.6% 64.58%      0.02s   0.6%  internal/runtime/maps.ctrlGroup.matchH2 (inline)

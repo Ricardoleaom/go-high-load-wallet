@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-17 00:42:20 -03
+Duration: 30s, Total samples = 3.34s (11.13%)
+Showing nodes accounting for 2.15s, 64.37% of 3.34s total
+Dropped 282 nodes (cum <= 0.02s)
+Showing top 15 nodes out of 293
+      flat  flat%   sum%        cum   cum%
+     1.71s 51.20% 51.20%      1.71s 51.20%  internal/runtime/syscall/linux.Syscall6
+     0.06s  1.80% 52.99%      0.06s  1.80%  runtime.futex
+     0.05s  1.50% 54.49%      0.25s  7.49%  github.com/jackc/pgx/v5/pgproto3.(*Frontend).Receive
+     0.04s  1.20% 55.69%      0.04s  1.20%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.04s  1.20% 56.89%      0.04s  1.20%  runtime.memclrNoHeapPointers
+     0.04s  1.20% 58.08%      0.04s  1.20%  runtime.nextFreeFast (inline)
+     0.03s   0.9% 58.98%      0.03s   0.9%  memeqbody
+     0.03s   0.9% 59.88%      0.03s   0.9%  runtime.mallocgcSmallScanNoHeaderSC4
+     0.03s   0.9% 60.78%      0.03s   0.9%  runtime.memmove
+     0.02s   0.6% 61.38%      2.18s 65.27%  github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).Submit
+     0.02s   0.6% 61.98%      0.03s   0.9%  github.com/jackc/pgx/v5/internal/stmtcache.(*LRUCache).Get
+     0.02s   0.6% 62.57%      0.20s  5.99%  github.com/jackc/pgx/v5/pgconn/internal/bgreader.(*BGReader).Read
+     0.02s   0.6% 63.17%      0.02s   0.6%  net.(*TCPConn).Write
+     0.02s   0.6% 63.77%      0.02s   0.6%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.02s   0.6% 64.37%      0.02s   0.6%  runtime.nanotime

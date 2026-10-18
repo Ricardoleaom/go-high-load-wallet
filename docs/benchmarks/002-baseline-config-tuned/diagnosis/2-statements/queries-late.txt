@@ -1,0 +1,102 @@
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |13
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |17
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |13
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |14
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+IO|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |17
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |14
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |12
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |18
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+IO|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |15
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |17
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |17
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |18
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |15
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |13
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |11
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |17
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |11
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |15
+IO| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |13
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |11
+IO|commit|1
+LWLock|commit|2
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |16
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |17
+CPU| SELECT id, player_id, currency, balance_minor_units, version, created_at, updated_at FROM wallets WHERE id = $1 |1
+IO|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |15
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |9
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU|SELECT current_database() datname, schemaname, relname, seq_scan, seq_tup_read, idx_scan, idx_tup_fetch, n_tup_ins, n_tup_upd, n_tup_del, n_tup_hot_upd, n_live_|1
+IO|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |19
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |11
+IO| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+IO|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |17
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |12
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |7
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |23
+IO| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+IO|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |16
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |14
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |12
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |18
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+IO|commit|1
+LWLock|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |11
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |19
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |17
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |15
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |10
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |19
+IO| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+IO|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |18
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |12
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU| SELECT pg_database.datname as datname, tmp.mode as mode, COALESCE(count, 0) as count FROM ( VALUES ('accesssharelock'), ('rowsharelock'), ('rowexclusivelock'),|1
+LWLock|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |17
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |9
+IO| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+IO|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |11
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |19
+IO|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |17
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |14
+IO|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |14
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |11
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+IO|commit|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |18
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |12
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |11
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |18
+CPU| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |15
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |14
+CPU|SELECT current_database() datname, schemaname, relname, seq_scan, seq_tup_read, idx_scan, idx_tup_fetch, n_tup_ins, n_tup_upd, n_tup_del, n_tup_hot_upd, n_live_|1
+IO| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |20
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |12
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND external_id = $2 |13
+CPU| SELECT id FROM transactions WHERE provider_id = $1 AND idempotency_key = $2 |16
+IO| SELECT id, aggregate_id, event_type, payload, correlation_id, COALESCE(causation_id, ''), occurred_at, attempts FROM outbox_events WHERE published_at IS NULL A|1
+IO|commit|1

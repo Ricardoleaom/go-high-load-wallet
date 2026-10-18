@@ -1,0 +1,55 @@
+1|24|postgres 
+1050|4|postgres: app wallet 172.23.0.7(49608) SELECT 
+1051|2|sh -c 
+    for p in /proc/[0-9]*; do
+      [ -r "$p/stat" ] || continue
+      t=$(awk "{print \$14 + \$15}" "$p/stat" 2> /dev/null) || continue
+      c=$(tr "\0" " " < "$p/cmdline" 2> /dev/null)
+      echo "${p#/proc/}|$t|$c"
+    done 
+130|1337|postgres: app wallet 172.23.0.8(49940) SELECT 
+154|777|postgres: app wallet 172.23.0.8(40388) idle in transaction 
+155|1578|postgres: app wallet 172.23.0.8(40390) SELECT 
+180|701|postgres: app wallet 172.23.0.8(46732) SELECT 
+272|713|postgres: app wallet 172.23.0.8(35784) idle in transaction 
+273|692|postgres: app wallet 172.23.0.8(35800) INSERT  transaction 
+274|707|postgres: app wallet 172.23.0.8(35806) SELECT 
+275|707|postgres: app wallet 172.23.0.8(35822) idle in transaction 
+276|720|postgres: app wallet 172.23.0.8(35836) SELECT 
+277|696|postgres: app wallet 172.23.0.8(35848) idle 
+278|688|postgres: app wallet 172.23.0.8(35854) idle in transaction 
+279|714|postgres: app wallet 172.23.0.8(35866) SELECT 
+280|709|postgres: app wallet 172.23.0.8(35878) SELECT 
+281|702|postgres: app wallet 172.23.0.8(35888) idle 
+282|707|postgres: app wallet 172.23.0.8(35898) SELECT 
+283|696|postgres: app wallet 172.23.0.8(35902) SELECT 
+284|716|postgres: app wallet 172.23.0.8(35906) SELECT 
+285|708|postgres: app wallet 172.23.0.8(35918) SELECT 
+286|699|postgres: app wallet 172.23.0.8(35920) SELECT 
+287|699|postgres: app wallet 172.23.0.8(35926) SELECT 
+288|700|postgres: app wallet 172.23.0.8(35942) idle 
+289|703|postgres: app wallet 172.23.0.8(35956) SELECT 
+290|690|postgres: app wallet 172.23.0.8(35958) SELECT 
+291|705|postgres: app wallet 172.23.0.8(35966) SELECT 
+292|701|postgres: app wallet 172.23.0.8(35978) idle 
+293|707|postgres: app wallet 172.23.0.8(35980) SELECT 
+294|711|postgres: app wallet 172.23.0.8(35982) SELECT 
+295|707|postgres: app wallet 172.23.0.8(35990) SELECT 
+296|708|postgres: app wallet 172.23.0.8(36002) SELECT 
+297|696|postgres: app wallet 172.23.0.8(36004) idle 
+298|698|postgres: app wallet 172.23.0.8(36016) SELECT 
+299|711|postgres: app wallet 172.23.0.8(36026) SELECT 
+300|707|postgres: app wallet 172.23.0.8(36030) SELECT 
+301|703|postgres: app wallet 172.23.0.8(36034) SELECT 
+302|704|postgres: app wallet 172.23.0.8(36038) idle T 
+303|705|postgres: app wallet 172.23.0.8(36042) SELECT 
+304|693|postgres: app wallet 172.23.0.8(36046) SELECT 
+305|710|postgres: app wallet 172.23.0.8(36060) SELECT 
+306|708|postgres: app wallet 172.23.0.8(36062) idle in transaction 
+307|698|postgres: app wallet 172.23.0.8(36066) SELECT 
+54|0|postgres: checkpointer  
+55|3|postgres: background writer  
+57|15|postgres: walwriter  
+58|0|postgres: autovacuum launcher  
+59|0|postgres: logical replication launcher  
+70|3|postgres: app wallet 172.23.0.7(40126) idle 
