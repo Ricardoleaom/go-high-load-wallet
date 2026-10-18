@@ -5,7 +5,7 @@ import (
 	"time"
 
 	domainwager "github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
 // RecordSubmit observes one Submit call on wager_submit_duration_seconds.

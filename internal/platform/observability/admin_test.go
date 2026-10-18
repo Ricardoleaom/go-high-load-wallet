@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
 func get(t *testing.T, server *httptest.Server, path string) (int, string) {

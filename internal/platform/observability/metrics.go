@@ -13,7 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/buildinfo"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/buildinfo"
 )
 
 // LatencyBuckets spans sub-millisecond database round trips up to

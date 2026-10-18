@@ -60,10 +60,10 @@ func TestSeedWritesWalletsOpeningsAndLedger(t *testing.T) {
 	}
 
 	for query, want := range map[string]int{
-		`SELECT count(*) FROM wallets WHERE version = 1 AND balance_minor_units = 100000`:                    250,
-		`SELECT count(*) FROM transactions WHERE kind = 'OPENING' AND status = 'PROCESSED'`:                  250,
+		`SELECT count(*) FROM wallets WHERE version = 1 AND balance_minor_units = 100000`:                   250,
+		`SELECT count(*) FROM transactions WHERE kind = 'OPENING' AND status = 'PROCESSED'`:                 250,
 		`SELECT count(*) FROM ledger_entries WHERE direction = 'CREDIT' AND balance_before_minor_units = 0`: 250,
-		`SELECT count(*) FROM outbox_events`: 0,
+		`SELECT count(*) FROM outbox_events`:                                                                0,
 	} {
 		if got := count(ctx, t, conn, query); got != want {
 			t.Errorf("%s = %d, want %d", query, got, want)

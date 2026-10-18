@@ -12,11 +12,11 @@ import (
 
 	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
 	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/config"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/config"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
 func newDB(lc fx.Lifecycle, cfg config.Config) (*sql.DB, error) {

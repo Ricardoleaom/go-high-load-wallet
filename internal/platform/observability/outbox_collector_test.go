@@ -9,7 +9,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
 func TestOutboxCollectorReportsBacklog(t *testing.T) {

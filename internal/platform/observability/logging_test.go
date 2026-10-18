@@ -9,7 +9,7 @@ import (
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
 func TestTraceHandlerAddsIDsFromTheContext(t *testing.T) {

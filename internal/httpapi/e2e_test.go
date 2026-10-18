@@ -19,7 +19,7 @@ import (
 	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/jwttest"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )

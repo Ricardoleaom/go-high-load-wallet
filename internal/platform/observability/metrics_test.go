@@ -7,8 +7,8 @@ import (
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/buildinfo"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/buildinfo"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
 func TestBuildInfoIsExposed(t *testing.T) {

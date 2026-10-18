@@ -8,7 +8,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/application/events"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/events"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ledger"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"

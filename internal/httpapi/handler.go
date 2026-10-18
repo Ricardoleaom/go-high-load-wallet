@@ -12,7 +12,7 @@ import (
 	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
 	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
 // ReadinessChecker reports whether a dependency is ready to serve traffic.

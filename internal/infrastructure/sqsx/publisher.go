@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
 // OutboxPublisher drains the outbox into the events queue. Several

@@ -11,7 +11,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/jwttest"
 )
 

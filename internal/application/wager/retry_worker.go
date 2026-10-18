@@ -7,7 +7,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
 // RetryWorker periodically resolves PENDING_REFERENCE transactions whose

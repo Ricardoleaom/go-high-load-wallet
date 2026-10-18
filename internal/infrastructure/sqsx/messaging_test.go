@@ -17,7 +17,7 @@ import (
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/sqstest"
 )

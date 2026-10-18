@@ -9,8 +9,8 @@ import (
 
 	"go.uber.org/fx/fxtest"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/config"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/config"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/jwttest"
 )
 
