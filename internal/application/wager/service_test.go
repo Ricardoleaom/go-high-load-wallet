@@ -736,3 +736,67 @@ func TestConcurrentSubmissionsWithOneExternalIDAndDifferentKeys(t *testing.T) {
 		t.Fatalf("balance = %d, want 9000 (one debit)", balance)
 	}
 }
+
+func TestRetryPendingReferencesContinuesPastAFailure(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	// A database of its own: the retry claims every due pending reference,
+	// and other tests leave some behind in the shared one.
+	db, err := postgres.Open(ctx, pgtest.FreshURL(t))
+	if err != nil {
+		t.Fatalf("open PostgreSQL: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	service := NewService(db, postgres.NewWalletRepository(db), postgres.NewTransactionRepository(db),
+		postgres.NewLedgerRepository(db), postgres.NewOutboxRepository(db))
+	walletID := createTestWallet(t, ctx, db, "100.00")
+
+	pendingRefund := func(betExternalID string) string {
+		refund := betInput(walletID, "provider-a", newTestID(t), mustMoney(t, "10.00"))
+		refund.Kind = domainwager.KindRefund
+		refund.ReferenceExternalID = betExternalID
+		result, err := service.Submit(ctx, refund)
+		if err != nil || result.Status != domainwager.StatusPendingReference {
+			t.Fatalf("submit refund = %+v, %v; want PENDING_REFERENCE", result, err)
+		}
+		if _, err := service.Submit(ctx, betInput(walletID, "provider-a", betExternalID, mustMoney(t, "10.00"))); err != nil {
+			t.Fatalf("submit bet: %v", err)
+		}
+		return result.TransactionID
+	}
+
+	poisonBet, goodBet := newTestID(t), newTestID(t)
+	poisoned := pendingRefund(poisonBet)
+	good := pendingRefund(goodBet)
+
+	// The poisoned refund's original can no longer be read back (updated
+	// before created), and it is due first, so it is tried first.
+	if _, err := db.ExecContext(ctx, `
+		UPDATE transactions SET updated_at = created_at - interval '1 day'
+		WHERE provider_id = 'provider-a' AND external_id = $1`, poisonBet); err != nil {
+		t.Fatalf("corrupt original: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+		UPDATE transactions SET reference_next_attempt_at = CASE id
+			WHEN $1::uuid THEN NOW() - interval '2 minutes'
+			ELSE NOW() - interval '1 minute' END
+		WHERE id IN ($1::uuid, $2::uuid)`, poisoned, good); err != nil {
+		t.Fatalf("make refunds due: %v", err)
+	}
+
+	retried, err := service.RetryPendingReferences(ctx, 10)
+	if err == nil {
+		t.Fatal("RetryPendingReferences returned no error for the poisoned refund")
+	}
+	if retried != 1 {
+		t.Fatalf("retried = %d, want 1 (the good refund)", retried)
+	}
+
+	var status string
+	if err := db.QueryRowContext(ctx, `SELECT status FROM transactions WHERE id = $1`, good).Scan(&status); err != nil {
+		t.Fatalf("read good refund: %v", err)
+	}
+	if status != string(domainwager.StatusProcessed) {
+		t.Fatalf("good refund status = %s, want PROCESSED", status)
+	}
+}

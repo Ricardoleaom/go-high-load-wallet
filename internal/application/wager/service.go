@@ -228,20 +228,26 @@ func translateCreateErr(err error) error {
 
 // RetryPendingReferences resolves PENDING_REFERENCE transactions whose next
 // attempt is due. Meant to be called by a background worker on a timer.
+// Every claimed transaction is tried, so one that keeps failing cannot hold
+// back the others; it returns how many were handled and the failures.
 func (s *Service) RetryPendingReferences(ctx context.Context, limit int) (int, error) {
 	due, err := s.transactions.ListDuePendingReferences(ctx, limit)
 	if err != nil {
 		return 0, fmt.Errorf("list due pending references: %w", err)
 	}
 
+	handled := 0
+	var errs []error
 	for _, d := range due {
 		correlationID := d.Transaction.ID()
 		if _, err := s.processReversal(ctx, d.Transaction, false, correlationID, d.Attempts); err != nil {
-			return 0, fmt.Errorf("retry pending reference %s: %w", d.Transaction.ID(), err)
+			errs = append(errs, fmt.Errorf("retry pending reference %s: %w", d.Transaction.ID(), err))
+			continue
 		}
+		handled++
 	}
 
-	return len(due), nil
+	return handled, errors.Join(errs...)
 }
 
 func (s *Service) replay(ctx context.Context, existing domainwager.Transaction, payloadHash string) (Result, error) {
