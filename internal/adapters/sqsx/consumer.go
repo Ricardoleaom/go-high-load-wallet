@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -216,6 +217,11 @@ func decodeMessage(body []byte) (string, wagering.SubmitInput, error) {
 	}
 	if envelope.MessageID == "" {
 		return "", wagering.SubmitInput{}, errors.New("message without an envelope messageId")
+	}
+	// The messageId keys the inbox and correlates every event the message
+	// causes: it is held to the limit of the submission's own fields.
+	if utf8.RuneCountInString(envelope.MessageID) > wagering.MaxFieldLength {
+		return "", wagering.SubmitInput{}, fmt.Errorf("messageId over %d characters", wagering.MaxFieldLength)
 	}
 	amount, err := money.New(envelope.Data.Money.Amount, envelope.Data.Money.Currency)
 	if err != nil {
