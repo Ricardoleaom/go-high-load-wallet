@@ -17,9 +17,12 @@ CREATE TYPE wager_result AS (
     raced          boolean  -- lost a race and answered as a replay
 );
 
--- wallet_money_text renders minor units as money.DecimalString does.
+-- wallet_money_text renders minor units as money.DecimalString does. It is
+-- not STRICT so that PostgreSQL inlines it into the calling statement (it
+-- cannot prove the CASE strict); a SQL function that is not inlined is
+-- planned again on every call.
 CREATE FUNCTION wallet_money_text(units bigint) RETURNS text
-LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE AS $$
+LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
     SELECT CASE
         WHEN units >= 0 THEN (units / 100)::text || '.' || lpad((units % 100)::text, 2, '0')
         ELSE '-' || trunc(-(units::numeric) / 100)::text || '.' || lpad((-(units::numeric) % 100)::text, 2, '0')
@@ -27,12 +30,15 @@ LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE AS $$
 $$;
 
 -- wager_emit writes one outbox event in the envelope internal/app/events
--- builds; causationId is left out when there is none.
+-- builds; causationId is left out when there is none. PL/pgSQL, not SQL: a
+-- SQL function with an INSERT is never inlined, and would be planned again
+-- on every call, where PL/pgSQL keeps the plan for the session.
 CREATE FUNCTION wager_emit(
     p_id uuid, p_type text, p_aggregate_id uuid, p_correlation_id text,
     p_causation_id uuid, p_occurred_at timestamptz, p_data jsonb
 ) RETURNS void
-LANGUAGE sql AS $$
+LANGUAGE plpgsql AS $$
+BEGIN
     INSERT INTO outbox_events (id, aggregate_id, event_type, payload, correlation_id, causation_id, occurred_at)
     VALUES (
         p_id, p_aggregate_id::text, p_type,
@@ -47,7 +53,8 @@ LANGUAGE sql AS $$
         ) || CASE WHEN p_causation_id IS NULL THEN '{}'::jsonb
                   ELSE jsonb_build_object('causationId', p_causation_id) END,
         p_correlation_id, p_causation_id::text, p_occurred_at
-    )
+    );
+END
 $$;
 
 -- wager_replay answers what a recorded transaction answered the first

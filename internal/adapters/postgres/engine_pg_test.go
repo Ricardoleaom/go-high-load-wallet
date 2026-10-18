@@ -440,3 +440,70 @@ func TestEngineFailsWithoutEffectWhenTheVersionWouldOverflow(t *testing.T) {
 	}
 	requireBalance(t, h, walletID, "100.00")
 }
+
+// The key and external-ID indexes both used to start with provider_id, so
+// with statistics that did not know a provider's rows yet (a new provider,
+// rows that arrived after the last ANALYZE) the planner could look a key up
+// through the external-ID index and read every transaction of the
+// provider. Each lookup must reach its own index whatever the statistics.
+func TestLookupsUseTheirOwnIndexEvenWithStaleStatistics(t *testing.T) {
+	h := newHarness(t, pgtest.FreshURL(t), postgres.WithMaxConns(1))
+	wallets := seedWallets(t, h.pool, 2000)
+	if _, err := h.pool.Exec(testContext(t), `ANALYZE`); err != nil {
+		t.Fatal(err)
+	}
+	c := newCommands(t)
+	for i := range 2000 {
+		w := wallets[i%len(wallets)]
+		mustExecute(t, h.engine, c.bet(w[0], w[1], "1.00"))
+	}
+
+	for name, query := range map[string]string{
+		"by key and external ID": `SELECT * FROM wager_find($1, 'no-such-key', 'no-such-external-id')`,
+		"by external ID":         `SELECT * FROM transactions WHERE provider_id = $1 AND external_id = 'no-such-external-id' AND kind <> 'OPENING'`,
+	} {
+		var plan []map[string]any
+		if err := h.pool.QueryRow(testContext(t), `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) `+query, c.provider).Scan(&plan); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		root := plan[0]["Plan"].(map[string]any)
+		if hits := root["Shared Hit Blocks"].(float64) + root["Shared Read Blocks"].(float64); hits > 20 {
+			t.Errorf("%s read %v blocks for a lookup that should touch a handful", name, hits)
+		}
+	}
+}
+
+// Helper functions the engine calls on every bet must be inlined into the
+// statements that use them: before PostgreSQL 18, a SQL function that is
+// not inlined is planned again on every call. One may still run while a
+// statement is planned, folding a constant, but never once per bet.
+func TestEngineHelpersAreInlinedOrCached(t *testing.T) {
+	h := newHarness(t, pgtest.FreshURL(t)+"&track_functions=all", postgres.WithMaxConns(1), postgres.WithMinConns(1))
+	c := newCommands(t)
+	walletID, playerID := openWallet(t, h.engine, "100.00")
+	const bets = 100
+	for range bets {
+		mustExecute(t, h.engine, c.bet(walletID, playerID, "0.01"))
+	}
+	if _, err := h.pool.Exec(testContext(t), `SELECT pg_stat_force_next_flush()`); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := h.pool.Query(testContext(t), `
+		SELECT p.proname, f.calls
+		FROM pg_stat_user_functions f JOIN pg_proc p ON p.oid = f.funcid
+		WHERE p.prolang = (SELECT oid FROM pg_language WHERE lanname = 'sql')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		var calls int64
+		if err := rows.Scan(&name, &calls); err != nil {
+			t.Fatal(err)
+		}
+		if calls >= bets {
+			t.Errorf("SQL function %s ran %d times for %d bets instead of being inlined", name, calls, bets)
+		}
+	}
+}

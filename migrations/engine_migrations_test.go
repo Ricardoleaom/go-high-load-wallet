@@ -12,9 +12,10 @@ import (
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
-// TestEngineMigrationsRoundTrip takes the two engine migrations (12 and 13)
-// down and up again: down must leave the schema as phase 2a had it, up must
-// restore the functions, the fillfactor and the dropped index.
+// TestEngineMigrationsRoundTrip takes the engine migrations (12 to 14) down
+// and up again: down must leave the schema as phase 2a had it, up must
+// restore the functions, the fillfactor, the dropped index and the lookup
+// indexes led by their own column.
 func TestEngineMigrationsRoundTrip(t *testing.T) {
 	url := pgtest.FreshURL(t)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -31,7 +32,7 @@ func TestEngineMigrationsRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	requireEngineSchema(t, ctx, db, false)
-	if err := pgtest.MigrateTo(ctx, url, 13); err != nil {
+	if err := pgtest.MigrateTo(ctx, url, 14); err != nil {
 		t.Fatal(err)
 	}
 	requireEngineSchema(t, ctx, db, true)
@@ -58,13 +59,18 @@ func requireEngineSchema(t *testing.T, ctx context.Context, db *sql.DB, upgraded
 		t.Fatal(err)
 	}
 
-	hasFillfactor := strings.Contains(options.String, "fillfactor=80")
-	if upgraded && (functions != 4 || playerIndex.Valid || !hasFillfactor) {
-		t.Errorf("upgraded schema: %d engine functions, idx_wallets_player_id=%v, reloptions=%q",
-			functions, playerIndex.Valid, options.String)
+	var keyIndex string
+	if err := db.QueryRowContext(ctx, `SELECT pg_get_indexdef('idx_transactions_idempotency_unique'::regclass)`).Scan(&keyIndex); err != nil {
+		t.Fatal(err)
 	}
-	if !upgraded && (functions != 0 || !playerIndex.Valid || hasFillfactor) {
-		t.Errorf("downgraded schema: %d engine functions, idx_wallets_player_id=%v, reloptions=%q",
-			functions, playerIndex.Valid, options.String)
+	keyFirst := strings.Contains(keyIndex, "(idempotency_key, provider_id)")
+	hasFillfactor := strings.Contains(options.String, "fillfactor=80")
+	if upgraded && (functions != 4 || playerIndex.Valid || !hasFillfactor || !keyFirst) {
+		t.Errorf("upgraded schema: %d engine functions, idx_wallets_player_id=%v, reloptions=%q, key index %s",
+			functions, playerIndex.Valid, options.String, keyIndex)
+	}
+	if !upgraded && (functions != 0 || !playerIndex.Valid || hasFillfactor || keyFirst) {
+		t.Errorf("downgraded schema: %d engine functions, idx_wallets_player_id=%v, reloptions=%q, key index %s",
+			functions, playerIndex.Valid, options.String, keyIndex)
 	}
 }

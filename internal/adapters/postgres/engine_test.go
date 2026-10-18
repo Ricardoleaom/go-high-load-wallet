@@ -20,7 +20,7 @@ import (
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
-func testContext(t *testing.T) context.Context {
+func testContext(t testing.TB) context.Context {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	t.Cleanup(cancel)
@@ -28,7 +28,7 @@ func testContext(t *testing.T) context.Context {
 }
 
 // openPool opens a pool on url, closed when the test ends.
-func openPool(t *testing.T, url string, opts ...postgres.Option) *pgxpool.Pool {
+func openPool(t testing.TB, url string, opts ...postgres.Option) *pgxpool.Pool {
 	t.Helper()
 	pool, err := postgres.Open(testContext(t), url, opts...)
 	if err != nil {
