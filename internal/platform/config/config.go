@@ -28,7 +28,7 @@ type Config struct {
 
 	DatabaseURL    string
 	DBMaxOpenConns int
-	DBMaxIdleConns int
+	DBMinConns     int
 
 	// Session limits PostgreSQL enforces on every pooled connection.
 	DBStatementTimeout         time.Duration
@@ -86,7 +86,7 @@ func Load() (Config, error) {
 	collect(err)
 	cfg.DBMaxOpenConns, err = intEnv("DB_MAX_OPEN_CONNS", 10, 1)
 	collect(err)
-	cfg.DBMaxIdleConns, err = intEnv("DB_MAX_IDLE_CONNS", 5, 0)
+	cfg.DBMinConns, err = intEnv("DB_MIN_CONNS", 2, 0)
 	collect(err)
 	cfg.OutboxBatchSize, err = intEnv("OUTBOX_BATCH_SIZE", 20, 1)
 	collect(err)

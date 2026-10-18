@@ -2,16 +2,14 @@ package httpapi
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 	"strconv"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
-	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
-	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/queries"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/wagering"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
@@ -22,12 +20,8 @@ type ReadinessChecker interface {
 }
 
 type Dependencies struct {
-	DB                *sql.DB
-	Wallets           *postgres.WalletRepository
-	Transactions      *postgres.TransactionRepository
-	Ledger            *postgres.LedgerRepository
-	WalletService     *walletapp.Service
-	WagerService      *wagerapp.Service
+	Wagering          *wagering.Service
+	Reader            queries.Reader
 	Auth              *Authenticator
 	Metrics           *observability.Metrics
 	ReadinessCheckers []ReadinessChecker

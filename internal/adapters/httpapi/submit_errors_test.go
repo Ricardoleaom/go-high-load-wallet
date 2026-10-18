@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/wagering"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
 )
@@ -21,17 +21,19 @@ func TestWriteSubmitErrorMapsEveryError(t *testing.T) {
 		status int
 		code   string
 	}{
-		{wagerapp.ErrIdempotencyConflict, http.StatusConflict, "IDEMPOTENCY_CONFLICT"},
-		{wagerapp.ErrIdempotencyKeyMismatch, http.StatusConflict, "IDEMPOTENCY_KEY_MISMATCH"},
-		{wagerapp.ErrWalletNotFound, http.StatusNotFound, "WALLET_NOT_FOUND"},
-		{wagerapp.ErrInvalidID, http.StatusBadRequest, "INVALID_ID"},
-		{wagerapp.ErrFieldTooLong, http.StatusBadRequest, "VALIDATION_ERROR"},
+		{wagering.ErrIdempotencyConflict, http.StatusConflict, "IDEMPOTENCY_CONFLICT"},
+		{wagering.ErrIdempotencyKeyMismatch, http.StatusConflict, "IDEMPOTENCY_KEY_MISMATCH"},
+		{wagering.ErrWalletNotFound, http.StatusNotFound, "WALLET_NOT_FOUND"},
+		{wagering.ErrInvalidID, http.StatusBadRequest, "INVALID_ID"},
+		{wagering.ErrFieldTooLong, http.StatusBadRequest, "VALIDATION_ERROR"},
 		{wager.ErrInvalidTransaction, http.StatusBadRequest, "VALIDATION_ERROR"},
 		{wager.ErrInvalidAmount, http.StatusBadRequest, "VALIDATION_ERROR"},
 		{money.ErrInvalidAmount, http.StatusBadRequest, "VALIDATION_ERROR"},
 		{money.ErrInvalidCurrency, http.StatusBadRequest, "VALIDATION_ERROR"},
 		{money.ErrCurrencyMismatch, http.StatusBadRequest, "VALIDATION_ERROR"},
-		{fmt.Errorf("wrapped: %w", wagerapp.ErrIdempotencyConflict), http.StatusConflict, "IDEMPOTENCY_CONFLICT"},
+		{wagering.ErrOpeningNotAllowed, http.StatusBadRequest, "VALIDATION_ERROR"},
+		{fmt.Errorf("wrapped: %w", wagering.ErrIdempotencyConflict), http.StatusConflict, "IDEMPOTENCY_CONFLICT"},
+		{fmt.Errorf("submit: %w", markedTimeout{}), http.StatusServiceUnavailable, "TIMEOUT"},
 		{errors.New("unexpected"), http.StatusInternalServerError, "INTERNAL_ERROR"},
 	} {
 		t.Run(tc.err.Error(), func(t *testing.T) {
@@ -65,3 +67,10 @@ func assertError(t *testing.T, recorder *httptest.ResponseRecorder, status int, 
 		t.Fatalf("got %d %s, want %d %s", recorder.Code, body.Code, status, code)
 	}
 }
+
+// markedTimeout is how the storage adapter flags a statement or lock
+// timeout, the way net.Error does.
+type markedTimeout struct{}
+
+func (markedTimeout) Error() string { return "canceling statement due to lock timeout" }
+func (markedTimeout) Timeout() bool { return true }

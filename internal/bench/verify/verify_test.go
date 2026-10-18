@@ -3,26 +3,25 @@ package verify_test
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
-	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/wagering"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/bench/seed"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/bench/verify"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	domainwager "github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
 // seeded returns a fresh database holding n seeded wallets, and their IDs.
-func seeded(ctx context.Context, t *testing.T, n int) (*sql.DB, []string) {
+func seeded(ctx context.Context, t *testing.T, n int) (*pgxpool.Pool, []string) {
 	t.Helper()
 	url := pgtest.FreshURL(t)
 
@@ -40,20 +39,15 @@ func seeded(ctx context.Context, t *testing.T, n int) (*sql.DB, []string) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	t.Cleanup(func() { _ = db.Close() })
+	t.Cleanup(db.Close)
 
-	rows, err := db.QueryContext(ctx, `SELECT id::text FROM wallets ORDER BY id`)
+	rows, err := db.Query(ctx, `SELECT id::text FROM wallets ORDER BY id`)
 	if err != nil {
 		t.Fatalf("list wallets: %v", err)
 	}
-	defer func() { _ = rows.Close() }()
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			t.Fatalf("scan wallet: %v", err)
-		}
-		ids = append(ids, id)
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatalf("list wallets: %v", err)
 	}
 	return db, ids
 }
@@ -100,20 +94,15 @@ func TestVerifyPassesAfterRealTraffic(t *testing.T) {
 	defer cancel()
 	db, _ := seeded(ctx, t, 1)
 
-	wallets := postgres.NewWalletRepository(db)
-	transactions := postgres.NewTransactionRepository(db)
-	ledgerRepo := postgres.NewLedgerRepository(db)
-	outbox := postgres.NewOutboxRepository(db)
-	opened, err := walletapp.NewService(db, wallets, transactions, ledgerRepo, outbox).
-		Open(ctx, walletapp.OpenInput{PlayerID: uuid.NewString(), InitialBalance: mustMoney(t, "100.00")})
+	service := wagering.NewService(postgres.NewEngine(db), postgres.NewReferenceQueue(db))
+	opened, err := service.OpenWallet(ctx, uuid.NewString(), mustMoney(t, "100.00"))
 	if err != nil {
 		t.Fatalf("open wallet: %v", err)
 	}
-	service := wager.NewService(db, wallets, transactions, ledgerRepo, outbox)
 
 	submit := func(kind domainwager.Kind, amount, reference string) string {
 		externalID := uuid.NewString()
-		_, err := service.Submit(ctx, wager.SubmitInput{
+		_, err := service.Submit(ctx, wagering.SubmitInput{
 			ProviderID: "provider-a", ExternalID: externalID, IdempotencyKey: "provider-a:" + externalID,
 			PlayerID: opened.PlayerID(), WalletID: opened.ID(), RoundID: "round", GameID: "game",
 			Kind: kind, Amount: mustMoney(t, amount), ReferenceExternalID: reference,
@@ -139,10 +128,10 @@ func TestVerifyPassesAfterRealTraffic(t *testing.T) {
 }
 
 func TestVerifyDetectsEachViolation(t *testing.T) {
-	insertTransaction := func(ctx context.Context, t *testing.T, db *sql.DB, walletID, kind, status string) string {
+	insertTransaction := func(ctx context.Context, t *testing.T, db *pgxpool.Pool, walletID, kind, status string) string {
 		t.Helper()
 		id := uuid.NewString()
-		_, err := db.ExecContext(ctx, `
+		_, err := db.Exec(ctx, `
 			INSERT INTO transactions (id, provider_id, external_id, idempotency_key, payload_hash,
 				wallet_id, player_id, round_id, game_id, kind, amount_minor_units, currency, status)
 			SELECT $1::uuid, 'provider-a', $1::text, $1::text, 'hash', w.id, w.player_id, 'round', 'game', $3, 100, w.currency, $4
@@ -157,21 +146,21 @@ func TestVerifyDetectsEachViolation(t *testing.T) {
 	cases := []struct {
 		name    string
 		checks  []string
-		corrupt func(ctx context.Context, t *testing.T, db *sql.DB, walletID string) string
+		corrupt func(ctx context.Context, t *testing.T, db *pgxpool.Pool, walletID string) string
 	}{
 		{"balance changed outside the ledger", []string{"balance_matches_ledger"},
-			func(ctx context.Context, t *testing.T, db *sql.DB, walletID string) string {
-				if _, err := db.ExecContext(ctx, `UPDATE wallets SET balance_minor_units = balance_minor_units + 1 WHERE id = $1`, walletID); err != nil {
+			func(ctx context.Context, t *testing.T, db *pgxpool.Pool, walletID string) string {
+				if _, err := db.Exec(ctx, `UPDATE wallets SET balance_minor_units = balance_minor_units + 1 WHERE id = $1`, walletID); err != nil {
 					t.Fatalf("tamper balance: %v", err)
 				}
 				return walletID
 			}},
 		{"processed bet without entry or event", []string{"processed_movement_has_one_entry", "terminal_transaction_has_event"},
-			func(ctx context.Context, t *testing.T, db *sql.DB, walletID string) string {
+			func(ctx context.Context, t *testing.T, db *pgxpool.Pool, walletID string) string {
 				return insertTransaction(ctx, t, db, walletID, "BET", "PROCESSED")
 			}},
 		{"transaction left pending", []string{"no_pending_transactions"},
-			func(ctx context.Context, t *testing.T, db *sql.DB, walletID string) string {
+			func(ctx context.Context, t *testing.T, db *pgxpool.Pool, walletID string) string {
 				return insertTransaction(ctx, t, db, walletID, "BET", "PENDING")
 			}},
 	}

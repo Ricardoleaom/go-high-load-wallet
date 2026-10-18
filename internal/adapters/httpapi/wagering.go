@@ -1,15 +1,19 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
 
-	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/queries"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/wagering"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
 func requireProvider(w http.ResponseWriter, r *http.Request) (string, bool) {
@@ -47,56 +51,25 @@ func (h *handler) submitWagerTransaction(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	idempotencyKey := r.Header.Get("Idempotency-Key")
-	if idempotencyKey == "" {
-		writeError(w, http.StatusBadRequest, "MISSING_IDEMPOTENCY_KEY", "the Idempotency-Key header is required")
-		return
-	}
-
-	var req submitTransactionRequest
-	if !decodeBody(w, r, &req) {
-		return
-	}
-
-	if req.ProviderID != "" && req.ProviderID != providerID {
-		writeError(w, http.StatusForbidden, "PROVIDER_MISMATCH", "authenticated provider does not match the request body")
-		return
-	}
-
-	if wager.Kind(req.Kind) == wager.KindOpening {
-		writeError(w, http.StatusBadRequest, "OPENING_NOT_ALLOWED", "OPENING is reserved for internal wallet creation")
-		return
-	}
-
-	amount, err := req.Money.toDomain()
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_MONEY", err.Error())
+	input, apiErr := decodeSubmitRequest(r.Body, providerID, r.Header.Get("Idempotency-Key"))
+	if apiErr != nil {
+		writeError(w, apiErr.status, apiErr.code, apiErr.message)
 		return
 	}
 
 	started := time.Now()
-	result, err := h.deps.WagerService.Submit(r.Context(), wagerapp.SubmitInput{
-		ProviderID:          providerID,
-		ExternalID:          req.ExternalTransactionID,
-		IdempotencyKey:      idempotencyKey,
-		PlayerID:            req.PlayerID,
-		WalletID:            req.WalletID,
-		RoundID:             req.RoundID,
-		GameID:              req.GameID,
-		Kind:                wager.Kind(req.Kind),
-		Amount:              amount,
-		ReferenceExternalID: req.ReferenceExternalTransactionID,
-	})
-	wagerapp.RecordSubmit(r.Context(), h.deps.Metrics, "http", wager.Kind(req.Kind), result, err, started)
-	logger := slog.With("transport", "http", "providerId", providerID, "walletId", req.WalletID)
+	result, err := h.deps.Wagering.Submit(r.Context(), input)
+	kindLabel, statusLabel := wagering.MetricLabels(input.Kind, result, err)
+	observability.ObserveSubmit(r.Context(), h.deps.Metrics, "http", kindLabel, statusLabel, started)
+	logger := slog.With("transport", "http", "providerId", providerID, "walletId", input.WalletID)
 	if err != nil {
-		logger.ErrorContext(r.Context(), "submit wager transaction", "externalTransactionId", req.ExternalTransactionID, "error", err)
+		logger.ErrorContext(r.Context(), "submit wager transaction", "externalTransactionId", input.ExternalID, "error", err)
 		writeSubmitError(w, r, err)
 		return
 	}
 
-	// Without an inbound correlation ID, the use case correlates the outbox
-	// events by transaction ID, so the log uses the same value.
+	// Without an inbound correlation ID, the events are correlated by
+	// transaction ID, so the log uses the same value.
 	logger.InfoContext(r.Context(), "wager transaction handled",
 		"correlationId", result.TransactionID,
 		"transactionId", result.TransactionID,
@@ -113,17 +86,68 @@ func (h *handler) submitWagerTransaction(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, statusCodeForResult(result), toSubmitResponse(result))
 }
 
+// apiError is a client mistake found while reading a request.
+type apiError struct {
+	status  int
+	code    string
+	message string
+}
+
+// decodeSubmitRequest turns a submission's body and headers into the use
+// case's input, or the 4xx the client gets instead. It checks what only
+// HTTP knows (the key header, the authenticated provider, the JSON); the
+// use case validates the rest.
+func decodeSubmitRequest(body io.Reader, providerID, idempotencyKey string) (wagering.SubmitInput, *apiError) {
+	if idempotencyKey == "" {
+		return wagering.SubmitInput{}, &apiError{http.StatusBadRequest, "MISSING_IDEMPOTENCY_KEY", "the Idempotency-Key header is required"}
+	}
+
+	var req submitTransactionRequest
+	if err := json.NewDecoder(body).Decode(&req); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			return wagering.SubmitInput{}, &apiError{http.StatusRequestEntityTooLarge, "BODY_TOO_LARGE",
+				fmt.Sprintf("the request body is limited to %d bytes", maxBodyBytes)}
+		}
+		return wagering.SubmitInput{}, &apiError{http.StatusBadRequest, "INVALID_BODY", "malformed JSON body"}
+	}
+
+	if req.ProviderID != "" && req.ProviderID != providerID {
+		return wagering.SubmitInput{}, &apiError{http.StatusForbidden, "PROVIDER_MISMATCH", "authenticated provider does not match the request body"}
+	}
+	if wager.Kind(req.Kind) == wager.KindOpening {
+		return wagering.SubmitInput{}, &apiError{http.StatusBadRequest, "OPENING_NOT_ALLOWED", "OPENING is reserved for internal wallet creation"}
+	}
+	amount, err := req.Money.toDomain()
+	if err != nil {
+		return wagering.SubmitInput{}, &apiError{http.StatusBadRequest, "INVALID_MONEY", err.Error()}
+	}
+
+	return wagering.SubmitInput{
+		ProviderID:          providerID,
+		ExternalID:          req.ExternalTransactionID,
+		IdempotencyKey:      idempotencyKey,
+		PlayerID:            req.PlayerID,
+		WalletID:            req.WalletID,
+		RoundID:             req.RoundID,
+		GameID:              req.GameID,
+		Kind:                wager.Kind(req.Kind),
+		Amount:              amount,
+		ReferenceExternalID: req.ReferenceExternalTransactionID,
+	}, nil
+}
+
 func writeSubmitError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, wagerapp.ErrIdempotencyConflict):
+	case errors.Is(err, wagering.ErrIdempotencyConflict):
 		writeError(w, http.StatusConflict, "IDEMPOTENCY_CONFLICT", "idempotency key reused with a different payload")
-	case errors.Is(err, wagerapp.ErrIdempotencyKeyMismatch):
+	case errors.Is(err, wagering.ErrIdempotencyKeyMismatch):
 		writeError(w, http.StatusConflict, "IDEMPOTENCY_KEY_MISMATCH", "this operation was already recorded under a different idempotency key")
-	case errors.Is(err, wagerapp.ErrWalletNotFound):
+	case errors.Is(err, wagering.ErrWalletNotFound):
 		writeError(w, http.StatusNotFound, "WALLET_NOT_FOUND", "wallet not found")
-	case errors.Is(err, wagerapp.ErrInvalidID):
+	case errors.Is(err, wagering.ErrInvalidID):
 		writeError(w, http.StatusBadRequest, "INVALID_ID", err.Error())
-	case errors.Is(err, wagerapp.ErrInvalidInput):
+	case errors.Is(err, wagering.ErrInvalidInput), errors.Is(err, wagering.ErrOpeningNotAllowed):
 		writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 	case errors.Is(err, wager.ErrInvalidTransaction),
 		errors.Is(err, wager.ErrInvalidAmount),
@@ -136,7 +160,7 @@ func writeSubmitError(w http.ResponseWriter, r *http.Request, err error) {
 	}
 }
 
-func statusCodeForResult(result wagerapp.Result) int {
+func statusCodeForResult(result wagering.Result) int {
 	switch result.Status {
 	case wager.StatusProcessed:
 		return http.StatusOK
@@ -149,7 +173,7 @@ func statusCodeForResult(result wagerapp.Result) int {
 	}
 }
 
-func toSubmitResponse(result wagerapp.Result) submitTransactionResponse {
+func toSubmitResponse(result wagering.Result) submitTransactionResponse {
 	resp := submitTransactionResponse{
 		TransactionID:    result.TransactionID,
 		Status:           string(result.Status),
@@ -176,7 +200,8 @@ type transactionResponse struct {
 	FailureCode                    string    `json:"failureCode,omitempty"`
 }
 
-func (h *handler) buildTransactionResponse(r *http.Request, tx wager.Transaction) transactionResponse {
+func toTransactionResponse(view queries.TransactionView) transactionResponse {
+	tx := view.Transaction
 	resp := transactionResponse{
 		TransactionID:                  tx.ID(),
 		ProviderID:                     tx.ProviderID(),
@@ -188,17 +213,10 @@ func (h *handler) buildTransactionResponse(r *http.Request, tx wager.Transaction
 		ReferenceExternalTransactionID: tx.ReferenceExternalID(),
 		FailureCode:                    tx.FailureCode(),
 	}
-
-	if tx.Status() == wager.StatusProcessed {
-		if entry, err := h.deps.Ledger.GetByTransactionID(r.Context(), tx.ID()); err == nil {
-			dto := toMoneyDTO(entry.BalanceAfter())
-			resp.Balance = &dto
-		} else if w, err := h.deps.Wallets.GetByID(r.Context(), tx.WalletID()); err == nil {
-			dto := toMoneyDTO(w.Balance())
-			resp.Balance = &dto
-		}
+	if view.Balance.Currency() != "" {
+		dto := toMoneyDTO(view.Balance)
+		resp.Balance = &dto
 	}
-
 	return resp
 }
 
@@ -212,9 +230,9 @@ func (h *handler) getTransaction(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	tx, err := h.deps.Transactions.GetByID(r.Context(), id)
+	view, err := h.deps.Reader.Transaction(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, postgres.ErrTransactionNotFound) {
+		if errors.Is(err, queries.ErrTransactionNotFound) {
 			writeError(w, http.StatusNotFound, "TRANSACTION_NOT_FOUND", "transaction not found")
 			return
 		}
@@ -222,12 +240,12 @@ func (h *handler) getTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if tx.ProviderID() != providerID {
+	if view.Transaction.ProviderID() != providerID {
 		writeError(w, http.StatusNotFound, "TRANSACTION_NOT_FOUND", "transaction not found")
 		return
 	}
 
-	writeJSON(w, http.StatusOK, h.buildTransactionResponse(r, tx))
+	writeJSON(w, http.StatusOK, toTransactionResponse(view))
 }
 
 func (h *handler) getTransactionByExternalID(w http.ResponseWriter, r *http.Request) {
@@ -242,10 +260,9 @@ func (h *handler) getTransactionByExternalID(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	externalID := r.PathValue("externalId")
-	tx, err := h.deps.Transactions.GetByExternalID(r.Context(), providerID, externalID)
+	view, err := h.deps.Reader.TransactionByExternalID(r.Context(), providerID, r.PathValue("externalId"))
 	if err != nil {
-		if errors.Is(err, postgres.ErrTransactionNotFound) {
+		if errors.Is(err, queries.ErrTransactionNotFound) {
 			writeError(w, http.StatusNotFound, "TRANSACTION_NOT_FOUND", "transaction not found")
 			return
 		}
@@ -253,5 +270,5 @@ func (h *handler) getTransactionByExternalID(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	writeJSON(w, http.StatusOK, h.buildTransactionResponse(r, tx))
+	writeJSON(w, http.StatusOK, toTransactionResponse(view))
 }

@@ -19,14 +19,6 @@ func (h *handler) healthReady(w http.ResponseWriter, r *http.Request) {
 	checks := make(map[string]string)
 	ready := true
 
-	if err := h.deps.DB.PingContext(ctx); err != nil {
-		slog.Error("readiness check failed", "dependency", "postgres", "error", err)
-		checks["postgres"] = "unavailable"
-		ready = false
-	} else {
-		checks["postgres"] = "ok"
-	}
-
 	for _, checker := range h.deps.ReadinessCheckers {
 		if err := checker.Ready(ctx); err != nil {
 			slog.Error("readiness check failed", "dependency", checker.Name(), "error", err)

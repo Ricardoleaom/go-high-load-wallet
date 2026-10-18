@@ -2,7 +2,6 @@ package sqsx_test
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"testing"
 	"time"
@@ -11,25 +10,31 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
-	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/sqsx"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/relay"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/wagering"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/sqstest"
 )
 
-func openFreshDB(ctx context.Context, t *testing.T) *sql.DB {
+func openFreshPool(ctx context.Context, t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	db, err := postgres.Open(ctx, pgtest.FreshURL(t))
+	pool, err := postgres.Open(ctx, pgtest.FreshURL(t))
 	if err != nil {
 		t.Fatalf("open PostgreSQL: %v", err)
 	}
-	t.Cleanup(func() { _ = db.Close() })
-	return db
+	t.Cleanup(pool.Close)
+	return pool
+}
+
+func newConsumer(client *sqs.Client, queueURL string, pool *pgxpool.Pool, metrics *observability.Metrics) (*sqsx.Consumer, *wagering.Service) {
+	service := wagering.NewService(postgres.NewEngine(pool), postgres.NewReferenceQueue(pool))
+	return sqsx.NewConsumer(client, queueURL, postgres.NewInbox(pool), service, metrics), service
 }
 
 func TestConsumerRecordsOutcomes(t *testing.T) {
@@ -39,22 +44,15 @@ func TestConsumerRecordsOutcomes(t *testing.T) {
 	endpoint := sqstest.Start(ctx, t)
 	queueURL := sqstest.CreateFIFOQueue(ctx, t, endpoint, "wager-transactions.fifo")
 	client := sqstest.Client(ctx, t, endpoint)
-	db := openFreshDB(ctx, t)
-
-	wallets := postgres.NewWalletRepository(db)
-	transactions := postgres.NewTransactionRepository(db)
-	ledgerRepo := postgres.NewLedgerRepository(db)
-	outbox := postgres.NewOutboxRepository(db)
+	pool := openFreshPool(ctx, t)
 	metrics := observability.New()
-	consumer := sqsx.NewConsumer(client, queueURL, db, postgres.NewInboxRepository(db),
-		wagerapp.NewService(db, wallets, transactions, ledgerRepo, outbox), metrics)
+	consumer, service := newConsumer(client, queueURL, pool, metrics)
 
 	initial, err := money.New("100.00", "BRL")
 	if err != nil {
 		t.Fatalf("money: %v", err)
 	}
-	opened, err := walletapp.NewService(db, wallets, transactions, ledgerRepo, outbox).
-		Open(ctx, walletapp.OpenInput{PlayerID: uuid.NewString(), InitialBalance: initial})
+	opened, err := service.OpenWallet(ctx, uuid.NewString(), initial)
 	if err != nil {
 		t.Fatalf("open wallet: %v", err)
 	}
@@ -87,7 +85,7 @@ func TestConsumerRecordsOutcomes(t *testing.T) {
 	if got := outcomeCount(t, metrics, "processed"); got != 1 {
 		t.Fatalf("processed = %d, want 1", got)
 	}
-	reloaded, err := wallets.GetByID(ctx, opened.ID())
+	reloaded, err := postgres.NewReader(pool).Wallet(ctx, opened.ID())
 	if err != nil {
 		t.Fatalf("reload wallet: %v", err)
 	}
@@ -96,33 +94,26 @@ func TestConsumerRecordsOutcomes(t *testing.T) {
 	}
 }
 
-func TestPublishOnceSendsDueEventsAndRecordsTheBatch(t *testing.T) {
+func TestRelaySendsDueEventsToTheQueue(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
 	endpoint := sqstest.Start(ctx, t)
 	queueURL := sqstest.CreateFIFOQueue(ctx, t, endpoint, "wager-events.fifo")
 	client := sqstest.Client(ctx, t, endpoint)
-	db := openFreshDB(ctx, t)
-	outbox := postgres.NewOutboxRepository(db)
+	pool := openFreshPool(ctx, t)
 
 	eventID := uuid.NewString()
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		t.Fatalf("begin: %v", err)
-	}
-	if err := outbox.Append(ctx, tx, postgres.OutboxEvent{
-		ID: eventID, AggregateID: "aggregate-1", EventType: "TestEvent",
-		Payload: []byte(`{"eventId":"` + eventID + `"}`), CorrelationID: "correlation", OccurredAt: time.Now().UTC(),
-	}); err != nil {
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO outbox_events (id, aggregate_id, event_type, payload, correlation_id, occurred_at)
+		VALUES ($1, 'aggregate-1', 'TestEvent', jsonb_build_object('eventId', $2::text), 'correlation', now())`,
+		eventID, eventID); err != nil {
 		t.Fatalf("append event: %v", err)
-	}
-	if err := tx.Commit(); err != nil {
-		t.Fatalf("commit: %v", err)
 	}
 
 	metrics := observability.New()
-	published, err := sqsx.NewOutboxPublisher(client, queueURL, outbox, metrics, 20).PublishOnce(ctx)
+	published, err := relay.New(postgres.NewOutboxStore(pool), sqsx.NewSink(client, queueURL), 20,
+		observability.NewRelayObserver(metrics)).PublishOnce(ctx)
 	if err != nil {
 		t.Fatalf("PublishOnce: %v", err)
 	}
@@ -227,14 +218,9 @@ func TestConsumerClassifiesMalformedIDsAsInvalid(t *testing.T) {
 	endpoint := sqstest.Start(ctx, t)
 	queueURL := sqstest.CreateFIFOQueue(ctx, t, endpoint, "wager-transactions.fifo")
 	client := sqstest.Client(ctx, t, endpoint)
-	db := openFreshDB(ctx, t)
-
-	wallets := postgres.NewWalletRepository(db)
-	transactions := postgres.NewTransactionRepository(db)
+	pool := openFreshPool(ctx, t)
 	metrics := observability.New()
-	consumer := sqsx.NewConsumer(client, queueURL, db, postgres.NewInboxRepository(db),
-		wagerapp.NewService(db, wallets, transactions, postgres.NewLedgerRepository(db), postgres.NewOutboxRepository(db)),
-		metrics)
+	consumer, _ := newConsumer(client, queueURL, pool, metrics)
 
 	send(ctx, t, client, queueURL, "malformed", "malformed-ids", betEnvelope(t, "abc", "def"))
 
@@ -256,7 +242,7 @@ func TestConsumerClassifiesMalformedIDsAsInvalid(t *testing.T) {
 	}
 
 	var recorded int
-	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM transactions`).Scan(&recorded); err != nil {
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM transactions`).Scan(&recorded); err != nil {
 		t.Fatalf("count transactions: %v", err)
 	}
 	if recorded != 0 {

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/postgres"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
@@ -24,16 +24,17 @@ func (c fakeChecker) Ready(context.Context) error { return c.err }
 func TestReadinessReportsEachDependency(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	db, err := postgres.Open(ctx, pgtest.URL(t))
+	pool, err := postgres.Open(ctx, pgtest.URL(t))
 	if err != nil {
 		t.Fatalf("open PostgreSQL: %v", err)
 	}
-	defer func() { _ = db.Close() }()
+	defer pool.Close()
 	closed, err := postgres.Open(ctx, pgtest.URL(t))
 	if err != nil {
 		t.Fatalf("open PostgreSQL: %v", err)
 	}
-	_ = closed.Close()
+	closed.Close()
+	live, down := postgres.NewReadiness(pool), postgres.NewReadiness(closed)
 
 	for _, tc := range []struct {
 		name    string
@@ -42,11 +43,11 @@ func TestReadinessReportsEachDependency(t *testing.T) {
 		overall string
 		checks  map[string]string
 	}{
-		{"all ready", Dependencies{DB: db, ReadinessCheckers: []ReadinessChecker{fakeChecker{name: "sqs"}}},
+		{"all ready", Dependencies{ReadinessCheckers: []ReadinessChecker{live, fakeChecker{name: "sqs"}}},
 			http.StatusOK, "ok", map[string]string{"postgres": "ok", "sqs": "ok"}},
-		{"queue down", Dependencies{DB: db, ReadinessCheckers: []ReadinessChecker{fakeChecker{name: "sqs", err: errors.New("down")}}},
+		{"queue down", Dependencies{ReadinessCheckers: []ReadinessChecker{live, fakeChecker{name: "sqs", err: errors.New("down")}}},
 			http.StatusServiceUnavailable, "unavailable", map[string]string{"postgres": "ok", "sqs": "unavailable"}},
-		{"database down", Dependencies{DB: closed, ReadinessCheckers: []ReadinessChecker{fakeChecker{name: "sqs"}}},
+		{"database down", Dependencies{ReadinessCheckers: []ReadinessChecker{down, fakeChecker{name: "sqs"}}},
 			http.StatusServiceUnavailable, "unavailable", map[string]string{"postgres": "unavailable", "sqs": "ok"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

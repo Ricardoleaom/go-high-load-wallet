@@ -40,4 +40,4 @@ func NewClient(ctx context.Context, cfg Config) (*sqs.Client, error) {
 	}), nil
 }
 
-var tracer = otel.Tracer("github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx")
+var tracer = otel.Tracer("github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/sqsx")

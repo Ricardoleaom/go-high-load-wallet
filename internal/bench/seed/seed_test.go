@@ -10,9 +10,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/postgres"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/bench/seed"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
@@ -78,12 +78,12 @@ func TestSeedWritesWalletsOpeningsAndLedger(t *testing.T) {
 		t.Fatalf("CSV has %d rows starting with %v, want a header and 250 wallets", len(rows), rows[0])
 	}
 
-	db, err := postgres.Open(ctx, url)
+	pool, err := postgres.Open(ctx, url)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	defer func() { _ = db.Close() }()
-	snapshot, err := postgres.NewLedgerRepository(db).ReconciliationSnapshot(ctx, rows[1][0])
+	defer pool.Close()
+	snapshot, err := postgres.NewReader(pool).Reconciliation(ctx, rows[1][0])
 	if err != nil {
 		t.Fatalf("reconcile: %v", err)
 	}

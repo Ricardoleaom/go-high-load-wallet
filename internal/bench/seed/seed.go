@@ -150,7 +150,7 @@ func writeCSV(out io.Writer, wallets []seededWallet) error {
 }
 
 func newUUID() pgtype.UUID {
-	return pgtype.UUID{Bytes: uuid.New(), Valid: true}
+	return pgtype.UUID{Bytes: uuid.Must(uuid.NewV7()), Valid: true}
 }
 
 func uuidString(u pgtype.UUID) string {

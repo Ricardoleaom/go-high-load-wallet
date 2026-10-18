@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/httpapi"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/postgres"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
@@ -25,23 +25,23 @@ func TestSubmitTimesOutWith503WhenTheWalletIsLocked(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open PostgreSQL: %v", err)
 	}
-	defer func() { _ = locker.Close() }()
-	lock, err := locker.BeginTx(ctx, nil)
+	defer locker.Close()
+	lock, err := locker.Begin(ctx)
 	if err != nil {
 		t.Fatalf("begin: %v", err)
 	}
-	if _, err := lock.ExecContext(ctx, `SELECT 1 FROM wallets WHERE id = $1 FOR UPDATE`, walletID); err != nil {
+	if _, err := lock.Exec(ctx, `SELECT 1 FROM wallets WHERE id = $1 FOR UPDATE`, walletID); err != nil {
 		t.Fatalf("lock wallet: %v", err)
 	}
 	// Without a budget the bet would wait for the lock forever; release it
 	// eventually so a regression fails the assertions instead of hanging.
-	release := time.AfterFunc(3*time.Second, func() { _ = lock.Rollback() })
+	release := time.AfterFunc(3*time.Second, func() { _ = lock.Rollback(context.Background()) })
 	defer release.Stop()
 
 	started := time.Now()
 	resp := h.submit(t, provider, wagerBody(walletID, playerID, "BET", "10.00"))
 	elapsed := time.Since(started)
-	_ = lock.Rollback()
+	_ = lock.Rollback(context.Background())
 
 	requireError(t, resp, http.StatusServiceUnavailable, "TIMEOUT")
 	if elapsed > 2*time.Second {

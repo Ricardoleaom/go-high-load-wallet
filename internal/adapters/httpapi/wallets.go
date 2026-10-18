@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/queries"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/wagering"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 )
 
 func requireInternal(w http.ResponseWriter, r *http.Request) bool {
@@ -56,12 +56,9 @@ func (h *handler) openWallet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	created, err := h.deps.WalletService.Open(r.Context(), walletapp.OpenInput{
-		PlayerID:       req.PlayerID,
-		InitialBalance: initialBalance,
-	})
+	created, err := h.deps.Wagering.OpenWallet(r.Context(), req.PlayerID, initialBalance)
 	if err != nil {
-		if errors.Is(err, walletapp.ErrWalletConflict) {
+		if errors.Is(err, wagering.ErrWalletConflict) {
 			writeError(w, http.StatusConflict, "WALLET_CONFLICT", "a wallet already exists for this player and currency")
 			return
 		}
@@ -86,9 +83,9 @@ func (h *handler) getWallet(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	wlt, err := h.deps.Wallets.GetByID(r.Context(), id)
+	wlt, err := h.deps.Reader.Wallet(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, postgres.ErrWalletNotFound) {
+		if errors.Is(err, queries.ErrWalletNotFound) {
 			writeError(w, http.StatusNotFound, "WALLET_NOT_FOUND", "wallet not found")
 			return
 		}
@@ -139,18 +136,17 @@ func (h *handler) getWalletLedger(w http.ResponseWriter, r *http.Request) {
 		limit = parsed
 	}
 
-	var afterCreatedAt time.Time
-	var afterID string
+	var after queries.Cursor
 	if raw := r.URL.Query().Get("cursor"); raw != "" {
 		var err error
-		afterCreatedAt, afterID, err = decodeLedgerCursor(raw)
+		after.CreatedAt, after.ID, err = decodeLedgerCursor(raw)
 		if err != nil {
 			writeError(w, http.StatusBadRequest, "INVALID_CURSOR", "cursor is malformed")
 			return
 		}
 	}
 
-	entries, err := h.deps.Ledger.ListByWallet(r.Context(), walletID, afterCreatedAt, afterID, limit)
+	entries, err := h.deps.Reader.Ledger(r.Context(), walletID, after, limit)
 	if err != nil {
 		writeServerError(w, r, err, "could not load ledger")
 		return
@@ -222,9 +218,9 @@ func (h *handler) reconcileWallet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	snapshot, err := h.deps.Ledger.ReconciliationSnapshot(r.Context(), walletID)
+	snapshot, err := h.deps.Reader.Reconciliation(r.Context(), walletID)
 	if err != nil {
-		if errors.Is(err, postgres.ErrWalletNotFound) {
+		if errors.Is(err, queries.ErrWalletNotFound) {
 			writeError(w, http.StatusNotFound, "WALLET_NOT_FOUND", "wallet not found")
 			return
 		}

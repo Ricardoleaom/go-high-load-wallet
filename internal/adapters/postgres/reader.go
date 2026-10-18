@@ -25,6 +25,11 @@ func NewReader(pool *pgxpool.Pool) *Reader {
 }
 
 func (r *Reader) Wallet(ctx context.Context, id string) (wallet.Wallet, error) {
+	w, err := r.wallet(ctx, id)
+	return w, markTimeout(err)
+}
+
+func (r *Reader) wallet(ctx context.Context, id string) (wallet.Wallet, error) {
 	var (
 		playerID, currency   string
 		balance, version     int64
@@ -62,13 +67,15 @@ const transactionQuery = `
 `
 
 func (r *Reader) Transaction(ctx context.Context, id string) (queries.TransactionView, error) {
-	return scanTransaction(r.pool.QueryRow(ctx, transactionQuery+`WHERE t.id = $1`, id))
+	view, err := scanTransaction(r.pool.QueryRow(ctx, transactionQuery+`WHERE t.id = $1`, id))
+	return view, markTimeout(err)
 }
 
 func (r *Reader) TransactionByExternalID(ctx context.Context, providerID, externalID string) (queries.TransactionView, error) {
-	return scanTransaction(r.pool.QueryRow(ctx,
+	view, err := scanTransaction(r.pool.QueryRow(ctx,
 		transactionQuery+`WHERE t.provider_id = $1 AND t.external_id = $2 AND t.kind <> 'OPENING'`,
 		providerID, externalID))
+	return view, markTimeout(err)
 }
 
 func scanTransaction(row pgx.Row) (queries.TransactionView, error) {
@@ -110,6 +117,11 @@ func scanTransaction(row pgx.Row) (queries.TransactionView, error) {
 }
 
 func (r *Reader) Ledger(ctx context.Context, walletID string, after queries.Cursor, limit int) ([]ledger.Entry, error) {
+	entries, err := r.ledger(ctx, walletID, after, limit)
+	return entries, markTimeout(err)
+}
+
+func (r *Reader) ledger(ctx context.Context, walletID string, after queries.Cursor, limit int) ([]ledger.Entry, error) {
 	var afterID *string
 	if after.ID != "" {
 		afterID = &after.ID
@@ -171,6 +183,11 @@ func ledgerEntry(id, walletID, transactionID, direction string, delta, before, a
 // statement, hence one snapshot: both sides see the same committed data
 // while other transactions keep moving the wallet.
 func (r *Reader) Reconciliation(ctx context.Context, walletID string) (queries.Reconciliation, error) {
+	snapshot, err := r.reconciliation(ctx, walletID)
+	return snapshot, markTimeout(err)
+}
+
+func (r *Reader) reconciliation(ctx context.Context, walletID string) (queries.Reconciliation, error) {
 	var (
 		stored, calculated int64
 		currency           string

@@ -4,9 +4,9 @@ package observability
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 	"runtime"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -129,11 +129,6 @@ func latencyOpts(name, help string) prometheus.HistogramOpts {
 	}
 }
 
-// RegisterDB exposes the connection pool statistics as go_sql_* metrics.
-func (m *Metrics) RegisterDB(db *sql.DB) {
-	m.Registry.MustRegister(collectors.NewDBStatsCollector(db, "wallet"))
-}
-
 // Handler serves the registry in the OpenMetrics format when the scraper
 // asks for it, which is what carries exemplars.
 func (m *Metrics) Handler() http.Handler {
@@ -150,4 +145,25 @@ func ObserveDuration(ctx context.Context, o prometheus.Observer, seconds float64
 		return
 	}
 	o.Observe(seconds)
+}
+
+// ObserveSubmit records one wager submission on wager_submit_duration_seconds.
+// The caller bounds the labels (wagering.MetricLabels).
+func ObserveSubmit(ctx context.Context, m *Metrics, transport, kind, status string, started time.Time) {
+	ObserveDuration(ctx, m.SubmitDuration.WithLabelValues(transport, kind, status), time.Since(started).Seconds())
+}
+
+// RelayObserver records each outbox publishing round.
+type RelayObserver struct {
+	metrics *Metrics
+}
+
+func NewRelayObserver(m *Metrics) RelayObserver {
+	return RelayObserver{metrics: m}
+}
+
+func (o RelayObserver) Batch(ctx context.Context, published, failed int, took time.Duration) {
+	o.metrics.OutboxPublishedTotal.Add(float64(published))
+	o.metrics.OutboxPublishFailedTotal.Add(float64(failed))
+	ObserveDuration(ctx, o.metrics.OutboxBatchDuration, took.Seconds())
 }

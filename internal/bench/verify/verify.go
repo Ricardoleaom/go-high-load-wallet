@@ -5,8 +5,9 @@ package verify
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type Check struct {
@@ -95,9 +96,14 @@ var definitions = []definition{
 
 const maxSamples = 10
 
+// Querier runs the checks: a pgx connection or pool.
+type Querier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}
+
 // Run executes every check. A violation is a finding, not an error: err is
 // reserved for failing to run a check at all.
-func Run(ctx context.Context, db *sql.DB) (Report, error) {
+func Run(ctx context.Context, db Querier) (Report, error) {
 	report := Report{Checks: make([]Check, 0, len(definitions))}
 	for _, d := range definitions {
 		check, err := run(ctx, db, d)
@@ -109,14 +115,14 @@ func Run(ctx context.Context, db *sql.DB) (Report, error) {
 	return report, nil
 }
 
-func run(ctx context.Context, db *sql.DB, d definition) (Check, error) {
+func run(ctx context.Context, db Querier, d definition) (Check, error) {
 	//nolint:gosec // d.query is one of this package's constant definitions, never input
 	query := fmt.Sprintf(`SELECT offender, count(*) OVER () FROM (%s) AS offenders(offender) LIMIT %d`, d.query, maxSamples)
-	rows, err := db.QueryContext(ctx, query)
+	rows, err := db.Query(ctx, query)
 	if err != nil {
 		return Check{}, fmt.Errorf("check %s: %w", d.name, err)
 	}
-	defer func() { _ = rows.Close() }()
+	defer rows.Close()
 
 	check := Check{Name: d.name, Invariant: d.invariant, Samples: []string{}}
 	for rows.Next() {

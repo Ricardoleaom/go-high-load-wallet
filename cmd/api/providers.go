@@ -2,30 +2,32 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/fx"
 
-	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
-	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/httpapi"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/sqsx"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/engine"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/queries"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/relay"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/wagering"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/config"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
-func newDB(lc fx.Lifecycle, cfg config.Config) (*sql.DB, error) {
+func newPool(lc fx.Lifecycle, cfg config.Config) (*pgxpool.Pool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	db, err := postgres.Open(ctx, cfg.DatabaseURL,
-		postgres.WithMaxOpenConns(cfg.DBMaxOpenConns),
-		postgres.WithMaxIdleConns(cfg.DBMaxIdleConns),
+	pool, err := postgres.Open(ctx, cfg.DatabaseURL,
+		postgres.WithMaxConns(int32(min(cfg.DBMaxOpenConns, 1<<20))), //nolint:gosec // bounded above
+		postgres.WithMinConns(int32(min(cfg.DBMinConns, 1<<20))),     //nolint:gosec // bounded above
 		postgres.WithQueryTracing(),
 		postgres.WithSessionTimeouts(cfg.DBStatementTimeout, cfg.DBIdleInTransactionTimeout, cfg.DBLockTimeout),
 	)
@@ -35,12 +37,16 @@ func newDB(lc fx.Lifecycle, cfg config.Config) (*sql.DB, error) {
 
 	lc.Append(fx.Hook{
 		OnStop: func(context.Context) error {
-			return db.Close()
+			pool.Close()
+			return nil
 		},
 	})
-
-	return db, nil
+	return pool, nil
 }
+
+func newEngine(pool *pgxpool.Pool) engine.Engine { return postgres.NewEngine(pool) }
+
+func newReader(pool *pgxpool.Pool) queries.Reader { return postgres.NewReader(pool) }
 
 // Overridden by tests; production waits up to two minutes for the IdP,
 // which takes a while on a cold docker compose up.
@@ -94,85 +100,61 @@ func newSQSClient(cfg config.Config) (*sqs.Client, error) {
 	})
 }
 
-func newWagerService(
-	db *sql.DB,
-	wallets *postgres.WalletRepository,
-	transactions *postgres.TransactionRepository,
-	ledgerRepo *postgres.LedgerRepository,
-	outbox *postgres.OutboxRepository,
-	metrics *observability.Metrics,
-) *wagerapp.Service {
-	service := wagerapp.NewService(db, wallets, transactions, ledgerRepo, outbox)
+func newWageringService(e engine.Engine, references *postgres.ReferenceQueue, metrics *observability.Metrics) *wagering.Service {
+	service := wagering.NewService(e, references)
 	service.OnConcurrencyConflict(metrics.ConcurrencyConflictsTotal.Inc)
 	return service
 }
 
-func newInboxRepository(db *sql.DB) *postgres.InboxRepository {
-	return postgres.NewInboxRepository(db)
+func newReferenceRetryWorker(service *wagering.Service, metrics *observability.Metrics) *wagering.RetryWorker {
+	return wagering.NewRetryWorker(service, func(n int) { metrics.ReferenceRetriesTotal.Add(float64(n)) })
 }
 
-func newOutboxRepository(db *sql.DB) *postgres.OutboxRepository {
-	return postgres.NewOutboxRepository(db)
+func newRelay(cfg config.Config, store *postgres.OutboxStore, sink *sqsx.Sink, metrics *observability.Metrics) *relay.Relay {
+	return relay.New(store, sink, cfg.OutboxBatchSize, observability.NewRelayObserver(metrics))
 }
 
 // registerDBMetrics exposes the pool statistics and the outbox backlog. The
 // backlog query runs on every scrape, bounded so a slow database cannot
 // stall the scrape.
-func registerDBMetrics(metrics *observability.Metrics, db *sql.DB, outbox *postgres.OutboxRepository) {
-	metrics.RegisterDB(db)
+func registerDBMetrics(metrics *observability.Metrics, pool *pgxpool.Pool, outbox *postgres.OutboxStore) {
+	metrics.Registry.MustRegister(postgres.NewPoolCollector(pool))
 	metrics.Registry.MustRegister(observability.NewOutboxCollector(outbox.Backlog, 2*time.Second))
 }
 
 func newSQSConsumer(
 	cfg config.Config,
 	client *sqs.Client,
-	db *sql.DB,
-	inbox *postgres.InboxRepository,
-	wagerService *wagerapp.Service,
+	inbox *postgres.Inbox,
+	service *wagering.Service,
 	metrics *observability.Metrics,
 ) *sqsx.Consumer {
-	return sqsx.NewConsumer(client, cfg.TransactionsQueueURL, db, inbox, wagerService, metrics)
+	return sqsx.NewConsumer(client, cfg.TransactionsQueueURL, inbox, service, metrics)
 }
 
-func newOutboxPublisher(
-	cfg config.Config,
-	client *sqs.Client,
-	outbox *postgres.OutboxRepository,
-	metrics *observability.Metrics,
-) *sqsx.OutboxPublisher {
-	return sqsx.NewOutboxPublisher(client, cfg.EventsQueueURL, outbox, metrics, cfg.OutboxBatchSize)
+func newSQSSink(cfg config.Config, client *sqs.Client) *sqsx.Sink {
+	return sqsx.NewSink(client, cfg.EventsQueueURL)
 }
 
 func newSQSReadiness(cfg config.Config, client *sqs.Client) *sqsx.Readiness {
 	return sqsx.NewReadiness(client, cfg.TransactionsQueueURL)
 }
 
-func newReferenceRetryWorker(wagerService *wagerapp.Service, metrics *observability.Metrics) *wagerapp.RetryWorker {
-	return wagerapp.NewRetryWorker(wagerService, metrics)
-}
-
 func newHTTPHandlerDeps(
 	cfg config.Config,
-	db *sql.DB,
-	wallets *postgres.WalletRepository,
-	transactions *postgres.TransactionRepository,
-	ledgerRepo *postgres.LedgerRepository,
-	walletService *walletapp.Service,
-	wagerService *wagerapp.Service,
+	service *wagering.Service,
+	reader queries.Reader,
 	auth *httpapi.Authenticator,
 	metrics *observability.Metrics,
-	sqsReadiness *sqsx.Readiness,
+	database *postgres.Readiness,
+	queue *sqsx.Readiness,
 ) httpapi.Dependencies {
 	return httpapi.Dependencies{
-		DB:                db,
-		Wallets:           wallets,
-		Transactions:      transactions,
-		Ledger:            ledgerRepo,
-		WalletService:     walletService,
-		WagerService:      wagerService,
+		Wagering:          service,
+		Reader:            reader,
 		Auth:              auth,
 		Metrics:           metrics,
-		ReadinessCheckers: []httpapi.ReadinessChecker{sqsReadiness},
+		ReadinessCheckers: []httpapi.ReadinessChecker{database, queue},
 		RequestTimeout:    cfg.RequestTimeout,
 	}
 }

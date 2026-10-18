@@ -2,7 +2,6 @@ package sqsx
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,12 +13,10 @@ import (
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"go.opentelemetry.io/otel/trace"
 
-	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/wagering"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
-	"github.com/google/uuid"
 )
 
 // ConsumerName identifies this consumer in the inbox table.
@@ -48,51 +45,50 @@ type messageData struct {
 	ReferenceExternalTransactionID string `json:"referenceExternalTransactionId,omitempty"`
 }
 
+// Inbox records which messages this consumer has handled, so a redelivery
+// of a completed one is acknowledged without being applied again.
+type Inbox interface {
+	Record(ctx context.Context, consumer, messageID, payloadHash string) (alreadyCompleted bool, err error)
+	Complete(ctx context.Context, consumer, messageID string) error
+}
+
 // Consumer polls the wager-transactions queue and feeds messages into the
-// same application use case HTTP calls, so both transports share identical
-// idempotency and processing guarantees.
+// same use case HTTP calls, so both transports share identical idempotency
+// and processing guarantees.
 //
-// The inbox write and the financial commit run as two separate database
-// transactions rather than one shared transaction: threading a
-// caller-supplied *sql.Tx through the whole wager application service was
-// out of scope for the time available. Safety does not depend on that
-// atomicity. The transactions table's unique idempotency index (proven
-// under 50 concurrent duplicate submissions in
-// internal/application/wager/service_test.go) is what actually prevents a
-// duplicate movement. The inbox here tracks message-level completion for
-// operational visibility and to let a duplicate delivery short-circuit
-// before re-running business logic.
+// The inbox and the submission are separate writes. Safety does not depend
+// on them being atomic: the engine applies a submission once per
+// idempotency key whatever the transport, so a message whose inbox record
+// was lost is simply answered as a replay. The inbox lets a redelivery of a
+// completed message short-circuit before reaching the engine.
 type Consumer struct {
 	client   *sqs.Client
 	queueURL string
-	db       *sql.DB
-	inbox    *postgres.InboxRepository
-	wager    *wagerapp.Service
+	inbox    Inbox
+	wagering *wagering.Service
 	metrics  *observability.Metrics
 }
 
 func NewConsumer(
 	client *sqs.Client,
 	queueURL string,
-	db *sql.DB,
-	inbox *postgres.InboxRepository,
-	wagerService *wagerapp.Service,
+	inbox Inbox,
+	service *wagering.Service,
 	metrics *observability.Metrics,
 ) *Consumer {
 	return &Consumer{
 		client:   client,
 		queueURL: queueURL,
-		db:       db,
 		inbox:    inbox,
-		wager:    wagerService,
+		wagering: service,
 		metrics:  metrics,
 	}
 }
 
-// Run polls until ctx is canceled. On shutdown Fx cancels ctx: no new
-// ReceiveMessage starts, and a message mid-processing has its open SQL
-// transaction aborted instead of committed, so it is never deleted and
-// becomes visible again after the visibility timeout for a safe redelivery.
+// Run polls until ctx is canceled. On shutdown the context ends: no new
+// ReceiveMessage starts, and a message mid-processing is cancelled before
+// it is deleted, so it becomes visible again after the visibility timeout
+// for a safe redelivery.
 func (c *Consumer) Run(ctx context.Context) error {
 	for {
 		if ctx.Err() != nil {
@@ -135,21 +131,12 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 
 	sqsMessageID := aws.ToString(msg.MessageId)
 
-	var envelope messageEnvelope
-	if err := json.Unmarshal([]byte(aws.ToString(msg.Body)), &envelope); err != nil {
-		// A malformed body will never parse; let it exhaust the redrive
-		// policy's maxReceiveCount and land in the DLQ instead of looping
-		// here forever.
-		slog.ErrorContext(ctx, "invalid SQS message body", "error", err, "sqsMessageId", sqsMessageID)
-		outcome = "invalid"
-		return
-	}
-
-	// The envelope's messageId is the durable identity, not the SQS one: a
-	// producer that resends the same envelope gets a brand new SQS MessageId.
-	messageID := envelope.MessageID
-	if messageID == "" {
-		slog.ErrorContext(ctx, "SQS message without envelope messageId", "sqsMessageId", sqsMessageID)
+	// A message that does not decode never will: let it exhaust the
+	// redrive policy's maxReceiveCount and land in the DLQ instead of
+	// looping here forever.
+	messageID, input, err := decodeMessage([]byte(aws.ToString(msg.Body)))
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid SQS message", "error", err, "sqsMessageId", sqsMessageID)
 		outcome = "invalid"
 		return
 	}
@@ -158,38 +145,17 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 		"transport", "sqs",
 		"messageId", messageID,
 		"correlationId", messageID,
-		"providerId", envelope.Data.ProviderID,
-		"walletId", envelope.Data.WalletID,
+		"providerId", input.ProviderID,
+		"walletId", input.WalletID,
 	)
 
-	amount, err := money.New(envelope.Data.Money.Amount, envelope.Data.Money.Currency)
-	if err != nil {
-		logger.ErrorContext(ctx, "invalid money in SQS message", "error", err)
-		outcome = "invalid"
-		return
-	}
-
-	input := wagerapp.SubmitInput{
-		ProviderID:          envelope.Data.ProviderID,
-		ExternalID:          envelope.Data.ExternalTransactionID,
-		IdempotencyKey:      envelope.Data.IdempotencyKey,
-		PlayerID:            envelope.Data.PlayerID,
-		WalletID:            envelope.Data.WalletID,
-		RoundID:             envelope.Data.RoundID,
-		GameID:              envelope.Data.GameID,
-		Kind:                wager.Kind(envelope.Data.Kind),
-		Amount:              amount,
-		ReferenceExternalID: envelope.Data.ReferenceExternalTransactionID,
-		CorrelationID:       messageID,
-	}
-
-	payloadHash, err := wagerapp.ComputePayloadHash(input)
+	payloadHash, err := wagering.ComputePayloadHash(input)
 	if err != nil {
 		logger.ErrorContext(ctx, "compute payload hash", "error", err)
 		return
 	}
 
-	alreadyCompleted, err := c.recordInbox(ctx, messageID, payloadHash)
+	alreadyCompleted, err := c.inbox.Record(ctx, ConsumerName, messageID, payloadHash)
 	if err != nil {
 		logger.ErrorContext(ctx, "record inbox message", "error", err)
 		return
@@ -202,8 +168,9 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 	}
 
 	submitStarted := time.Now()
-	result, err := c.wager.Submit(ctx, input)
-	wagerapp.RecordSubmit(ctx, c.metrics, "sqs", input.Kind, result, err, submitStarted)
+	result, err := c.wagering.Submit(ctx, input)
+	kindLabel, statusLabel := wagering.MetricLabels(input.Kind, result, err)
+	observability.ObserveSubmit(ctx, c.metrics, "sqs", kindLabel, statusLabel, submitStarted)
 	if err != nil {
 		logger.ErrorContext(ctx, "process wager transaction from SQS", "error", err)
 		if invalidSubmission(err) {
@@ -212,7 +179,7 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 		return
 	}
 
-	if err := c.completeInbox(ctx, messageID); err != nil {
+	if err := c.inbox.Complete(ctx, ConsumerName, messageID); err != nil {
 		logger.ErrorContext(ctx, "complete inbox message", "error", err)
 		return
 	}
@@ -231,45 +198,43 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 // number of redeliveries, from a failure worth retrying. Either way the
 // message stays on the queue and reaches the DLQ after its last attempt.
 func invalidSubmission(err error) bool {
-	return errors.Is(err, wagerapp.ErrInvalidInput) ||
-		errors.Is(err, wagerapp.ErrOpeningNotAllowed) ||
+	return errors.Is(err, wagering.ErrInvalidInput) ||
+		errors.Is(err, wagering.ErrOpeningNotAllowed) ||
 		errors.Is(err, wager.ErrInvalidTransaction) ||
 		errors.Is(err, wager.ErrInvalidAmount) ||
 		errors.Is(err, money.ErrInvalidAmount) ||
 		errors.Is(err, money.ErrInvalidCurrency)
 }
 
-func (c *Consumer) recordInbox(ctx context.Context, messageID, payloadHash string) (alreadyCompleted bool, err error) {
-	dbTx, err := c.db.BeginTx(ctx, nil)
+// decodeMessage reads a queue message into the use case's input. The
+// envelope's messageId is the message's durable identity, not the SQS one:
+// a producer that resends the same envelope gets a new SQS MessageId.
+func decodeMessage(body []byte) (string, wagering.SubmitInput, error) {
+	var envelope messageEnvelope
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return "", wagering.SubmitInput{}, fmt.Errorf("decode message body: %w", err)
+	}
+	if envelope.MessageID == "" {
+		return "", wagering.SubmitInput{}, errors.New("message without an envelope messageId")
+	}
+	amount, err := money.New(envelope.Data.Money.Amount, envelope.Data.Money.Currency)
 	if err != nil {
-		return false, fmt.Errorf("begin inbox record: %w", err)
+		return "", wagering.SubmitInput{}, fmt.Errorf("decode message money: %w", err)
 	}
-	defer dbTx.Rollback()
-
-	alreadyCompleted, err = c.inbox.Record(ctx, dbTx, uuid.NewString(), ConsumerName, messageID, payloadHash)
-	if err != nil {
-		return false, err
-	}
-
-	if err := dbTx.Commit(); err != nil {
-		return false, fmt.Errorf("commit inbox record: %w", err)
-	}
-
-	return alreadyCompleted, nil
-}
-
-func (c *Consumer) completeInbox(ctx context.Context, messageID string) error {
-	dbTx, err := c.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin inbox complete: %w", err)
-	}
-	defer dbTx.Rollback()
-
-	if err := c.inbox.Complete(ctx, dbTx, ConsumerName, messageID); err != nil {
-		return err
-	}
-
-	return dbTx.Commit()
+	data := envelope.Data
+	return envelope.MessageID, wagering.SubmitInput{
+		ProviderID:          data.ProviderID,
+		ExternalID:          data.ExternalTransactionID,
+		IdempotencyKey:      data.IdempotencyKey,
+		PlayerID:            data.PlayerID,
+		WalletID:            data.WalletID,
+		RoundID:             data.RoundID,
+		GameID:              data.GameID,
+		Kind:                wager.Kind(data.Kind),
+		Amount:              amount,
+		ReferenceExternalID: data.ReferenceExternalTransactionID,
+		CorrelationID:       envelope.MessageID,
+	}, nil
 }
 
 func (c *Consumer) ack(ctx context.Context, msg sqstypes.Message, logger *slog.Logger) {

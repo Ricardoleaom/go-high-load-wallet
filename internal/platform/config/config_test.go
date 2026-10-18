@@ -30,7 +30,7 @@ func TestLoadDefaultsReproduceTheDeliveredBehavior(t *testing.T) {
 		got, want any
 	}{
 		{"DBMaxOpenConns", cfg.DBMaxOpenConns, 10},
-		{"DBMaxIdleConns", cfg.DBMaxIdleConns, 5},
+		{"DBMinConns", cfg.DBMinConns, 2},
 		{"OutboxBatchSize", cfg.OutboxBatchSize, 20},
 		{"OutboxPublishInterval", cfg.OutboxPublishInterval, 2 * time.Second},
 		{"ReferenceRetryInterval", cfg.ReferenceRetryInterval, 15 * time.Second},
@@ -67,7 +67,7 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 	cases := []struct{ key, value string }{
 		{"DB_MAX_OPEN_CONNS", "0"},
 		{"DB_MAX_OPEN_CONNS", "ten"},
-		{"DB_MAX_IDLE_CONNS", "-1"},
+		{"DB_MIN_CONNS", "-1"},
 		{"OUTBOX_BATCH_SIZE", "0"},
 		{"OUTBOX_PUBLISH_INTERVAL", "abc"},
 		{"OUTBOX_PUBLISH_INTERVAL", "0"},

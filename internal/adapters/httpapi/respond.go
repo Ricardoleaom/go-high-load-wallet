@@ -10,7 +10,6 @@ import (
 
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 )
 
 // maxBodyBytes bounds every request body; the largest valid one is a small
@@ -58,12 +57,23 @@ func pathID(w http.ResponseWriter, r *http.Request, name string) (string, bool) 
 // request ran out of time, so the client knows a retry may succeed, and 500
 // otherwise.
 func writeServerError(w http.ResponseWriter, r *http.Request, err error, message string) {
-	if errors.Is(r.Context().Err(), context.DeadlineExceeded) || postgres.IsTimeout(err) {
+	if timedOut(r, err) {
 		w.Header().Set("Retry-After", "1")
 		writeError(w, http.StatusServiceUnavailable, "TIMEOUT", "the request did not finish within its time budget")
 		return
 	}
 	writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", message)
+}
+
+// timedOut reports whether the request ran out of time: its deadline
+// passed, or err says it is a timeout the way net.Error does (the storage
+// adapter marks a statement or lock timeout so).
+func timedOut(r *http.Request, err error) bool {
+	if errors.Is(r.Context().Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var timeout interface{ Timeout() bool }
+	return errors.As(err, &timeout) && timeout.Timeout()
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

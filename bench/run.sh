@@ -178,7 +178,7 @@ def out(cmd):
         return ""
 cpu = next((line.split(":", 1)[1].strip() for line in out(["lscpu"]).splitlines() if line.startswith("Model name")), "")
 keys = ["SCENARIO", "MODE", "RATE", "DURATION", "REPEAT", "WARMUP", "WALLETS", "KNEE_START", "KNEE_STEP", "KNEE_MAX",
-        "KNEE_STEP_DURATION", "MIX", "ZIPF_S", "REPLAY_RATIO", "LABEL", "DB_MAX_OPEN_CONNS", "DB_MAX_IDLE_CONNS",
+        "KNEE_STEP_DURATION", "MIX", "ZIPF_S", "REPLAY_RATIO", "LABEL", "DB_MAX_OPEN_CONNS", "DB_MIN_CONNS",
         "OUTBOX_BATCH_SIZE", "OUTBOX_PUBLISH_INTERVAL", "OTEL_TRACES_SAMPLER_ARG", "BENCH_CPUS_POSTGRES", "BENCH_CPUS_APP", "BENCH_CPUS_K6"]
 meta = {
     "git_sha": out(["git", "rev-parse", "HEAD"]),

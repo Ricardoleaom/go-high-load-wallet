@@ -123,3 +123,20 @@ func IsTimeout(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && (pgErr.Code == "57014" || pgErr.Code == "55P03")
 }
+
+// timeoutError marks an error that means an operation ran out of time, for
+// callers that must not depend on this package: like net.Error, it answers
+// Timeout() with true.
+type timeoutError struct{ err error }
+
+func (e timeoutError) Error() string { return e.err.Error() }
+func (e timeoutError) Unwrap() error { return e.err }
+func (timeoutError) Timeout() bool   { return true }
+
+// markTimeout wraps err in timeoutError when IsTimeout says it is one.
+func markTimeout(err error) error {
+	if err != nil && IsTimeout(err) {
+		return timeoutError{err: err}
+	}
+	return err
+}

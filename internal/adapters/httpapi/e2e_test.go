@@ -15,17 +15,16 @@ import (
 
 	"github.com/google/uuid"
 
-	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
-	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/httpapi"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/wagering"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/jwttest"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/pgtest"
 )
 
-// apiHarness runs the real handler, use cases and repositories against a
-// real PostgreSQL, with jwttest standing in for Keycloak.
+// apiHarness runs the real handler, use case and PostgreSQL adapter against
+// a real PostgreSQL, with jwttest standing in for Keycloak.
 type apiHarness struct {
 	server  *httptest.Server
 	issuer  *jwttest.Issuer
@@ -39,11 +38,11 @@ func newAPIHarness(t *testing.T, opts ...func(*httpapi.Dependencies)) *apiHarnes
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	db, err := postgres.Open(ctx, databaseURL)
+	pool, err := postgres.Open(ctx, databaseURL)
 	if err != nil {
 		t.Fatalf("open PostgreSQL: %v", err)
 	}
-	t.Cleanup(func() { _ = db.Close() })
+	t.Cleanup(pool.Close)
 
 	issuer := jwttest.NewIssuer(t)
 	metrics := observability.New()
@@ -54,20 +53,11 @@ func newAPIHarness(t *testing.T, opts ...func(*httpapi.Dependencies)) *apiHarnes
 		t.Fatalf("NewAuthenticator: %v", err)
 	}
 
-	wallets := postgres.NewWalletRepository(db)
-	transactions := postgres.NewTransactionRepository(db)
-	ledgerRepo := postgres.NewLedgerRepository(db)
-	outbox := postgres.NewOutboxRepository(db)
-
 	deps := httpapi.Dependencies{
-		DB:            db,
-		Wallets:       wallets,
-		Transactions:  transactions,
-		Ledger:        ledgerRepo,
-		WalletService: walletapp.NewService(db, wallets, transactions, ledgerRepo, outbox),
-		WagerService:  wagerapp.NewService(db, wallets, transactions, ledgerRepo, outbox),
-		Auth:          auth,
-		Metrics:       metrics,
+		Wagering: wagering.NewService(postgres.NewEngine(pool), postgres.NewReferenceQueue(pool)),
+		Reader:   postgres.NewReader(pool),
+		Auth:     auth,
+		Metrics:  metrics,
 	}
 	for _, opt := range opts {
 		opt(&deps)

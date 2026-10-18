@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/httpapi"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/jwttest"
 )

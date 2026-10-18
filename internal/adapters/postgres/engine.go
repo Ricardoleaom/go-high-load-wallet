@@ -25,16 +25,21 @@ func NewEngine(pool *pgxpool.Pool) *Engine {
 }
 
 func (e *Engine) Execute(ctx context.Context, cmd engine.Command) (engine.Outcome, error) {
+	var (
+		out engine.Outcome
+		err error
+	)
 	switch cmd := cmd.(type) {
 	case engine.OpenWallet:
-		return e.openWallet(ctx, cmd)
+		out, err = e.openWallet(ctx, cmd)
 	case engine.SubmitWager:
-		return e.submit(ctx, cmd)
+		out, err = e.submit(ctx, cmd)
 	case engine.RetryReference:
-		return e.retry(ctx, cmd)
+		out, err = e.retry(ctx, cmd)
 	default:
-		return engine.Outcome{}, fmt.Errorf("%w: %T", engine.ErrUnknownCommand, cmd)
+		err = fmt.Errorf("%w: %T", engine.ErrUnknownCommand, cmd)
 	}
+	return out, markTimeout(err)
 }
 
 func (e *Engine) openWallet(ctx context.Context, cmd engine.OpenWallet) (engine.Outcome, error) {
