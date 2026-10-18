@@ -339,13 +339,13 @@ func TestListDuePendingReferencesClaimsEachRowOnce(t *testing.T) {
 			INSERT INTO transactions (
 				id, provider_id, external_id, idempotency_key, payload_hash,
 				wallet_id, player_id, round_id, game_id, kind,
-				amount_minor_units, status, reference_external_id,
+				amount_minor_units, currency, status, reference_external_id,
 				reference_next_attempt_at
 			)
 			VALUES (
 				$1, 'test-provider', $2, $2, 'test-hash',
 				$3, $4, 'round-test', 'game-test', 'REFUND',
-				1000, 'PENDING_REFERENCE', 'original-bet-id',
+				1000, 'BRL', 'PENDING_REFERENCE', 'original-bet-id',
 				NOW()
 			)
 		`, ids[i], ids[i], walletID, playerID)

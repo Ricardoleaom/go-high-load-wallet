@@ -49,6 +49,7 @@ func (r *TransactionRepository) Create(
 			game_id,
 			kind,
 			amount_minor_units,
+			currency,
 			reference_external_id,
 			reference_id,
 			status,
@@ -59,8 +60,8 @@ func (r *TransactionRepository) Create(
 		VALUES (
 			$1, NULLIF($2, ''), NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''),
 			$6, $7, NULLIF($8, ''), NULLIF($9, ''),
-			$10, $11, NULLIF($12, ''), NULLIF($13, ''), $14,
-			NULLIF($15, ''), $16, $17
+			$10, $11, $12, NULLIF($13, ''), NULLIF($14, ''), $15,
+			NULLIF($16, ''), $17, $18
 		)
 	`
 
@@ -78,6 +79,7 @@ func (r *TransactionRepository) Create(
 		transaction.GameID(),
 		string(transaction.Kind()),
 		transaction.Amount().AmountInMinorUnits(),
+		transaction.Amount().Currency(),
 		transaction.ReferenceExternalID(),
 		transaction.ResolvedReferenceID(),
 		string(transaction.Status()),
@@ -132,7 +134,7 @@ func (r *TransactionRepository) getByID(
 			t.game_id,
 			t.kind,
 			t.amount_minor_units,
-			w.currency,
+			t.currency,
 			t.reference_external_id,
 			t.reference_id,
 			t.status,
@@ -140,11 +142,10 @@ func (r *TransactionRepository) getByID(
 			t.created_at,
 			t.updated_at
 		FROM transactions t
-		JOIN wallets w ON w.id = t.wallet_id
 		WHERE t.id = $1
 	`
 	if lock {
-		query += ` FOR UPDATE OF t`
+		query += ` FOR UPDATE`
 	}
 
 	var (

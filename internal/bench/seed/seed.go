@@ -77,9 +77,9 @@ func Run(ctx context.Context, conn *pgx.Conn, opts Options, out io.Writer) (Resu
 	}{
 		{"wallets", []string{"id", "player_id", "currency", "balance_minor_units", "version", "created_at", "updated_at"},
 			func(w seededWallet) []any { return []any{w.id, w.playerID, currency, balance, int64(1), now, now} }},
-		{"transactions", []string{"id", "wallet_id", "player_id", "kind", "amount_minor_units", "status", "created_at", "updated_at"},
+		{"transactions", []string{"id", "wallet_id", "player_id", "kind", "amount_minor_units", "currency", "status", "created_at", "updated_at"},
 			func(w seededWallet) []any {
-				return []any{w.openingID, w.id, w.playerID, "OPENING", balance, "PROCESSED", now, now}
+				return []any{w.openingID, w.id, w.playerID, "OPENING", balance, currency, "PROCESSED", now, now}
 			}},
 		{"ledger_entries", []string{"id", "wallet_id", "transaction_id", "direction", "amount_delta_minor_units", "balance_before_minor_units", "balance_after_minor_units", "created_at"},
 			func(w seededWallet) []any {

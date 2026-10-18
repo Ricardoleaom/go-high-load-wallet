@@ -800,3 +800,28 @@ func TestRetryPendingReferencesContinuesPastAFailure(t *testing.T) {
 		t.Fatalf("good refund status = %s, want PROCESSED", status)
 	}
 }
+
+func TestRejectedCurrencyMismatchKeepsRequestedCurrency(t *testing.T) {
+	service, db, ctx := newTestService(t)
+	walletID := createTestWallet(t, ctx, db, "100.00")
+
+	usd, err := money.New("10.00", "USD")
+	if err != nil {
+		t.Fatalf("money: %v", err)
+	}
+	result, err := service.Submit(ctx, betInput(walletID, "provider-a", newTestID(t), usd))
+	if err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	if result.Status != domainwager.StatusRejected || result.FailureCode != FailureCurrencyMismatch {
+		t.Fatalf("result = %+v, want REJECTED with %s", result, FailureCurrencyMismatch)
+	}
+
+	stored, err := postgres.NewTransactionRepository(db).GetByID(ctx, result.TransactionID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if got := stored.Amount().String(); got != "10.00 USD" {
+		t.Fatalf("stored amount = %s, want 10.00 USD as requested", got)
+	}
+}

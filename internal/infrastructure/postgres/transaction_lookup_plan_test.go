@@ -28,12 +28,12 @@ func TestLookupQueriesUseUniqueIndexes(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `
 		INSERT INTO wallets (id, player_id, currency, balance_minor_units)
 		SELECT gen_random_uuid(), gen_random_uuid(), 'BRL', 100000 FROM generate_series(1, 2000);
-		INSERT INTO transactions (id, wallet_id, player_id, kind, amount_minor_units, status)
-		SELECT gen_random_uuid(), id, player_id, 'OPENING', 100000, 'PROCESSED' FROM wallets;
+		INSERT INTO transactions (id, wallet_id, player_id, kind, amount_minor_units, currency, status)
+		SELECT gen_random_uuid(), id, player_id, 'OPENING', 100000, 'BRL', 'PROCESSED' FROM wallets;
 		INSERT INTO transactions (id, provider_id, external_id, idempotency_key, payload_hash,
-		                          wallet_id, player_id, round_id, game_id, kind, amount_minor_units, status)
+		                          wallet_id, player_id, round_id, game_id, kind, amount_minor_units, currency, status)
 		SELECT gen_random_uuid(), 'provider', 'external-' || n, 'key-' || n, 'hash',
-		       w.id, w.player_id, 'round', 'game', 'BET', 100, 'PROCESSED'
+		       w.id, w.player_id, 'round', 'game', 'BET', 100, 'BRL', 'PROCESSED'
 		FROM (SELECT id, player_id, row_number() OVER () AS n FROM wallets) w;
 		ANALYZE wallets, transactions;
 	`); err != nil {
