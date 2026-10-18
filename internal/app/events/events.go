@@ -79,7 +79,11 @@ func Build(
 		return "", nil, time.Time{}, fmt.Errorf("marshal event data: %w", err)
 	}
 
-	id = uuid.NewString()
+	eventID, err := uuid.NewV7()
+	if err != nil {
+		return "", nil, time.Time{}, fmt.Errorf("generate event ID: %w", err)
+	}
+	id = eventID.String()
 	occurredAt = time.Now().UTC()
 
 	envelope := Envelope{
