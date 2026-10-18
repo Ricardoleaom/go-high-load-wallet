@@ -158,6 +158,9 @@ func (e *Engine) openWallet(c *change, cmd engine.OpenWallet) (engine.Outcome, e
 }
 
 func (e *Engine) submit(c *change, cmd engine.SubmitWager) (engine.Outcome, error) {
+	if err := wager.ValidateRequest(request(cmd)); err != nil {
+		return engine.Outcome{}, err
+	}
 	if id, ok := e.byKey[pair(cmd.ProviderID, cmd.IdempotencyKey)]; ok {
 		existing := e.transactions[id]
 		if existing.PayloadHash() != cmd.PayloadHash {
@@ -215,6 +218,22 @@ func (e *Engine) submit(c *change, cmd engine.SubmitWager) (engine.Outcome, erro
 		return engine.Outcome{TransactionID: tx.ID(), Status: tx.Status(), Balance: w.Balance()}, nil
 	default:
 		return e.settleReversal(c, &tx, true, 0, correlationID)
+	}
+}
+
+// request is the part of a submission the domain validates.
+func request(cmd engine.SubmitWager) wager.Input {
+	return wager.Input{
+		ProviderID:          cmd.ProviderID,
+		ExternalID:          cmd.ExternalID,
+		IdempotencyKey:      cmd.IdempotencyKey,
+		WalletID:            cmd.WalletID,
+		PlayerID:            cmd.PlayerID,
+		RoundID:             cmd.RoundID,
+		GameID:              cmd.GameID,
+		Kind:                cmd.Kind,
+		Amount:              cmd.Amount,
+		ReferenceExternalID: cmd.ReferenceExternalID,
 	}
 }
 

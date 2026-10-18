@@ -57,6 +57,7 @@ func Run(t *testing.T, h Harness) {
 		{"SameKeyDifferentPayloadConflicts", sameKeyDifferentPayloadConflicts},
 		{"SameExternalIDDifferentKeyMismatches", sameExternalIDDifferentKeyMismatches},
 		{"KeyTakesPrecedenceOverExternalID", keyTakesPrecedenceOverExternalID},
+		{"InvalidCommandIsRejectedBeforeAnyLookup", invalidCommandIsRejectedBeforeAnyLookup},
 		{"WinCredits", winCredits},
 		{"WinThatWouldOverflowFailsWithoutEffect", winThatWouldOverflowFailsWithoutEffect},
 		{"LossDoesNotMoveMoney", lossDoesNotMoveMoney},
@@ -410,6 +411,30 @@ func keyTakesPrecedenceOverExternalID(t *testing.T, s *suite) {
 		t.Fatalf("key of one, external ID of another: err = %v, want ErrIdempotencyConflict", err)
 	}
 	s.requireWallet(t, walletID, "70.00", 3)
+}
+
+// An engine checks the rules a command must follow before it looks
+// anything up, so an invalid command fails the same way whatever is
+// recorded, even under a key already used.
+func invalidCommandIsRejectedBeforeAnyLookup(t *testing.T, s *suite) {
+	walletID, playerID := s.openWallet(t, "100.00")
+	loss := s.wager(t, walletID, playerID, wager.KindLoss, brl(t, "0.00"), "")
+	s.mustExecute(t, loss)
+
+	refundOfNothing := s.reversal(t, wager.KindRefund, loss)
+	lossWithAnAmount := loss
+	lossWithAnAmount.Amount = brl(t, "1.00")
+	for name, cmd := range map[string]engine.SubmitWager{
+		"refund of 0.00":                    refundOfNothing,
+		"recorded key, invalid payload":     rehash(lossWithAnAmount),
+		"rollback without a reference":      s.wager(t, walletID, playerID, wager.KindRollback, brl(t, "5.00"), ""),
+		"bet on a wallet that is not there": s.wager(t, newID(), playerID, wager.KindBet, brl(t, "0.00"), ""),
+	} {
+		if _, err := s.execute(t, cmd); !errors.Is(err, wager.ErrInvalidAmount) {
+			t.Errorf("%s: err = %v, want ErrInvalidAmount", name, err)
+		}
+	}
+	s.requireWallet(t, walletID, "100.00", 1)
 }
 
 func winCredits(t *testing.T, s *suite) {

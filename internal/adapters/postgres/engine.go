@@ -73,6 +73,23 @@ const submitQuery = `
 	FROM wager_submit($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`
 
 func (e *Engine) submit(ctx context.Context, cmd engine.SubmitWager) (engine.Outcome, error) {
+	// The SQL trusts its input; whatever the domain can reject on the
+	// command alone is rejected here, before any lookup.
+	if err := wager.ValidateRequest(wager.Input{
+		ProviderID:          cmd.ProviderID,
+		ExternalID:          cmd.ExternalID,
+		IdempotencyKey:      cmd.IdempotencyKey,
+		WalletID:            cmd.WalletID,
+		PlayerID:            cmd.PlayerID,
+		RoundID:             cmd.RoundID,
+		GameID:              cmd.GameID,
+		Kind:                cmd.Kind,
+		Amount:              cmd.Amount,
+		ReferenceExternalID: cmd.ReferenceExternalID,
+	}); err != nil {
+		return engine.Outcome{}, err
+	}
+
 	var r result
 	if err := r.scan(e.pool.QueryRow(ctx, submitQuery,
 		newID(), newID(), newID(), newID(),
