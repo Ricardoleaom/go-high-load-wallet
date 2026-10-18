@@ -408,9 +408,11 @@ canonical UUIDs (`INVALID_ID` otherwise); `externalTransactionId`,
 `referenceExternalTransactionId`, `roundId`, `gameId` and the
 `Idempotency-Key` are limited to 255 characters (`VALIDATION_ERROR`).
 400, 409 and 413 store nothing and can be corrected and resent. A 503
-`TIMEOUT` means the operation did not commit: its transaction rolled back,
-and resending it with the same `Idempotency-Key` is safe. A 500 means the
-outcome is unknown; resending with the same key is safe too. A 422 is
+`TIMEOUT` means the request ran out of time: almost always its transaction
+rolled back, but a deadline that expires while the commit is in flight
+can leave the operation committed. Either way resending it with the same
+`Idempotency-Key` is safe: it is applied once or replayed. A 500 means
+the outcome is unknown; resending with the same key is safe too. A 422 is
 final for that operation: the replay returns the same rejection. See
 [ADR 0012](docs/adr/0012-time-budgets-and-input-limits.md).
 

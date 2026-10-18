@@ -27,9 +27,11 @@ failures in alerts the client caused.
 5 s) that every database call inherits. Each pooled connection carries
 `statement_timeout` (5 s), `idle_in_transaction_session_timeout` (10 s)
 and `lock_timeout` (2 s). A request that runs out of time, or whose
-statement or lock times out, answers **503 `TIMEOUT`** with `Retry-After`:
-the operation did not happen, its transaction rolled back, and resending
-it with the same idempotency key is safe. The HTTP server bounds reads
+statement or lock times out, answers **503 `TIMEOUT`** with `Retry-After`.
+Almost always its transaction rolled back; a deadline that expires while
+the commit is in flight cannot tell, and the operation may have
+committed. Either way resending it with the same idempotency key is safe:
+it is applied once or replayed. The HTTP server bounds reads
 (10 s), writes (the request deadline plus 5 s) and idle keep-alive
 connections (120 s); the admin server allows 70 s for a 60-second
 profile.
