@@ -1,0 +1,24 @@
+File: api
+Build ID: acc4389f58cdbdab390f029ae9d8ad66964be5a4
+Type: cpu
+Time: 2026-10-18 18:11:49 -03
+Duration: 30s, Total samples = 4.93s (16.43%)
+Showing nodes accounting for 2.21s, 44.83% of 4.93s total
+Dropped 426 nodes (cum <= 0.02s)
+Showing top 15 nodes out of 284
+      flat  flat%   sum%        cum   cum%
+     1.46s 29.61% 29.61%      1.46s 29.61%  internal/runtime/syscall/linux.Syscall6
+     0.15s  3.04% 32.66%      0.15s  3.04%  runtime.futex
+     0.07s  1.42% 34.08%      0.07s  1.42%  runtime.memclrNoHeapPointers
+     0.07s  1.42% 35.50%      0.07s  1.42%  runtime.memmove
+     0.06s  1.22% 36.71%      0.06s  1.22%  crypto/internal/fips140/sha256.blockAVX2
+     0.06s  1.22% 37.93%      0.06s  1.22%  runtime.nextFreeFast
+     0.06s  1.22% 39.15%      0.08s  1.62%  runtime.scanObjectsSmall
+     0.05s  1.01% 40.16%      0.05s  1.01%  internal/runtime/maps.memHashAES
+     0.04s  0.81% 40.97%      0.05s  1.01%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.04s  0.81% 41.78%      0.09s  1.83%  runtime.scanObject
+     0.03s  0.61% 42.39%      0.04s  0.81%  context.value
+     0.03s  0.61% 43.00%      0.03s  0.61%  encoding/json/internal/jsonwire.ConsumeSimpleString
+     0.03s  0.61% 43.61%      0.05s  1.01%  fmt.(*pp).handleMethods
+     0.03s  0.61% 44.22%      0.22s  4.46%  github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/httpapi.writeJSON
+     0.03s  0.61% 44.83%      0.03s  0.61%  github.com/jackc/pgx/v5/pgtype.Int8Codec.PlanScan

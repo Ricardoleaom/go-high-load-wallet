@@ -1,0 +1,26 @@
+auth_token_cache_total{result="hit"} 193087
+auth_token_cache_total{result="miss"} 2
+http_requests_total{method="GET",path="GET /health/ready",status="200"} 2
+http_requests_total{method="POST",path="POST /wagering/transactions",status="200"} 193089
+outbox_events_publish_failed_total 0
+outbox_events_published_total 2540
+outbox_oldest_pending_age_seconds 246.874082
+outbox_pending_events 364246
+outbox_publish_batch_duration_seconds_bucket{le="0.0005"} 0
+outbox_publish_batch_duration_seconds_bucket{le="0.001"} 0
+outbox_publish_batch_duration_seconds_bucket{le="0.0025"} 1
+outbox_publish_batch_duration_seconds_bucket{le="0.005"} 1
+outbox_publish_batch_duration_seconds_bucket{le="0.01"} 1
+outbox_publish_batch_duration_seconds_bucket{le="0.025"} 1
+outbox_publish_batch_duration_seconds_bucket{le="0.05"} 1
+outbox_publish_batch_duration_seconds_bucket{le="0.1"} 39
+outbox_publish_batch_duration_seconds_bucket{le="0.25"} 40
+outbox_publish_batch_duration_seconds_bucket{le="0.5"} 125
+outbox_publish_batch_duration_seconds_bucket{le="1"} 130
+outbox_publish_batch_duration_seconds_bucket{le="2.5"} 136
+outbox_publish_batch_duration_seconds_bucket{le="5"} 136
+outbox_publish_batch_duration_seconds_bucket{le="10"} 136
+outbox_publish_batch_duration_seconds_bucket{le="+Inf"} 136
+outbox_publish_batch_duration_seconds_sum 52.84482642399998
+outbox_publish_batch_duration_seconds_count 136
+wager_transactions_total{status="PROCESSED"} 193089

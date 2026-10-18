@@ -1,0 +1,24 @@
+File: api
+Build ID: acc4389f58cdbdab390f029ae9d8ad66964be5a4
+Type: cpu
+Time: 2026-10-18 18:03:42 -03
+Duration: 30s, Total samples = 4.74s (15.80%)
+Showing nodes accounting for 2.05s, 43.25% of 4.74s total
+Dropped 408 nodes (cum <= 0.02s)
+Showing top 15 nodes out of 307
+      flat  flat%   sum%        cum   cum%
+     1.40s 29.54% 29.54%      1.40s 29.54%  internal/runtime/syscall/linux.Syscall6
+     0.10s  2.11% 31.65%      0.10s  2.11%  runtime.nextFreeFast
+     0.07s  1.48% 33.12%      0.07s  1.48%  runtime.memmove
+     0.05s  1.05% 34.18%      0.05s  1.05%  runtime.futex
+     0.05s  1.05% 35.23%      0.05s  1.05%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.04s  0.84% 36.08%      0.04s  0.84%  crypto/internal/fips140/sha256.blockAVX2
+     0.04s  0.84% 36.92%      0.14s  2.95%  github.com/jackc/pgx/v5/pgtype.(*Map).planScan
+     0.04s  0.84% 37.76%      0.04s  0.84%  internal/runtime/maps.(*Map).Delete
+     0.04s  0.84% 38.61%      0.04s  0.84%  log/slog.Value.Kind
+     0.04s  0.84% 39.45%      0.04s  0.84%  net/textproto.validHeaderValueByte
+     0.04s  0.84% 40.30%      0.04s  0.84%  runtime.findfunc
+     0.04s  0.84% 41.14%      0.04s  0.84%  runtime.mallocgcSmallScanNoHeaderSC3
+     0.04s  0.84% 41.98%      0.07s  1.48%  runtime.scanObjectsSmall
+     0.03s  0.63% 42.62%      0.11s  2.32%  fmt.(*pp).doPrintf
+     0.03s  0.63% 43.25%      0.04s  0.84%  fmt.(*pp).handleMethods

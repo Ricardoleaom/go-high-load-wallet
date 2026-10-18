@@ -1,0 +1,24 @@
+File: api
+Build ID: 93eb1d033159b0d7f87cfe699878a54f7f3f8724
+Type: cpu
+Time: 2026-10-18 16:59:03 -03
+Duration: 30s, Total samples = 9.20s (30.67%)
+Showing nodes accounting for 3.37s, 36.63% of 9.20s total
+Dropped 585 nodes (cum <= 0.05s)
+Showing top 15 nodes out of 266
+      flat  flat%   sum%        cum   cum%
+     2.27s 24.67% 24.67%      2.27s 24.67%  internal/runtime/syscall/linux.Syscall6
+     0.13s  1.41% 26.09%      0.13s  1.41%  runtime.memmove
+     0.11s  1.20% 27.28%      0.11s  1.20%  crypto/internal/fips140/sha256.blockAVX2
+     0.11s  1.20% 28.48%      0.11s  1.20%  runtime.nextFreeFast (inline)
+     0.09s  0.98% 29.46%      0.09s  0.98%  net/textproto.validHeaderValueByte
+     0.09s  0.98% 30.43%      0.15s  1.63%  runtime.tryDeferToSpanScan
+     0.07s  0.76% 31.20%      0.07s  0.76%  memeqbody
+     0.07s  0.76% 31.96%      0.07s  0.76%  runtime.findfunc
+     0.07s  0.76% 32.72%      0.08s  0.87%  runtime.mallocgcSmallScanNoHeaderSC6
+     0.07s  0.76% 33.48%      0.19s  2.07%  runtime.mapaccess2_faststr
+     0.07s  0.76% 34.24%      0.14s  1.52%  runtime.pcvalue
+     0.06s  0.65% 34.89%      0.06s  0.65%  runtime.mallocgcSmallScanNoHeaderSC4
+     0.06s  0.65% 35.54%      0.06s  0.65%  time.runtimeNow
+     0.05s  0.54% 36.09%      0.25s  2.72%  encoding/json/jsontext.(*decoderState).ReadValue
+     0.05s  0.54% 36.63%      0.05s  0.54%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr

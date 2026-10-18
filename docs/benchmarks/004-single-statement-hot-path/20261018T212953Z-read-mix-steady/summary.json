@@ -1,0 +1,176 @@
+{
+  "metrics": {
+    "http_req_failed": {
+      "passes": 0,
+      "fails": 96003,
+      "thresholds": {
+        "rate<0.001": false
+      },
+      "value": 0
+    },
+    "http_reqs": {
+      "count": 96003,
+      "rate": 319.98252577449904
+    },
+    "http_req_duration": {
+      "min": 0.055903,
+      "med": 0.803253,
+      "p(90)": 3.4102042000000004,
+      "p(95)": 3.7918558,
+      "p(99)": 6.3377167199999995,
+      "max": 150.688796,
+      "avg": 1.463220759726276
+    },
+    "http_req_duration{expected_response:true}": {
+      "p(95)": 3.7918558,
+      "p(99)": 6.3377167199999995,
+      "max": 150.688796,
+      "avg": 1.463220759726276,
+      "min": 0.055903,
+      "med": 0.803253,
+      "p(90)": 3.4102042000000004
+    },
+    "http_req_tls_handshaking": {
+      "p(99)": 0,
+      "max": 0,
+      "avg": 0,
+      "min": 0,
+      "med": 0,
+      "p(90)": 0,
+      "p(95)": 0
+    },
+    "vus_max": {
+      "value": 32,
+      "min": 32,
+      "max": 32
+    },
+    "http_req_waiting": {
+      "min": 0,
+      "med": 0.74255,
+      "p(90)": 3.1547868,
+      "p(95)": 3.6444330999999996,
+      "p(99)": 6.063697379999999,
+      "max": 150.59069,
+      "avg": 1.3689590457902385
+    },
+    "data_sent": {
+      "count": 129246366,
+      "rate": 430784.23215790483
+    },
+    "vus": {
+      "value": 1,
+      "min": 0,
+      "max": 4
+    },
+    "http_req_blocked": {
+      "avg": 0.006398305198795846,
+      "min": 0.0017,
+      "med": 0.004901,
+      "p(90)": 0.0082,
+      "p(95)": 0.015201,
+      "p(99)": 0.026299019999999597,
+      "max": 5.026463
+    },
+    "iteration_duration": {
+      "med": 1.004666,
+      "p(90)": 3.694247,
+      "p(95)": 4.115174,
+      "p(99)": 6.793552,
+      "max": 151.079523,
+      "avg": 1.682050276267968,
+      "min": 0.475729
+    },
+    "data_received": {
+      "rate": 105046.2872198199,
+      "count": 31516592
+    },
+    "http_req_receiving": {
+      "med": 0.041703,
+      "p(90)": 0.1260088,
+      "p(95)": 0.3254219,
+      "p(99)": 0.4686231199999992,
+      "max": 8.911992,
+      "avg": 0.07405294900159215,
+      "min": 0.009101
+    },
+    "http_req_connecting": {
+      "avg": 9.856664895888669e-05,
+      "min": 0,
+      "med": 0,
+      "p(90)": 0,
+      "p(95)": 0,
+      "p(99)": 0,
+      "max": 1.319369
+    },
+    "iterations": {
+      "count": 96001,
+      "rate": 319.97585968019416
+    },
+    "http_req_sending": {
+      "p(99)": 0.063104,
+      "max": 8.548967,
+      "avg": 0.02020876493442955,
+      "min": 0.005201,
+      "med": 0.015701,
+      "p(90)": 0.030102,
+      "p(95)": 0.037003
+    },
+    "checks": {
+      "passes": 96003,
+      "fails": 0,
+      "value": 1
+    }
+  },
+  "root_group": {
+    "checks": {
+      "wallet read": {
+        "name": "wallet read",
+        "path": "::wallet read",
+        "id": "4ba7a3ae544b9d959ac5ebe1f551d2a4",
+        "passes": 47798,
+        "fails": 0
+      },
+      "ledger read": {
+        "name": "ledger read",
+        "path": "::ledger read",
+        "id": "edbe5879f512061a25c1be7eab9cc116",
+        "passes": 28725,
+        "fails": 0
+      },
+      "wager accepted or rejected by business rules": {
+        "passes": 19478,
+        "fails": 0,
+        "name": "wager accepted or rejected by business rules",
+        "path": "::wager accepted or rejected by business rules",
+        "id": "4d26ed9a4e9ac4353577e9e5bb04fab2"
+      }
+    },
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": {
+      "setup": {
+        "id": "5c0f8025f7e0b6654089e5b00e950f1a",
+        "groups": {},
+        "checks": {
+          "token for bench-provider": {
+            "name": "token for bench-provider",
+            "path": "::setup::token for bench-provider",
+            "id": "7f918aa3cec0959e160296f6f88f3065",
+            "passes": 1,
+            "fails": 0
+          },
+          "token for bench-internal": {
+            "id": "9c7b8a393d0eac5da2b852915875465a",
+            "passes": 1,
+            "fails": 0,
+            "name": "token for bench-internal",
+            "path": "::setup::token for bench-internal"
+          }
+        },
+        "name": "setup",
+        "path": "::setup"
+      }
+    }
+  }
+}

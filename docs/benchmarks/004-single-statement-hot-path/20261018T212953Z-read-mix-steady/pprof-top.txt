@@ -1,0 +1,24 @@
+File: api
+Build ID: acc4389f58cdbdab390f029ae9d8ad66964be5a4
+Type: cpu
+Time: 2026-10-18 18:34:15 -03
+Duration: 30s, Total samples = 3.65s (12.17%)
+Showing nodes accounting for 1.70s, 46.58% of 3.65s total
+Dropped 322 nodes (cum <= 0.02s)
+Showing top 15 nodes out of 380
+      flat  flat%   sum%        cum   cum%
+     1.21s 33.15% 33.15%      1.21s 33.15%  internal/runtime/syscall/linux.Syscall6
+     0.05s  1.37% 34.52%      0.05s  1.37%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+     0.05s  1.37% 35.89%      0.05s  1.37%  runtime.memclrNoHeapPointers
+     0.04s  1.10% 36.99%      0.04s  1.10%  crypto/internal/fips140/sha256.blockAVX2
+     0.04s  1.10% 38.08%      0.04s  1.10%  runtime.futex
+     0.04s  1.10% 39.18%      0.06s  1.64%  runtime.scanObject
+     0.03s  0.82% 40.00%      0.06s  1.64%  encoding/json/v2.makeStructArshaler.func2
+     0.03s  0.82% 40.82%      0.03s  0.82%  errors.is
+     0.03s  0.82% 41.64%      0.03s  0.82%  github.com/jackc/pgx/v5/pgtype.Int8Codec.PlanScan
+     0.03s  0.82% 42.47%      0.03s  0.82%  indexbytebody
+     0.03s  0.82% 43.29%      0.03s  0.82%  net/textproto.validHeaderValueByte
+     0.03s  0.82% 44.11%      0.03s  0.82%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.03s  0.82% 44.93%      0.04s  1.10%  runtime.mallocgcSmallScanNoHeaderSC5
+     0.03s  0.82% 45.75%      0.03s  0.82%  runtime.memmove
+     0.03s  0.82% 46.58%      0.03s  0.82%  time.runtimeNow

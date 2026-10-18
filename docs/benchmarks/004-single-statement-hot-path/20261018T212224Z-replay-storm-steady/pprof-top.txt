@@ -1,0 +1,24 @@
+File: api
+Build ID: acc4389f58cdbdab390f029ae9d8ad66964be5a4
+Type: cpu
+Time: 2026-10-18 18:26:46 -03
+Duration: 30s, Total samples = 5.30s (17.67%)
+Showing nodes accounting for 2.43s, 45.85% of 5.30s total
+Dropped 456 nodes (cum <= 0.03s)
+Showing top 15 nodes out of 299
+      flat  flat%   sum%        cum   cum%
+     1.69s 31.89% 31.89%      1.69s 31.89%  internal/runtime/syscall/linux.Syscall6
+     0.11s  2.08% 33.96%      0.11s  2.08%  runtime.futex
+     0.08s  1.51% 35.47%      0.08s  1.51%  crypto/internal/fips140/sha256.blockAVX2
+     0.07s  1.32% 36.79%      0.07s  1.32%  memeqbody
+     0.06s  1.13% 37.92%      0.13s  2.45%  runtime.mapaccess2_faststr
+     0.05s  0.94% 38.87%      0.05s  0.94%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.05s  0.94% 39.81%      0.05s  0.94%  runtime.nanotime
+     0.05s  0.94% 40.75%      0.05s  0.94%  runtime.nextFreeFast (inline)
+     0.04s  0.75% 41.51%      0.04s  0.75%  context.value
+     0.04s  0.75% 42.26%      0.04s  0.75%  runtime.(*unwinder).resolveInternal
+     0.04s  0.75% 43.02%      0.34s  6.42%  runtime.mallocgc
+     0.04s  0.75% 43.77%      0.04s  0.75%  runtime.memclrNoHeapPointers
+     0.04s  0.75% 44.53%      0.04s  0.75%  runtime.memmove
+     0.04s  0.75% 45.28%      0.07s  1.32%  runtime.tryDeferToSpanScan
+     0.03s  0.57% 45.85%      0.23s  4.34%  bufio.(*Reader).Peek

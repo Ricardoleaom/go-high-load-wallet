@@ -1,0 +1,24 @@
+File: api
+Build ID: acc4389f58cdbdab390f029ae9d8ad66964be5a4
+Type: cpu
+Time: 2026-10-18 18:45:43 -03
+Duration: 30s, Total samples = 7.37s (24.57%)
+Showing nodes accounting for 3.09s, 41.93% of 7.37s total
+Dropped 523 nodes (cum <= 0.04s)
+Showing top 15 nodes out of 319
+      flat  flat%   sum%        cum   cum%
+     2.21s 29.99% 29.99%      2.21s 29.99%  internal/runtime/syscall/linux.Syscall6
+     0.14s  1.90% 31.89%      0.14s  1.90%  runtime.memmove
+     0.09s  1.22% 33.11%      0.09s  1.22%  runtime.nextFreeFast (inline)
+     0.08s  1.09% 34.19%      0.08s  1.09%  crypto/internal/fips140/sha256.blockAVX2
+     0.07s  0.95% 35.14%      0.07s  0.95%  memeqbody
+     0.07s  0.95% 36.09%      0.07s  0.95%  runtime.findfunc
+     0.07s  0.95% 37.04%      0.07s  0.95%  runtime.futex
+     0.05s  0.68% 37.72%      0.19s  2.58%  encoding/json/v2.makeStructArshaler.func2
+     0.05s  0.68% 38.40%      0.15s  2.04%  github.com/jackc/pgx/v5/pgtype.(*Map).planScan
+     0.05s  0.68% 39.08%      0.08s  1.09%  github.com/prometheus/client_golang/prometheus.(*histogramCounts).observe
+     0.05s  0.68% 39.76%      0.05s  0.68%  internal/runtime/maps.memHashAES
+     0.04s  0.54% 40.30%      0.04s  0.54%  encoding/json/internal/jsonwire.AppendQuote
+     0.04s  0.54% 40.84%      0.06s  0.81%  github.com/exaring/otelpgx.(*Tracer).TraceAcquireStart
+     0.04s  0.54% 41.38%      0.21s  2.85%  github.com/jackc/pgx/v5/pgproto3.(*chunkReader).Next
+     0.04s  0.54% 41.93%      4.78s 64.86%  go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP

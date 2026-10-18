@@ -1,0 +1,7 @@
+relname,seq_scan,idx_scan,n_tup_ins,n_tup_upd,n_tup_hot_upd,n_dead_tup
+inbox_messages,4,0,0,0,0,0
+ledger_entries,7,8,188272,0,0,0
+outbox_events,10,4002,186110,3740,0,2740
+schema_migrations,32,0,30,0,0,0
+transactions,26,691867,197838,0,0,0
+wallets,8,576994,100000,88272,88272,1448
