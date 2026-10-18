@@ -56,6 +56,7 @@ func Run(t *testing.T, h Harness) {
 		{"ReplayReturnsTheFirstResult", replayReturnsTheFirstResult},
 		{"SameKeyDifferentPayloadConflicts", sameKeyDifferentPayloadConflicts},
 		{"SameExternalIDDifferentKeyMismatches", sameExternalIDDifferentKeyMismatches},
+		{"KeyTakesPrecedenceOverExternalID", keyTakesPrecedenceOverExternalID},
 		{"WinCredits", winCredits},
 		{"WinThatWouldOverflowFailsWithoutEffect", winThatWouldOverflowFailsWithoutEffect},
 		{"LossDoesNotMoveMoney", lossDoesNotMoveMoney},
@@ -392,6 +393,23 @@ func sameExternalIDDifferentKeyMismatches(t *testing.T, s *suite) {
 		t.Fatalf("same external ID, other key: err = %v, want ErrIdempotencyKeyMismatch", err)
 	}
 	s.requireWallet(t, walletID, "70.00", 2)
+}
+
+// A submission whose key names one recorded transaction and whose external
+// ID names another is judged by its key: a conflict, not a key mismatch.
+func keyTakesPrecedenceOverExternalID(t *testing.T, s *suite) {
+	walletID, playerID := s.openWallet(t, "100.00")
+	first := s.bet(t, walletID, playerID, "10.00")
+	second := s.bet(t, walletID, playerID, "20.00")
+	s.mustExecute(t, first)
+	s.mustExecute(t, second)
+
+	crossed := first
+	crossed.ExternalID = second.ExternalID
+	if _, err := s.execute(t, rehash(crossed)); !errors.Is(err, engine.ErrIdempotencyConflict) {
+		t.Fatalf("key of one, external ID of another: err = %v, want ErrIdempotencyConflict", err)
+	}
+	s.requireWallet(t, walletID, "70.00", 3)
 }
 
 func winCredits(t *testing.T, s *suite) {

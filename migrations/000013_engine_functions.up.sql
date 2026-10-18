@@ -81,6 +81,41 @@ BEGIN
 END
 $$;
 
+-- wager_find returns the transaction recorded under a provider's key or,
+-- failing that, under its external ID: one statement, so one snapshot. Two
+-- lookups could straddle a concurrent submission's commit and see it under
+-- the external ID only, mistaking a replay for a key mismatch.
+CREATE FUNCTION wager_find(p_provider_id text, p_idempotency_key text, p_external_id text)
+RETURNS SETOF transactions
+LANGUAGE sql STABLE AS $$
+    SELECT (found.t).*
+    FROM (
+        SELECT t, 0 AS rank FROM transactions t
+         WHERE t.provider_id = p_provider_id AND t.idempotency_key = p_idempotency_key AND t.kind <> 'OPENING'
+        UNION ALL
+        SELECT t, 1 AS rank FROM transactions t
+         WHERE t.provider_id = p_provider_id AND t.external_id = p_external_id AND t.kind <> 'OPENING'
+    ) found
+    ORDER BY found.rank
+    LIMIT 1
+$$;
+
+-- wager_answer answers a submission that found t already recorded: a
+-- replay when t carries the submission's key, a key mismatch otherwise.
+CREATE FUNCTION wager_answer(t transactions, p_idempotency_key text, p_payload_hash text, p_raced boolean)
+RETURNS wager_result
+LANGUAGE plpgsql AS $$
+DECLARE
+    r wager_result;
+BEGIN
+    IF t.idempotency_key IS DISTINCT FROM p_idempotency_key THEN
+        r.outcome := 'KEY_MISMATCH';
+        RETURN r;
+    END IF;
+    RETURN wager_replay(t, p_payload_hash, p_raced);
+END
+$$;
+
 -- wager_lost_race answers a submission whose insert found its key or its
 -- external ID taken by a transaction that committed in the meantime. Each
 -- statement of a function sees what committed before it started, so the
@@ -91,18 +126,10 @@ CREATE FUNCTION wager_lost_race(
 LANGUAGE plpgsql AS $$
 DECLARE
     t transactions%ROWTYPE;
-    r wager_result;
 BEGIN
-    SELECT * INTO t FROM transactions
-     WHERE provider_id = p_provider_id AND idempotency_key = p_idempotency_key AND kind <> 'OPENING';
+    SELECT * INTO t FROM wager_find(p_provider_id, p_idempotency_key, p_external_id);
     IF FOUND THEN
-        RETURN wager_replay(t, p_payload_hash, true);
-    END IF;
-    PERFORM 1 FROM transactions
-     WHERE provider_id = p_provider_id AND external_id = p_external_id AND kind <> 'OPENING';
-    IF FOUND THEN
-        r.outcome := 'KEY_MISMATCH';
-        RETURN r;
+        RETURN wager_answer(t, p_idempotency_key, p_payload_hash, true);
     END IF;
     RAISE EXCEPTION 'transaction (%, %) conflicted with no committed transaction', p_provider_id, p_idempotency_key;
 END
@@ -314,16 +341,9 @@ DECLARE
     v_next      timestamptz;
     v_corr      text := COALESCE(NULLIF(p_correlation_id, ''), p_transaction_id::text);
 BEGIN
-    SELECT * INTO t FROM transactions
-     WHERE provider_id = p_provider_id AND idempotency_key = p_idempotency_key AND kind <> 'OPENING';
+    SELECT * INTO t FROM wager_find(p_provider_id, p_idempotency_key, p_external_id);
     IF FOUND THEN
-        RETURN wager_replay(t, p_payload_hash, false);
-    END IF;
-    PERFORM 1 FROM transactions
-     WHERE provider_id = p_provider_id AND external_id = p_external_id AND kind <> 'OPENING';
-    IF FOUND THEN
-        r.outcome := 'KEY_MISMATCH';
-        RETURN r;
+        RETURN wager_answer(t, p_idempotency_key, p_payload_hash, false);
     END IF;
 
     IF p_kind IN ('BET', 'WIN') THEN
