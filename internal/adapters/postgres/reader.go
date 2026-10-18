@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/queries"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ledger"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wallet"
@@ -24,7 +25,13 @@ func NewReader(pool *pgxpool.Pool) *Reader {
 	return &Reader{pool: pool}
 }
 
+// Every method treats a malformed ID as one that names nothing, without
+// asking PostgreSQL, which would fail on it instead.
+
 func (r *Reader) Wallet(ctx context.Context, id string) (wallet.Wallet, error) {
+	if !ids.Valid(id) {
+		return wallet.Wallet{}, queries.ErrWalletNotFound
+	}
 	w, err := r.wallet(ctx, id)
 	return w, markTimeout(err)
 }
@@ -67,6 +74,9 @@ const transactionQuery = `
 `
 
 func (r *Reader) Transaction(ctx context.Context, id string) (queries.TransactionView, error) {
+	if !ids.Valid(id) {
+		return queries.TransactionView{}, queries.ErrTransactionNotFound
+	}
 	view, err := scanTransaction(r.pool.QueryRow(ctx, transactionQuery+`WHERE t.id = $1`, id))
 	return view, markTimeout(err)
 }
@@ -117,6 +127,9 @@ func scanTransaction(row pgx.Row) (queries.TransactionView, error) {
 }
 
 func (r *Reader) Ledger(ctx context.Context, walletID string, after queries.Cursor, limit int) ([]ledger.Entry, error) {
+	if !ids.Valid(walletID) || (after.ID != "" && !ids.Valid(after.ID)) {
+		return nil, nil
+	}
 	entries, err := r.ledger(ctx, walletID, after, limit)
 	return entries, markTimeout(err)
 }
@@ -183,6 +196,9 @@ func ledgerEntry(id, walletID, transactionID, direction string, delta, before, a
 // statement, hence one snapshot: both sides see the same committed data
 // while other transactions keep moving the wallet.
 func (r *Reader) Reconciliation(ctx context.Context, walletID string) (queries.Reconciliation, error) {
+	if !ids.Valid(walletID) {
+		return queries.Reconciliation{}, queries.ErrWalletNotFound
+	}
 	snapshot, err := r.reconciliation(ctx, walletID)
 	return snapshot, markTimeout(err)
 }

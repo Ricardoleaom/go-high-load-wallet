@@ -23,6 +23,7 @@ import (
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/events"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wallet"
 )
 
 // Harness gives the suite an engine and a read-only view of what it wrote.
@@ -49,6 +50,8 @@ func Run(t *testing.T, h Harness) {
 		{"OpenWalletWithZeroBalanceRecordsOnlyTheWallet", openWalletWithZeroBalanceRecordsOnlyTheWallet},
 		{"OpenWalletRejectsDuplicatePlayerCurrency", openWalletRejectsDuplicatePlayerCurrency},
 		{"OpenWalletAllowsAnotherCurrency", openWalletAllowsAnotherCurrency},
+		{"OpenWalletRejectsAnInvalidCommand", openWalletRejectsAnInvalidCommand},
+		{"MalformedIDsAreNotFound", malformedIDsAreNotFound},
 		{"BetDebits", betDebits},
 		{"BetBeyondBalanceIsRejected", betBeyondBalanceIsRejected},
 		{"BetInAnotherCurrencyIsRejectedAndKeepsItsCurrency", betInAnotherCurrencyIsRejectedAndKeepsItsCurrency},
@@ -264,6 +267,40 @@ func openWalletAllowsAnotherCurrency(t *testing.T, s *suite) {
 	if out.Wallet.Balance().Currency() != "USD" {
 		t.Errorf("second wallet currency = %s, want USD", out.Wallet.Balance().Currency())
 	}
+}
+
+// An engine checks an opening itself instead of trusting its caller.
+func openWalletRejectsAnInvalidCommand(t *testing.T, s *suite) {
+	negative, err := brl(t, "10.00").Negate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, cmd := range map[string]engine.OpenWallet{
+		"no player":                {PlayerID: "", InitialBalance: brl(t, "10.00")},
+		"malformed player":         {PlayerID: "not-a-uuid", InitialBalance: brl(t, "10.00")},
+		"negative balance":         {PlayerID: newID(), InitialBalance: negative},
+		"balance with no currency": {PlayerID: newID(), InitialBalance: money.Money{}},
+	} {
+		if _, err := s.execute(t, cmd); !errors.Is(err, wallet.ErrInvalidWallet) {
+			t.Errorf("%s: err = %v, want wallet.ErrInvalidWallet", name, err)
+		}
+	}
+}
+
+// No wallet, player or transaction has a malformed ID, so a command that
+// names one finds nothing, rather than failing on the identifier.
+func malformedIDsAreNotFound(t *testing.T, s *suite) {
+	walletID, playerID := s.openWallet(t, "100.00")
+	if _, err := s.execute(t, s.bet(t, "not-a-uuid", playerID, "1.00")); !errors.Is(err, engine.ErrWalletNotFound) {
+		t.Errorf("malformed wallet ID: err = %v, want ErrWalletNotFound", err)
+	}
+	if _, err := s.execute(t, s.bet(t, walletID, "not-a-uuid", "1.00")); !errors.Is(err, engine.ErrWalletNotFound) {
+		t.Errorf("malformed player ID: err = %v, want ErrWalletNotFound", err)
+	}
+	if _, err := s.execute(t, engine.RetryReference{TransactionID: "not-a-uuid", Attempts: 1}); !errors.Is(err, engine.ErrTransactionNotFound) {
+		t.Errorf("malformed transaction ID: err = %v, want ErrTransactionNotFound", err)
+	}
+	s.requireWallet(t, walletID, "100.00", 1)
 }
 
 func betDebits(t *testing.T, s *suite) {

@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/engine"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wallet"
@@ -45,6 +46,13 @@ func (e *Engine) Execute(ctx context.Context, cmd engine.Command) (engine.Outcom
 func (e *Engine) openWallet(ctx context.Context, cmd engine.OpenWallet) (engine.Outcome, error) {
 	walletID, transactionID, entryID, eventID, balanceEventID := newID(), newID(), newID(), newID(), newID()
 	initial := cmd.InitialBalance
+	// The domain judges the opening before the SQL, which trusts its input.
+	if !ids.Valid(cmd.PlayerID) {
+		return engine.Outcome{}, fmt.Errorf("%w: the player ID must be a UUID", wallet.ErrInvalidWallet)
+	}
+	if _, err := wallet.New(walletID, cmd.PlayerID, initial); err != nil {
+		return engine.Outcome{}, err
+	}
 
 	var createdAt *time.Time
 	if err := e.pool.QueryRow(ctx, `SELECT wallet_open($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -89,6 +97,10 @@ func (e *Engine) submit(ctx context.Context, cmd engine.SubmitWager) (engine.Out
 	}); err != nil {
 		return engine.Outcome{}, err
 	}
+	// No wallet or player has a malformed ID.
+	if !ids.Valid(cmd.WalletID) || !ids.Valid(cmd.PlayerID) {
+		return engine.Outcome{}, engine.ErrWalletNotFound
+	}
 
 	var r result
 	if err := r.scan(e.pool.QueryRow(ctx, submitQuery,
@@ -108,6 +120,9 @@ const retryQuery = `
 	FROM wager_retry_reference($1, $2, $3, $4, $5, $6)`
 
 func (e *Engine) retry(ctx context.Context, cmd engine.RetryReference) (engine.Outcome, error) {
+	if !ids.Valid(cmd.TransactionID) {
+		return engine.Outcome{}, engine.ErrTransactionNotFound
+	}
 	var r result
 	if err := r.scan(e.pool.QueryRow(ctx, retryQuery,
 		cmd.TransactionID, newID(), newID(), newID(),

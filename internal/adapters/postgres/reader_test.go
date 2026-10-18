@@ -106,6 +106,28 @@ func TestReaderNotFound(t *testing.T) {
 	}
 }
 
+// The HTTP adapter validates identifiers, but the reader does not count on
+// it: a malformed ID names nothing.
+func TestReaderTreatsMalformedIDsAsNotFound(t *testing.T) {
+	_, reader := newReader(t)
+	ctx := testContext(t)
+	if _, err := reader.Wallet(ctx, "not-a-uuid"); !errors.Is(err, queries.ErrWalletNotFound) {
+		t.Errorf("Wallet: err = %v", err)
+	}
+	if _, err := reader.Transaction(ctx, "not-a-uuid"); !errors.Is(err, queries.ErrTransactionNotFound) {
+		t.Errorf("Transaction: err = %v", err)
+	}
+	if _, err := reader.Reconciliation(ctx, "not-a-uuid"); !errors.Is(err, queries.ErrWalletNotFound) {
+		t.Errorf("Reconciliation: err = %v", err)
+	}
+	if entries, err := reader.Ledger(ctx, "not-a-uuid", queries.Cursor{}, 10); err != nil || len(entries) != 0 {
+		t.Errorf("Ledger: %d entries, err = %v; want none and no error", len(entries), err)
+	}
+	if entries, err := reader.Ledger(ctx, uuid.NewString(), queries.Cursor{ID: "not-a-uuid"}, 10); err != nil || len(entries) != 0 {
+		t.Errorf("Ledger with a malformed cursor: %d entries, err = %v; want none and no error", len(entries), err)
+	}
+}
+
 func TestLedgerPagesWithoutGapsOrRepeats(t *testing.T) {
 	h, reader := newReader(t)
 	c := newCommands(t)

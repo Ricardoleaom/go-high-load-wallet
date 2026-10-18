@@ -16,6 +16,7 @@ import (
 
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/engine"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/app/events"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ledger"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
@@ -126,6 +127,9 @@ func (e *Engine) apply(c *change) {
 }
 
 func (e *Engine) openWallet(c *change, cmd engine.OpenWallet) (engine.Outcome, error) {
+	if !ids.Valid(cmd.PlayerID) {
+		return engine.Outcome{}, fmt.Errorf("%w: the player ID must be a UUID", wallet.ErrInvalidWallet)
+	}
 	initial := cmd.InitialBalance
 	if _, taken := e.walletByOwner[owner(cmd.PlayerID, initial.Currency())]; taken {
 		return engine.Outcome{}, engine.ErrWalletConflict
