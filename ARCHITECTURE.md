@@ -290,7 +290,8 @@ row ID is the envelope's `eventId`, so a resend keeps it. If a process
 dies after the business commit, the event is published by the next round
 of any instance; if it dies between sending and marking, the same event is
 sent again: delivery is at least once. As shipped this publishes at most
-about 10 events per second per instance, and a bet produces two; the
+about 10 events per second per instance, and a money movement produces
+two; the
 [baselines](docs/benchmarks/README.md) measure the consequence. See
 [ADR 0005](docs/adr/0005-transactional-outbox-with-polling.md).
 
@@ -624,10 +625,26 @@ challenge never defined that relationship.
 
 ## 22. Limitations and known gaps
 
+- **The idempotency lookups cannot use their indexes.** The unique indexes
+  on `(provider_id, idempotency_key)` and `(provider_id, external_id)` are
+  partial (`WHERE kind != 'OPENING'`) and the lookups do not state that
+  condition, so each one reads the whole `transactions` table. It is the
+  first throughput ceiling
+  ([benchmark 002](docs/benchmarks/002-baseline-config-tuned.md#where-postgresqls-cpu-goes))
+  and the first fix of phase 2.
+- **Reversals can deadlock the connection pool under overload.**
+  `LockByID` locks the original inside the reversal's transaction and
+  reads it back through the pool; with as many concurrent reversals as
+  connections, every connection waits for another until clients time out
+  ([benchmark 002](docs/benchmarks/002-baseline-config-tuned.md#a-pool-deadlock-under-overload)).
+  Fixed early in phase 2.
+- **No admission control.** A saturated service queues requests without
+  bound instead of rejecting the excess.
 - **About eleven SQL round trips per bet** and **an outbox that publishes
-  about 10 events per second per instance** while a bet produces two. Both
-  are measured in the [baselines](docs/benchmarks/README.md) and are the
-  targets of phases 2 and 3.
+  about 10 events per second per instance**, one at a time, while a money
+  movement produces two. Both are measured in the
+  [baselines](docs/benchmarks/README.md) and are the targets of phases 2
+  and 3.
 - **Inbox and business operation in separate commits** (section 9). The
   financial guarantee rests on the idempotency index.
 - **SQS retries on a fixed visibility timeout** and do not tell transient

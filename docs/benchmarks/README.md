@@ -7,7 +7,7 @@ with the harness in [`bench/`](../../bench) and the method in
 | Report | What it measures |
 | --- | --- |
 | [001](001-baseline-as-delivered.md) | The service as delivered for the challenge |
-| [002](002-baseline-config-tuned.md) | The same code with only configuration changed |
+| [002](002-baseline-config-tuned.md) | The same code with only configuration changed, the diagnosis of its ceiling, and the targets for phases 2 and 3 |
 
 ## Running one
 
@@ -21,8 +21,11 @@ python3 bench/summarize.py bench/results/<run>...
 Each run builds and seeds a fresh stack in the `wallet-bench` compose
 project, warms up, runs the scenario, profiles the API, snapshots
 Prometheus and checks the financial invariants. Raw results land in
-`bench/results/` (not versioned); reports copy the small artifacts they
-cite into `docs/benchmarks/NNN-name/`.
+`bench/results/` (not versioned). Reports copy into
+`docs/benchmarks/NNN-name/` the files their tables come from (k6 summary,
+Prometheus snapshot, container CPU, invariant report, run metadata,
+profile top), so `bench/summarize.py` regenerates every table from the
+repository.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |

@@ -28,3 +28,10 @@ The guarantee survives restarts and holds across instances and transports
 because it lives in the database. Replays read the balance recorded in the
 ledger at the time, not the current one. The idempotency lookups are part
 of the round trips phase 2 removes from the common path.
+
+Since wallet openings became transactions without a provider, the unique
+indexes are partial (`WHERE kind != 'OPENING'`). A lookup that does not
+state that condition cannot use them and reads the whole table, which
+[benchmark 002](../benchmarks/002-baseline-config-tuned.md) found to be
+the first throughput ceiling; queries against these indexes must repeat
+their predicate.

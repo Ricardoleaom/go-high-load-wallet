@@ -15,3 +15,6 @@ docs/superpowers/
 # Benchmark inputs and raw results (reports live in docs/benchmarks)
 /bench/data/
 /bench/results/
+
+# Python bytecode from the benchmark tooling
+__pycache__/

@@ -50,6 +50,17 @@ Phase 1: foundation and baseline. See [ROADMAP.md](ROADMAP.md).
   while the IdP was slow; the re-fetch is now bounded to 2 seconds.
 - Go 1.27.2 and updated dependencies remove known vulnerabilities.
 
+### Known issues
+
+Found by the benchmarks of this release and fixed first in 0.3.0; the
+hot path is unchanged from 0.1.0-challenge on purpose, so the baselines
+measure it as delivered.
+
+- The idempotency and external-ID lookups cannot use their partial unique
+  indexes and scan the `transactions` table on every submission.
+- Under overload, concurrent reversals can deadlock the connection pool
+  until clients time out.
+
 ## [0.1.0-challenge] - 2026-10-15
 
 The service as delivered for the hiring challenge: wallets moved over HTTP

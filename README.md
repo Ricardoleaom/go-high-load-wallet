@@ -126,7 +126,31 @@ run against real PostgreSQL with the race detector; the list is in
 
 ## Benchmarks
 
-BENCHMARKS_SUMMARY
+Measured on a 4-vCPU laptop under WSL2 with PostgreSQL pinned to two
+cores, `uniform-mix` traffic on 100,000 wallets; the method is in
+[ADR 0009](docs/adr/0009-benchmark-methodology.md) and every number comes
+from a report in [docs/benchmarks](docs/benchmarks/README.md).
+
+| | knee (p99 under 50 ms) | p50 at the knee | highest served rate | events published |
+| --- | --- | --- | --- | --- |
+| [001](docs/benchmarks/001-baseline-as-delivered.md), as delivered | 40 rps | 18 ms | 82 rps, then falling | 10 a second, whatever the load |
+| [002](docs/benchmarks/002-baseline-config-tuned.md), configuration only | no better | 18 ms | 86 rps | up to 57 a second; one publisher tops out near 240 |
+| [002](docs/benchmarks/002-baseline-config-tuned.md#where-postgresqls-cpu-goes), same code with two indexes | 100 rps | 4.7 ms | 443 rps | |
+| phase 2 target | ≥ 1,000 rps | ≤ 5 ms | | |
+| phase 3 target | | | | ≥ 2,000 a second, p99 age under 1 s |
+
+What the measurements found, and phase 2 fixes first:
+
+- The first ceiling was not the design but two idempotency lookups that
+  cannot use their partial unique indexes: they read the whole
+  `transactions` table on every bet and took 98% of PostgreSQL's CPU.
+- Under overload, reversals can deadlock the connection pool until
+  clients time out.
+- The outbox publishes exactly `batch / interval` events a second, one
+  event at a time.
+
+Every run, the overloaded ones included, passed all eight invariant
+checks.
 
 ## Layout
 
