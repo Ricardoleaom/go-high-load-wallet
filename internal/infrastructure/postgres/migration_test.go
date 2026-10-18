@@ -15,8 +15,8 @@ func TestMigrationBackfillsTransactionCurrency(t *testing.T) {
 	defer cancel()
 
 	url := pgtest.FreshURL(t)
-	if err := pgtest.MigrateSteps(ctx, url, -1); err != nil {
-		t.Fatalf("migrate down one step: %v", err)
+	if err := pgtest.MigrateTo(ctx, url, 10); err != nil {
+		t.Fatalf("migrate to the version before the currency column: %v", err)
 	}
 
 	db, err := Open(ctx, url)
@@ -38,7 +38,7 @@ func TestMigrationBackfillsTransactionCurrency(t *testing.T) {
 		t.Fatalf("insert transaction under the previous schema: %v", err)
 	}
 
-	if err := pgtest.MigrateSteps(ctx, url, 1); err != nil {
+	if err := pgtest.MigrateTo(ctx, url, 11); err != nil {
 		t.Fatalf("migrate up: %v", err)
 	}
 	var currency string
@@ -49,7 +49,7 @@ func TestMigrationBackfillsTransactionCurrency(t *testing.T) {
 		t.Fatalf("currency = %q, want EUR from the wallet", currency)
 	}
 
-	if err := pgtest.MigrateSteps(ctx, url, -1); err != nil {
+	if err := pgtest.MigrateTo(ctx, url, 10); err != nil {
 		t.Fatalf("migrate down again: %v", err)
 	}
 }
