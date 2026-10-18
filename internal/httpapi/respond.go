@@ -2,11 +2,55 @@ package httpapi
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 )
+
+// maxBodyBytes bounds every request body; the largest valid one is a small
+// fraction of it.
+const maxBodyBytes = 64 << 10
+
+// limitBody makes reading past maxBodyBytes fail, so a client cannot make
+// the server buffer an arbitrarily large body.
+func limitBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+		next.ServeHTTP(w, r)
+	})
+}
+
+// decodeBody decodes the JSON body into dst, answering 413 for a body over
+// the limit and 400 for anything else that does not decode.
+func decodeBody(w http.ResponseWriter, r *http.Request, dst any) bool {
+	err := json.NewDecoder(r.Body).Decode(dst)
+	if err == nil {
+		return true
+	}
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		writeError(w, http.StatusRequestEntityTooLarge, "BODY_TOO_LARGE",
+			fmt.Sprintf("the request body is limited to %d bytes", maxBodyBytes))
+		return false
+	}
+	writeError(w, http.StatusBadRequest, "INVALID_BODY", "malformed JSON body")
+	return false
+}
+
+// pathID returns the named path value when it is a well-formed ID and
+// answers 400 otherwise.
+func pathID(w http.ResponseWriter, r *http.Request, name string) (string, bool) {
+	id := r.PathValue(name)
+	if !ids.Valid(id) {
+		writeError(w, http.StatusBadRequest, "INVALID_ID", name+" must be a UUID")
+		return "", false
+	}
+	return id, true
+}
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")

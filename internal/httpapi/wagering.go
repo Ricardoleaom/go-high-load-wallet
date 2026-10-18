@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -55,8 +54,7 @@ func (h *handler) submitWagerTransaction(w http.ResponseWriter, r *http.Request)
 	}
 
 	var req submitTransactionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_BODY", "malformed JSON body")
+	if !decodeBody(w, r, &req) {
 		return
 	}
 
@@ -123,6 +121,10 @@ func writeSubmitError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "IDEMPOTENCY_KEY_MISMATCH", "this operation was already recorded under a different idempotency key")
 	case errors.Is(err, wagerapp.ErrWalletNotFound):
 		writeError(w, http.StatusNotFound, "WALLET_NOT_FOUND", "wallet not found")
+	case errors.Is(err, wagerapp.ErrInvalidID):
+		writeError(w, http.StatusBadRequest, "INVALID_ID", err.Error())
+	case errors.Is(err, wagerapp.ErrInvalidInput):
+		writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 	case errors.Is(err, wager.ErrInvalidTransaction),
 		errors.Is(err, wager.ErrInvalidAmount),
 		errors.Is(err, money.ErrInvalidAmount),
@@ -206,7 +208,10 @@ func (h *handler) getTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.PathValue("id")
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
 	tx, err := h.deps.Transactions.GetByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, postgres.ErrTransactionNotFound) {

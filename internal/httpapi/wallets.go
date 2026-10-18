@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 )
 
@@ -41,13 +41,12 @@ func (h *handler) openWallet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req openWalletRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_BODY", "malformed JSON body")
+	if !decodeBody(w, r, &req) {
 		return
 	}
 
-	if req.PlayerID == "" {
-		writeError(w, http.StatusBadRequest, "INVALID_PLAYER_ID", "playerId is required")
+	if !ids.Valid(req.PlayerID) {
+		writeError(w, http.StatusBadRequest, "INVALID_PLAYER_ID", "playerId must be a UUID")
 		return
 	}
 
@@ -83,7 +82,10 @@ func (h *handler) getWallet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.PathValue("id")
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
 	wlt, err := h.deps.Wallets.GetByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, postgres.ErrWalletNotFound) {
@@ -122,7 +124,10 @@ func (h *handler) getWalletLedger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	walletID := r.PathValue("id")
+	walletID, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
 
 	limit := 50
 	if raw := r.URL.Query().Get("limit"); raw != "" {
@@ -189,6 +194,9 @@ func decodeLedgerCursor(cursor string) (time.Time, string, error) {
 	if err != nil {
 		return time.Time{}, "", err
 	}
+	if !ids.Valid(parts[1]) {
+		return time.Time{}, "", errors.New("malformed cursor ID")
+	}
 	return createdAt, parts[1], nil
 }
 
@@ -209,7 +217,10 @@ func (h *handler) reconcileWallet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	walletID := r.PathValue("id")
+	walletID, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
 
 	snapshot, err := h.deps.Ledger.ReconciliationSnapshot(r.Context(), walletID)
 	if err != nil {

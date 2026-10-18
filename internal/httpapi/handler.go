@@ -64,7 +64,7 @@ func NewHandler(deps Dependencies) http.Handler {
 	// actual matched route for every successfully authenticated request.
 	// Auth itself records metrics for the requests it rejects, since those
 	// never reach this inner wrapper at all.
-	mux.Handle("/", deps.Auth.Middleware(metricsMiddleware(deps.Metrics, protected)))
+	mux.Handle("/", deps.Auth.Middleware(metricsMiddleware(deps.Metrics, limitBody(protected))))
 
 	return otelhttp.NewHandler(mux, "http.server")
 }

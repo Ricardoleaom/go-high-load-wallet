@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -823,5 +824,46 @@ func TestRejectedCurrencyMismatchKeepsRequestedCurrency(t *testing.T) {
 	}
 	if got := stored.Amount().String(); got != "10.00 USD" {
 		t.Fatalf("stored amount = %s, want 10.00 USD as requested", got)
+	}
+}
+
+func TestSubmitRejectsMalformedIDsAndLongFields(t *testing.T) {
+	service, db, ctx := newTestService(t)
+	walletID := createTestWallet(t, ctx, db, "100.00")
+	long := strings.Repeat("x", MaxFieldLength+1)
+
+	for _, tc := range []struct {
+		name   string
+		mutate func(*SubmitInput)
+		want   error
+	}{
+		{"wallet ID", func(in *SubmitInput) { in.WalletID = "abc" }, ErrInvalidID},
+		{"player ID", func(in *SubmitInput) { in.PlayerID = "abc" }, ErrInvalidID},
+		{"provider ID", func(in *SubmitInput) { in.ProviderID = long }, ErrFieldTooLong},
+		{"external ID", func(in *SubmitInput) { in.ExternalID = long }, ErrFieldTooLong},
+		{"idempotency key", func(in *SubmitInput) { in.IdempotencyKey = long }, ErrFieldTooLong},
+		{"round ID", func(in *SubmitInput) { in.RoundID = long }, ErrFieldTooLong},
+		{"game ID", func(in *SubmitInput) { in.GameID = long }, ErrFieldTooLong},
+		{"reference", func(in *SubmitInput) {
+			in.Kind = domainwager.KindRefund
+			in.ReferenceExternalID = long
+		}, ErrFieldTooLong},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := betInput(walletID, "provider-a", newTestID(t), mustMoney(t, "10.00"))
+			tc.mutate(&input)
+			_, err := service.Submit(ctx, input)
+			if !errors.Is(err, tc.want) || !errors.Is(err, ErrInvalidInput) {
+				t.Fatalf("Submit error = %v, want %v (an ErrInvalidInput)", err, tc.want)
+			}
+		})
+	}
+
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM transactions WHERE wallet_id = $1`, walletID).Scan(&count); err != nil {
+		t.Fatalf("count transactions: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("transactions recorded for invalid input = %d, want 0", count)
 	}
 }

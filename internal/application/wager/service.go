@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/application/outboxevents"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ledger"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	domainwager "github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
@@ -22,7 +24,17 @@ var (
 	ErrIdempotencyConflict    = errors.New("idempotency key reused with different payload")
 	ErrIdempotencyKeyMismatch = errors.New("transaction already recorded under a different idempotency key")
 	ErrWalletNotFound         = postgres.ErrWalletNotFound
+
+	// ErrInvalidInput marks a submission the caller has to fix before
+	// sending it again; ErrInvalidID and ErrFieldTooLong are both one.
+	ErrInvalidInput = errors.New("invalid input")
+	ErrInvalidID    = fmt.Errorf("%w: walletId and playerId must be UUIDs", ErrInvalidInput)
+	ErrFieldTooLong = fmt.Errorf("%w: text fields are limited to %d characters", ErrInvalidInput, MaxFieldLength)
 )
+
+// MaxFieldLength bounds every free-text field of a submission, idempotency
+// key included.
+const MaxFieldLength = 255
 
 const (
 	FailureInsufficientBalance         = "INSUFFICIENT_BALANCE"
@@ -99,6 +111,9 @@ type Result struct {
 func (s *Service) Submit(ctx context.Context, input SubmitInput) (Result, error) {
 	if input.Kind == domainwager.KindOpening {
 		return Result{}, ErrOpeningNotAllowed
+	}
+	if err := validateSubmitInput(input); err != nil {
+		return Result{}, err
 	}
 
 	payloadHash, err := ComputePayloadHash(input)
@@ -210,6 +225,23 @@ func (s *Service) resolveIdempotencyRace(ctx context.Context, input SubmitInput,
 		return Result{}, ErrIdempotencyKeyMismatch
 	}
 	return s.replay(ctx, byExternal, payloadHash)
+}
+
+// validateSubmitInput rejects what would otherwise reach the database as a
+// malformed UUID or an unbounded string, over HTTP and SQS alike.
+func validateSubmitInput(input SubmitInput) error {
+	if !ids.Valid(input.WalletID) || !ids.Valid(input.PlayerID) {
+		return ErrInvalidID
+	}
+	for _, field := range []string{
+		input.ProviderID, input.ExternalID, input.IdempotencyKey,
+		input.RoundID, input.GameID, input.ReferenceExternalID,
+	} {
+		if utf8.RuneCountInString(field) > MaxFieldLength {
+			return ErrFieldTooLong
+		}
+	}
+	return nil
 }
 
 // errIdempotencyRace signals that Create lost a race against a concurrent
