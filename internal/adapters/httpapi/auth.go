@@ -2,10 +2,12 @@ package httpapi
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/MicahParks/keyfunc/v3"
@@ -50,12 +52,25 @@ type AuthConfig struct {
 	Audience        string
 }
 
-// Authenticator validates bearer tokens against the IdP's JWKS.
+// Authenticator validates bearer tokens against the IdP's JWKS and keeps
+// what it verified in a cache, so a client reusing its token pays for the
+// RSA signature check once rather than on every request.
 type Authenticator struct {
 	keyfunc keyfunc.Keyfunc
 	metrics *observability.Metrics
 	options []jwt.ParserOption
+
+	cache *tokenCache
+	// refresh bounds how long a verified token is trusted without being
+	// verified again: a key the IdP revokes stops being trusted on the next
+	// JWKS refresh, and the cache must not outlast that.
+	refresh time.Duration
+	now     func() time.Time
 }
+
+// tokenCacheCapacity bounds the cache: past it, tokens are still accepted
+// but verified on every request.
+const tokenCacheCapacity = 10_000
 
 // unknownKeyRefreshTimeout bounds the JWKS re-fetch a token with an unknown
 // kid triggers on the request path. The re-fetch is what picks up a key the
@@ -86,18 +101,23 @@ func NewAuthenticator(
 		return nil, fmt.Errorf("fetch JWKS from %s: %w", cfg.JWKSURL, err)
 	}
 
-	return &Authenticator{
+	a := &Authenticator{
 		keyfunc: kf,
 		metrics: metrics,
-		// A token signed by the right key is not enough: it must come from
-		// the expected issuer, be meant for this API and expire.
-		options: []jwt.ParserOption{
-			jwt.WithValidMethods([]string{"RS256"}),
-			jwt.WithIssuer(cfg.Issuer),
-			jwt.WithAudience(cfg.Audience),
-			jwt.WithExpirationRequired(),
-		},
-	}, nil
+		cache:   newTokenCache(tokenCacheCapacity),
+		refresh: cfg.RefreshInterval,
+		now:     time.Now,
+	}
+	// A token signed by the right key is not enough: it must come from the
+	// expected issuer, be meant for this API and expire.
+	a.options = []jwt.ParserOption{
+		jwt.WithValidMethods([]string{"RS256"}),
+		jwt.WithIssuer(cfg.Issuer),
+		jwt.WithAudience(cfg.Audience),
+		jwt.WithExpirationRequired(),
+		jwt.WithTimeFunc(func() time.Time { return a.now() }),
+	}
+	return a, nil
 }
 
 // Middleware rejects requests without a valid bearer token and puts the
@@ -115,23 +135,111 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		var parsed claims
-		_, err := jwt.ParseWithClaims(tokenString, &parsed, a.keyfunc.Keyfunc, a.options...)
-		if err != nil {
+		id, ok := a.verify(tokenString)
+		if !ok {
 			a.rejectUnauthenticated(w, r, "invalid or expired token", started)
 			return
 		}
 
 		ctx := r.Context()
-		if parsed.ProviderID != "" {
-			ctx = context.WithValue(ctx, ctxKeyProviderID, parsed.ProviderID)
+		if id.providerID != "" {
+			ctx = context.WithValue(ctx, ctxKeyProviderID, id.providerID)
 		}
-		if parsed.hasRole("internal") {
+		if id.internal {
 			ctx = context.WithValue(ctx, ctxKeyInternal, true)
 		}
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// identity is what a verified token says about its bearer.
+type identity struct {
+	providerID string
+	internal   bool
+}
+
+// verify answers from the cache when it can, and otherwise checks the
+// token's signature and claims, caching a valid one until the earlier of
+// its expiry and the next JWKS refresh.
+func (a *Authenticator) verify(token string) (identity, bool) {
+	now := a.now()
+	if id, ok := a.cache.get(token, now); ok {
+		a.metrics.AuthTokenCacheTotal.WithLabelValues("hit").Inc()
+		return id, true
+	}
+	a.metrics.AuthTokenCacheTotal.WithLabelValues("miss").Inc()
+
+	var parsed claims
+	if _, err := jwt.ParseWithClaims(token, &parsed, a.keyfunc.Keyfunc, a.options...); err != nil {
+		return identity{}, false
+	}
+	id := identity{providerID: parsed.ProviderID, internal: parsed.hasRole("internal")}
+	expires := parsed.ExpiresAt.Time
+	if limit := now.Add(a.refresh); limit.Before(expires) {
+		expires = limit
+	}
+	a.cache.put(token, id, expires, now)
+	return id, true
+}
+
+// tokenCache maps the SHA-256 of a verified token, so the tokens themselves
+// are not kept, to its identity and the moment it must be verified again.
+type tokenCache struct {
+	mu        sync.RWMutex
+	entries   map[[sha256.Size]byte]cachedIdentity
+	capacity  int
+	lastPurge time.Time
+}
+
+type cachedIdentity struct {
+	identity
+	until time.Time
+}
+
+func newTokenCache(capacity int) *tokenCache {
+	return &tokenCache{entries: map[[sha256.Size]byte]cachedIdentity{}, capacity: capacity}
+}
+
+func (c *tokenCache) get(token string, now time.Time) (identity, bool) {
+	key := sha256.Sum256([]byte(token))
+	c.mu.RLock()
+	entry, ok := c.entries[key]
+	c.mu.RUnlock()
+	if !ok || !now.Before(entry.until) {
+		return identity{}, false
+	}
+	return entry.identity, true
+}
+
+// put caches id until until. A full cache first drops what expired, at
+// most once a second so a flood of new tokens cannot turn every request
+// into a sweep; still full, it caches nothing.
+func (c *tokenCache) put(token string, id identity, until, now time.Time) {
+	if c.capacity <= 0 || !now.Before(until) {
+		return
+	}
+	key := sha256.Sum256([]byte(token))
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.entries) >= c.capacity && now.Sub(c.lastPurge) >= time.Second {
+		c.lastPurge = now
+		for k, entry := range c.entries {
+			if !now.Before(entry.until) {
+				delete(c.entries, k)
+			}
+		}
+	}
+	if len(c.entries) >= c.capacity {
+		return
+	}
+	c.entries[key] = cachedIdentity{identity: id, until: until}
+}
+
+func (c *tokenCache) size() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.entries)
 }
 
 func (a *Authenticator) rejectUnauthenticated(w http.ResponseWriter, r *http.Request, message string, started time.Time) {

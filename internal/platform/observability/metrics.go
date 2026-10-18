@@ -31,6 +31,7 @@ type Metrics struct {
 	OutboxPublishFailedTotal  prometheus.Counter
 	ReferenceRetriesTotal     prometheus.Counter
 	ReconciliationMismatches  prometheus.Counter
+	AuthTokenCacheTotal       *prometheus.CounterVec
 
 	HTTPRequestDuration   *prometheus.HistogramVec
 	SubmitDuration        *prometheus.HistogramVec
@@ -75,6 +76,10 @@ func New() *Metrics {
 			Name: "wallet_reconciliation_mismatches_total",
 			Help: "Reconciliation checks that found stored and calculated balances differ.",
 		}),
+		AuthTokenCacheTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "auth_token_cache_total",
+			Help: "Bearer token lookups in the verified-token cache, by result (hit or miss).",
+		}, []string{"result"}),
 		HTTPRequestDuration: prometheus.NewHistogramVec(latencyOpts(
 			"http_request_duration_seconds", "HTTP request latency by route, method and status class.",
 		), []string{"route", "method", "status_class"}),
@@ -111,6 +116,7 @@ func New() *Metrics {
 		m.OutboxPublishFailedTotal,
 		m.ReferenceRetriesTotal,
 		m.ReconciliationMismatches,
+		m.AuthTokenCacheTotal,
 		m.HTTPRequestDuration,
 		m.SubmitDuration,
 		m.SQSProcessingDuration,
