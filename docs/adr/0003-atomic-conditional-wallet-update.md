@@ -1,6 +1,6 @@
 # 0003. Move balances with one conditional UPDATE
 
-- Status: accepted
+- Status: superseded by [0014](0014-one-statement-per-command.md)
 - Date: 2026-10-16
 
 ## Context
