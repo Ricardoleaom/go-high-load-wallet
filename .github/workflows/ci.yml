@@ -26,6 +26,7 @@ jobs:
           # Build from source with the job's Go so the linter understands
           # the language version go.mod declares.
           install-mode: goinstall
+      - run: make lint-ci
 
   test:
     runs-on: ubuntu-latest
