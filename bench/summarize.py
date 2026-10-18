@@ -103,15 +103,15 @@ def hot_percent(tables):
     return f"{100 * wallets['n_tup_hot_upd'] / wallets['n_tup_upd']:.0f}"
 
 
-def commits_per_request(series, start, end):
-    """PostgreSQL commits per request served; a read is one commit too."""
+def commits_per_bet(series, start, end):
+    """PostgreSQL commits per bet served (POST /wagering/transactions); reads commit too."""
     commits = mean(series.get("pg_commits_per_second", []), start, end)
     rps = mean(series.get("server_rps", []), start, end)
     return "—" if not commits or not rps else f"{commits / rps:.2f}"
 
 
-def pg_ms_per_request(series, cpu, start, end):
-    """Milliseconds of PostgreSQL CPU per request served."""
+def pg_ms_per_bet(series, cpu, start, end):
+    """Milliseconds of PostgreSQL CPU per bet served, reads included in the CPU."""
     pg = mean(cpu["postgres"], start, end)
     rps = mean(series.get("server_rps", []), start, end)
     return "—" if pg is None or not rps else f"{pg / 100 * 1000 / rps:.2f}"
@@ -142,15 +142,15 @@ def steady_row(directory, meta, summary, prom):
         f"{peak(series.get('outbox_pending', []), start, end) or 0:.0f} | "
         f"{peak(series.get('outbox_oldest_seconds', []), start, end) or 0:.0f} | "
         f"{mean(series.get('pool_in_use', []), start + 30, end) or 0:.1f} | "
-        f"{cpu_cell(cpu, start + 30, end)} | {pg_ms_per_request(series, cpu, start + 30, end)} | "
-        f"{commits_per_request(series, start + 30, end)} | {hot_percent(pg_tables(directory))} | {verify_ok(directory)} |"
+        f"{cpu_cell(cpu, start + 30, end)} | {pg_ms_per_bet(series, cpu, start + 30, end)} | "
+        f"{commits_per_bet(series, start + 30, end)} | {hot_percent(pg_tables(directory))} | {verify_ok(directory)} |"
     )
 
 
 STEADY_HEADER = (
     "| run | target rps | achieved rps | p50 ms | p95 ms | p99 ms | failed | dropped | "
     "transactions/s | outbox published/s | outbox backlog (peak) | oldest pending s (peak) | pool in use (avg) | CPU % app/pg/k6 | "
-    "PG CPU ms/req | commits/req | wallet HOT % | verify |\n"
+    "PG CPU ms/bet | commits/bet | wallet HOT % | verify |\n"
     "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
 )
 
@@ -174,8 +174,8 @@ def knee_rows(directory, meta, prom):
             f"{mean(series.get('k6_dropped_per_second', []), window_start, window_end) or 0:.1f} | "
             f"{mean(series.get('pool_waits_per_second', []), window_start, window_end) or 0:.1f} | "
             f"{mean(series.get('app_cpu_cores', []), window_start, window_end) or 0:.2f} | "
-            f"{cpu_cell(cpu, window_start, window_end)} | {pg_ms_per_request(series, cpu, window_start, window_end)} | "
-            f"{commits_per_request(series, window_start, window_end)} |"
+            f"{cpu_cell(cpu, window_start, window_end)} | {pg_ms_per_bet(series, cpu, window_start, window_end)} | "
+            f"{commits_per_bet(series, window_start, window_end)} |"
         )
         t += 5 + hold_seconds
     return rows
@@ -183,7 +183,7 @@ def knee_rows(directory, meta, prom):
 
 KNEE_HEADER = (
     "| target rps | server rps | p50 ms | p99 ms | 5xx/s | dropped/s | pool waits/s | API CPU cores | CPU % app/pg/k6 | "
-    "PG CPU ms/req | commits/req |\n"
+    "PG CPU ms/bet | commits/bet |\n"
     "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
 )
 

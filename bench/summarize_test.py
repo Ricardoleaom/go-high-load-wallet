@@ -52,15 +52,15 @@ class PostgresStatsTest(unittest.TestCase):
 
 
 class PerRequestCostTest(unittest.TestCase):
-    def test_commits_and_postgres_cpu_per_request(self):
+    def test_commits_and_postgres_cpu_per_bet(self):
         series = {
             "server_rps": [(10, 500.0), (20, 500.0)],
             "pg_commits_per_second": [(10, 560.0), (20, 540.0)],
         }
         cpu = {"postgres": [(10, 150.0), (20, 150.0)], "app": [], "k6": []}
-        self.assertEqual(summarize.commits_per_request(series, 10, 20), "1.10")
-        self.assertEqual(summarize.pg_ms_per_request(series, cpu, 10, 20), "3.00")
-        self.assertEqual(summarize.commits_per_request({}, 10, 20), "—")
+        self.assertEqual(summarize.commits_per_bet(series, 10, 20), "1.10")
+        self.assertEqual(summarize.pg_ms_per_bet(series, cpu, 10, 20), "3.00")
+        self.assertEqual(summarize.commits_per_bet({}, 10, 20), "—")
 
 
 if __name__ == "__main__":
