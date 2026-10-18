@@ -135,7 +135,7 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		id, ok := a.verify(tokenString)
+		id, ok := a.verify(r.Context(), tokenString)
 		if !ok {
 			a.rejectUnauthenticated(w, r, "invalid or expired token", started)
 			return
@@ -161,17 +161,24 @@ type identity struct {
 
 // verify answers from the cache when it can, and otherwise checks the
 // token's signature and claims, caching a valid one until the earlier of
-// its expiry and the next JWKS refresh.
-func (a *Authenticator) verify(token string) (identity, bool) {
+// its expiry and one JWKS refresh interval from now. A cached token is only
+// trusted while the key that signed it is still in the JWKS, so a key the
+// IdP revokes stops being trusted at the next refresh, as without the
+// cache.
+func (a *Authenticator) verify(ctx context.Context, token string) (identity, bool) {
 	now := a.now()
-	if id, ok := a.cache.get(token, now); ok {
-		a.metrics.AuthTokenCacheTotal.WithLabelValues("hit").Inc()
-		return id, true
+	if entry, ok := a.cache.get(token, now); ok {
+		if _, err := a.keyfunc.Storage().KeyRead(ctx, entry.kid); err == nil {
+			a.metrics.AuthTokenCacheTotal.WithLabelValues("hit").Inc()
+			return entry.identity, true
+		}
+		a.cache.remove(token)
 	}
 	a.metrics.AuthTokenCacheTotal.WithLabelValues("miss").Inc()
 
 	var parsed claims
-	if _, err := jwt.ParseWithClaims(token, &parsed, a.keyfunc.Keyfunc, a.options...); err != nil {
+	parsedToken, err := jwt.ParseWithClaims(token, &parsed, a.keyfunc.Keyfunc, a.options...)
+	if err != nil {
 		return identity{}, false
 	}
 	id := identity{providerID: parsed.ProviderID, internal: parsed.hasRole("internal")}
@@ -179,7 +186,9 @@ func (a *Authenticator) verify(token string) (identity, bool) {
 	if limit := now.Add(a.refresh); limit.Before(expires) {
 		expires = limit
 	}
-	a.cache.put(token, id, expires, now)
+	if kid, ok := parsedToken.Header["kid"].(string); ok {
+		a.cache.put(token, cachedIdentity{identity: id, kid: kid, until: expires}, now)
+	}
 	return id, true
 }
 
@@ -194,6 +203,7 @@ type tokenCache struct {
 
 type cachedIdentity struct {
 	identity
+	kid   string // the signing key, which must still be in the JWKS
 	until time.Time
 }
 
@@ -201,22 +211,29 @@ func newTokenCache(capacity int) *tokenCache {
 	return &tokenCache{entries: map[[sha256.Size]byte]cachedIdentity{}, capacity: capacity}
 }
 
-func (c *tokenCache) get(token string, now time.Time) (identity, bool) {
+func (c *tokenCache) get(token string, now time.Time) (cachedIdentity, bool) {
 	key := sha256.Sum256([]byte(token))
 	c.mu.RLock()
 	entry, ok := c.entries[key]
 	c.mu.RUnlock()
 	if !ok || !now.Before(entry.until) {
-		return identity{}, false
+		return cachedIdentity{}, false
 	}
-	return entry.identity, true
+	return entry, true
 }
 
-// put caches id until until. A full cache first drops what expired, at
-// most once a second so a flood of new tokens cannot turn every request
-// into a sweep; still full, it caches nothing.
-func (c *tokenCache) put(token string, id identity, until, now time.Time) {
-	if c.capacity <= 0 || !now.Before(until) {
+func (c *tokenCache) remove(token string) {
+	key := sha256.Sum256([]byte(token))
+	c.mu.Lock()
+	delete(c.entries, key)
+	c.mu.Unlock()
+}
+
+// put caches entry until entry.until. A full cache first drops what
+// expired, at most once a second so a flood of new tokens cannot turn
+// every request into a sweep; still full, it caches nothing.
+func (c *tokenCache) put(token string, entry cachedIdentity, now time.Time) {
+	if c.capacity <= 0 || !now.Before(entry.until) {
 		return
 	}
 	key := sha256.Sum256([]byte(token))
@@ -233,7 +250,7 @@ func (c *tokenCache) put(token string, id identity, until, now time.Time) {
 	if len(c.entries) >= c.capacity {
 		return
 	}
-	c.entries[key] = cachedIdentity{identity: id, until: until}
+	c.entries[key] = entry
 }
 
 func (c *tokenCache) size() int {

@@ -103,6 +103,29 @@ func TestCachedTokenStopsAtTheRefreshWindow(t *testing.T) {
 	}
 }
 
+// A cached token stops being trusted as soon as its signing key leaves the
+// JWKS, however long its cache entry has left: the clock here never moves,
+// so only the key check can evict it.
+func TestCachedTokenStopsWhenItsKeyLeavesTheJWKS(t *testing.T) {
+	h := newCacheHarness(t, 50*time.Millisecond)
+	token := h.issuer.ProviderToken(t, "provider-a")
+	if status := h.status(token); status != http.StatusNoContent {
+		t.Fatalf("fresh token: status %d", status)
+	}
+
+	h.issuer.Rotate(t)
+	deadline := time.Now().Add(3 * time.Second)
+	for h.status(token) != http.StatusUnauthorized {
+		if time.Now().After(deadline) {
+			t.Fatal("a token signed by a revoked key was still served from the cache")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if status := h.status(h.issuer.ProviderToken(t, "provider-a")); status != http.StatusNoContent {
+		t.Fatalf("token signed by the new key: status %d", status)
+	}
+}
+
 // Every valid token gets in until the cache is full; past that, tokens
 // are still accepted but verified every time.
 func TestCacheStaysBoundedUnderManyDistinctTokens(t *testing.T) {
