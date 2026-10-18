@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-16 23:09:42 -03
+Duration: 30s, Total samples = 2.17s ( 7.23%)
+Showing nodes accounting for 1.25s, 57.60% of 2.17s total
+Dropped 230 nodes (cum <= 0.01s)
+Showing top 15 nodes out of 287
+      flat  flat%   sum%        cum   cum%
+     0.91s 41.94% 41.94%      0.91s 41.94%  internal/runtime/syscall/linux.Syscall6
+     0.06s  2.76% 44.70%      0.06s  2.76%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.03s  1.38% 46.08%      0.03s  1.38%  context.(*valueCtx).Done
+     0.03s  1.38% 47.47%      0.04s  1.84%  runtime.makeslice
+     0.02s  0.92% 48.39%      0.02s  0.92%  context.value
+     0.02s  0.92% 49.31%      0.02s  0.92%  database/sql.convertAssignRows
+     0.02s  0.92% 50.23%      0.07s  3.23%  github.com/exaring/otelpgx.(*Tracer).TraceQueryEnd
+     0.02s  0.92% 51.15%      0.72s 33.18%  internal/poll.(*FD).Write
+     0.02s  0.92% 52.07%      0.02s  0.92%  internal/runtime/maps.ctrlGroup.matchH2
+     0.02s  0.92% 53.00%      0.02s  0.92%  memeqbody
+     0.02s  0.92% 53.92%      0.02s  0.92%  runtime.(*mspan).writeHeapBitsSmall
+     0.02s  0.92% 54.84%      0.02s  0.92%  runtime.futex
+     0.02s  0.92% 55.76%      0.02s  0.92%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.02s  0.92% 56.68%      0.02s  0.92%  runtime.memmove
+     0.02s  0.92% 57.60%      0.02s  0.92%  sync.(*Mutex).Unlock

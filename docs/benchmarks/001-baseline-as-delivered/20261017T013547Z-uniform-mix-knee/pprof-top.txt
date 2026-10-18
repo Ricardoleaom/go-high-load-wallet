@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-16 22:46:29 -03
+Duration: 30s, Total samples = 2.36s ( 7.87%)
+Showing nodes accounting for 0.99s, 41.95% of 2.36s total
+Dropped 241 nodes (cum <= 0.01s)
+Showing top 15 nodes out of 337
+      flat  flat%   sum%        cum   cum%
+     0.63s 26.69% 26.69%      0.63s 26.69%  internal/runtime/syscall/linux.Syscall6
+     0.05s  2.12% 28.81%      0.05s  2.12%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.04s  1.69% 30.51%      0.04s  1.69%  context.value
+     0.03s  1.27% 31.78%      0.18s  7.63%  github.com/jackc/pgx/v5/pgproto3.(*Frontend).Receive
+     0.03s  1.27% 33.05%      0.03s  1.27%  runtime.futex
+     0.03s  1.27% 34.32%      0.03s  1.27%  runtime.memclrNoHeapPointers
+     0.02s  0.85% 35.17%      0.04s  1.69%  bufio.(*Reader).Peek
+     0.02s  0.85% 36.02%      0.37s 15.68%  database/sql.(*DB).execDC
+     0.02s  0.85% 36.86%      0.98s 41.53%  database/sql.withLock
+     0.02s  0.85% 37.71%      0.04s  1.69%  github.com/exaring/otelpgx.(*Tracer).TraceQueryEnd
+     0.02s  0.85% 38.56%      0.05s  2.12%  github.com/jackc/pgx/v5/pgconn/ctxwatch.(*ContextWatcher).Unwatch
+     0.02s  0.85% 39.41%      0.14s  5.93%  github.com/jackc/pgx/v5/pgproto3.(*chunkReader).Next
+     0.02s  0.85% 40.25%      0.02s  0.85%  internal/runtime/maps.memHashAES
+     0.02s  0.85% 41.10%      0.02s  0.85%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+     0.02s  0.85% 41.95%      0.02s  0.85%  net.SplitHostPort

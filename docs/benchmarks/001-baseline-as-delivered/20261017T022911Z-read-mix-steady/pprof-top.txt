@@ -1,0 +1,23 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-16 23:34:19 -03
+Duration: 30s, Total samples = 970ms ( 3.23%)
+Showing nodes accounting for 630ms, 64.95% of 970ms total
+Showing top 15 nodes out of 383
+      flat  flat%   sum%        cum   cum%
+     390ms 40.21% 40.21%      390ms 40.21%  internal/runtime/syscall/linux.Syscall6
+      40ms  4.12% 44.33%       50ms  5.15%  runtime.mallocgcSmallScanNoHeaderSC2
+      30ms  3.09% 47.42%       30ms  3.09%  crypto/internal/fips140/bigmod.addMulVVW2048
+      20ms  2.06% 49.48%       20ms  2.06%  crypto/internal/fips140/sha256.blockAVX2
+      20ms  2.06% 51.55%       20ms  2.06%  github.com/prometheus/client_golang/prometheus.hashAdd
+      20ms  2.06% 53.61%       20ms  2.06%  indexbytebody
+      20ms  2.06% 55.67%       20ms  2.06%  runtime.memmove
+      20ms  2.06% 57.73%       20ms  2.06%  runtime.nanotime (inline)
+      10ms  1.03% 58.76%       30ms  3.09%  bufio.(*Reader).Peek
+      10ms  1.03% 59.79%       20ms  2.06%  bufio.(*Reader).fill
+      10ms  1.03% 60.82%       20ms  2.06%  bufio.(*Writer).Write
+      10ms  1.03% 61.86%      120ms 12.37%  database/sql.(*DB).QueryRowContext
+      10ms  1.03% 62.89%      330ms 34.02%  database/sql.withLock
+      10ms  1.03% 63.92%       10ms  1.03%  encoding/json/internal/jsonopts.GetOption[go.shape.bool]
+      10ms  1.03% 64.95%       10ms  1.03%  encoding/json/internal/jsonwire.AppendQuote

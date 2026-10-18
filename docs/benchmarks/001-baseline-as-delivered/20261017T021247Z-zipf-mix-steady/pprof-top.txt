@@ -1,0 +1,23 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-16 23:17:56 -03
+Duration: 30s, Total samples = 1920ms ( 6.40%)
+Showing nodes accounting for 1120ms, 58.33% of 1920ms total
+Showing top 15 nodes out of 545
+      flat  flat%   sum%        cum   cum%
+     750ms 39.06% 39.06%      750ms 39.06%  internal/runtime/syscall/linux.Syscall6
+      50ms  2.60% 41.67%       50ms  2.60%  runtime.futex
+      40ms  2.08% 43.75%       40ms  2.08%  context.value
+      40ms  2.08% 45.83%       40ms  2.08%  crypto/internal/fips140/bigmod.addMulVVW2048
+      30ms  1.56% 47.40%       90ms  4.69%  runtime.mallocgc
+      30ms  1.56% 48.96%       30ms  1.56%  runtime.memclrNoHeapPointers
+      20ms  1.04% 50.00%       20ms  1.04%  github.com/jackc/pgx/v5/internal/stmtcache.(*LRUCache).Get
+      20ms  1.04% 51.04%       20ms  1.04%  internal/runtime/maps.ctrlGroup.matchH2
+      20ms  1.04% 52.08%       20ms  1.04%  internal/runtime/maps.memHashAES
+      20ms  1.04% 53.12%       20ms  1.04%  runtime.(*bucket).mp
+      20ms  1.04% 54.17%       20ms  1.04%  runtime.chanrecv
+      20ms  1.04% 55.21%       20ms  1.04%  runtime.findfunc
+      20ms  1.04% 56.25%       20ms  1.04%  runtime.interhash
+      20ms  1.04% 57.29%       20ms  1.04%  runtime.mallocgcSmallScanNoHeaderSC4
+      20ms  1.04% 58.33%       20ms  1.04%  runtime.memmove

@@ -1,0 +1,23 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-16 22:53:14 -03
+Duration: 30s, Total samples = 1.89s ( 6.30%)
+Showing nodes accounting for 1.09s, 57.67% of 1.89s total
+Showing top 15 nodes out of 490
+      flat  flat%   sum%        cum   cum%
+     0.79s 41.80% 41.80%      0.79s 41.80%  internal/runtime/syscall/linux.Syscall6
+     0.03s  1.59% 43.39%      0.04s  2.12%  context.removeChild
+     0.03s  1.59% 44.97%      0.03s  1.59%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.03s  1.59% 46.56%      0.06s  3.17%  runtime.mapaccess2_faststr
+     0.03s  1.59% 48.15%      0.03s  1.59%  runtime.memmove
+     0.02s  1.06% 49.21%      0.02s  1.06%  indexbytebody
+     0.02s  1.06% 50.26%      0.02s  1.06%  internal/runtime/maps.memHashAES
+     0.02s  1.06% 51.32%      0.12s  6.35%  io.ReadAtLeast
+     0.02s  1.06% 52.38%      0.20s 10.58%  runtime.findRunnable
+     0.02s  1.06% 53.44%      0.04s  2.12%  runtime.isSystemGoroutine
+     0.02s  1.06% 54.50%      0.02s  1.06%  runtime.makechan
+     0.02s  1.06% 55.56%      0.02s  1.06%  runtime.nanotime (inline)
+     0.02s  1.06% 56.61%      0.02s  1.06%  sync.(*Pool).pin
+     0.01s  0.53% 57.14%      0.01s  0.53%  cmpbody
+     0.01s  0.53% 57.67%      0.01s  0.53%  crypto/internal/fips140/bigmod.(*Nat).maybeSubtractModulus

@@ -1,0 +1,23 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-16 23:01:21 -03
+Duration: 30s, Total samples = 1.89s ( 6.30%)
+Showing nodes accounting for 1.22s, 64.55% of 1.89s total
+Showing top 15 nodes out of 435
+      flat  flat%   sum%        cum   cum%
+     0.90s 47.62% 47.62%      0.90s 47.62%  internal/runtime/syscall/linux.Syscall6
+     0.06s  3.17% 50.79%      0.06s  3.17%  runtime.futex
+     0.05s  2.65% 53.44%      0.05s  2.65%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.03s  1.59% 55.03%      0.03s  1.59%  runtime.nextFreeFast
+     0.02s  1.06% 56.08%      0.02s  1.06%  fmt.(*fmt).fmtInteger
+     0.02s  1.06% 57.14%      0.66s 34.92%  github.com/jackc/pgx/v5/pgproto3.(*Frontend).Flush
+     0.02s  1.06% 58.20%      0.07s  3.70%  net/http.(*Request).write
+     0.02s  1.06% 59.26%      0.02s  1.06%  reflect.unpackEface
+     0.02s  1.06% 60.32%      0.03s  1.59%  runtime.casgstatus
+     0.02s  1.06% 61.38%      0.02s  1.06%  runtime.findfunc
+     0.02s  1.06% 62.43%      0.02s  1.06%  runtime.interhash
+     0.01s  0.53% 62.96%      0.01s  0.53%  bufio.(*Writer).Write
+     0.01s  0.53% 63.49%      0.01s  0.53%  context.value
+     0.01s  0.53% 64.02%      0.01s  0.53%  crypto/internal/fips140/sha256.blockAVX2
+     0.01s  0.53% 64.55%      0.28s 14.81%  database/sql.(*DB).QueryContext.func1

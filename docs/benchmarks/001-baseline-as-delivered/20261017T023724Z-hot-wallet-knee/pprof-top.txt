@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-16 23:48:05 -03
+Duration: 30s, Total samples = 3.25s (10.83%)
+Showing nodes accounting for 1.66s, 51.08% of 3.25s total
+Dropped 278 nodes (cum <= 0.02s)
+Showing top 15 nodes out of 356
+      flat  flat%   sum%        cum   cum%
+     1.15s 35.38% 35.38%      1.15s 35.38%  internal/runtime/syscall/linux.Syscall6
+     0.11s  3.38% 38.77%      0.11s  3.38%  runtime.futex
+     0.08s  2.46% 41.23%      0.08s  2.46%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.04s  1.23% 42.46%      0.12s  3.69%  crypto/internal/fips140/bigmod.(*Nat).montgomeryMul
+     0.03s  0.92% 43.38%      0.03s  0.92%  database/sql.driverArgsConnLocked
+     0.03s  0.92% 44.31%      0.27s  8.31%  github.com/jackc/pgx/v5/pgconn/internal/bgreader.(*BGReader).Read
+     0.03s  0.92% 45.23%      0.03s  0.92%  memeqbody
+     0.03s  0.92% 46.15%      0.03s  0.92%  runtime.memclrNoHeapPointers
+     0.03s  0.92% 47.08%      0.03s  0.92%  runtime.memmove
+     0.03s  0.92% 48.00%      0.03s  0.92%  time.runtimeNow
+     0.02s  0.62% 48.62%      0.02s  0.62%  context.(*valueCtx).Done
+     0.02s  0.62% 49.23%      0.03s  0.92%  context.value
+     0.02s  0.62% 49.85%      0.03s  0.92%  encoding/json/jsontext.(*decoderState).consumeObject
+     0.02s  0.62% 50.46%      0.02s  0.62%  github.com/MicahParks/jwkset.(*httpStorage).KeyRead
+     0.02s  0.62% 51.08%      0.05s  1.54%  github.com/exaring/otelpgx.(*Tracer).TraceQueryStart

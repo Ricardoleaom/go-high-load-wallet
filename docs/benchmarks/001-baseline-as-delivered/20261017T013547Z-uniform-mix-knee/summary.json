@@ -1,0 +1,166 @@
+{
+  "root_group": {
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": {
+      "setup": {
+        "path": "::setup",
+        "id": "5c0f8025f7e0b6654089e5b00e950f1a",
+        "groups": {},
+        "checks": {
+          "token for bench-provider": {
+            "name": "token for bench-provider",
+            "path": "::setup::token for bench-provider",
+            "id": "7f918aa3cec0959e160296f6f88f3065",
+            "passes": 1,
+            "fails": 0
+          },
+          "token for bench-internal": {
+            "id": "9c7b8a393d0eac5da2b852915875465a",
+            "passes": 1,
+            "fails": 0,
+            "name": "token for bench-internal",
+            "path": "::setup::token for bench-internal"
+          }
+        },
+        "name": "setup"
+      }
+    },
+    "checks": {
+      "wager accepted or rejected by business rules": {
+        "name": "wager accepted or rejected by business rules",
+        "path": "::wager accepted or rejected by business rules",
+        "id": "4d26ed9a4e9ac4353577e9e5bb04fab2",
+        "passes": 30464,
+        "fails": 0
+      }
+    }
+  },
+  "metrics": {
+    "http_req_waiting": {
+      "p(90)": 1638.4618655,
+      "p(95)": 2044.843404,
+      "p(99)": 3061.819232749999,
+      "max": 6738.719044,
+      "avg": 678.880770957657,
+      "min": 11.594425,
+      "med": 548.2069025000001
+    },
+    "http_reqs": {
+      "count": 30466,
+      "rate": 58.48938685737468
+    },
+    "iterations": {
+      "count": 30464,
+      "rate": 58.485547207479236
+    },
+    "http_req_connecting": {
+      "avg": 0.001212906354624828,
+      "min": 0,
+      "med": 0,
+      "p(90)": 0,
+      "p(95)": 0,
+      "p(99)": 0,
+      "max": 16.58823
+    },
+    "http_req_tls_handshaking": {
+      "avg": 0,
+      "min": 0,
+      "med": 0,
+      "p(90)": 0,
+      "p(95)": 0,
+      "p(99)": 0,
+      "max": 0
+    },
+    "dropped_iterations": {
+      "count": 15986,
+      "rate": 30.690321614323892
+    },
+    "http_req_receiving": {
+      "p(99)": 0.2549003499999984,
+      "max": 16.794448,
+      "avg": 0.08576554273616477,
+      "min": 0.011501,
+      "med": 0.074105,
+      "p(90)": 0.118407,
+      "p(95)": 0.147109
+    },
+    "checks": {
+      "passes": 30466,
+      "fails": 0,
+      "value": 1
+    },
+    "iteration_duration": {
+      "avg": 679.4692406927849,
+      "min": 15.326073,
+      "med": 549.0283019999999,
+      "p(90)": 1638.9137178,
+      "p(95)": 2045.2862856999996,
+      "p(99)": 3062.264518159999,
+      "max": 6739.28118
+    },
+    "http_req_blocked": {
+      "p(99)": 0.03913699999999985,
+      "max": 16.656535,
+      "avg": 0.010222088557736448,
+      "min": 0.0032,
+      "med": 0.0066,
+      "p(90)": 0.0104,
+      "p(95)": 0.019501749999999998
+    },
+    "http_req_sending": {
+      "med": 0.026001,
+      "p(90)": 0.044803,
+      "p(95)": 0.052903,
+      "p(99)": 0.09364099999999985,
+      "max": 11.215735,
+      "avg": 0.03271436325740183,
+      "min": 0.011601
+    },
+    "vus_max": {
+      "value": 80,
+      "min": 16,
+      "max": 80
+    },
+    "http_req_duration{expected_response:true}": {
+      "med": 548.4016710000001,
+      "p(90)": 1638.5668225,
+      "p(95)": 2044.94320925,
+      "p(99)": 3061.938455799999,
+      "max": 6738.879155,
+      "avg": 678.9992508636489,
+      "min": 11.792137
+    },
+    "http_req_duration": {
+      "min": 11.792137,
+      "med": 548.4016710000001,
+      "p(90)": 1638.5668225,
+      "p(95)": 2044.94320925,
+      "p(99)": 3061.938455799999,
+      "max": 6738.879155,
+      "avg": 678.9992508636489
+    },
+    "data_sent": {
+      "rate": 109233.03070223556,
+      "count": 56897391
+    },
+    "data_received": {
+      "count": 7996596,
+      "rate": 15352.064497673962
+    },
+    "vus": {
+      "min": 0,
+      "max": 80,
+      "value": 80
+    },
+    "http_req_failed": {
+      "passes": 0,
+      "fails": 30466,
+      "thresholds": {
+        "rate<0.001": false
+      },
+      "value": 0
+    }
+  }
+}

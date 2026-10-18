@@ -1,0 +1,29 @@
+{
+  "git_sha": "545054aef9703f53c9460e6569793987a61a7b9c",
+  "git_dirty": false,
+  "go_version": "go1.27.2",
+  "images": "[{\"ID\":\"sha256:ac5ec343104fae0e2d84a27bb8d69b38430a11910c5382cad85d478d2bab713e\",\"ContainerName\":\"wallet-bench-postgres-exporter-1\",\"Repository\":\"prometheuscommunity/postgres-exporter\",\"Tag\":\"v0.20.1\",\"Platform\":\"linux/amd64\",\"Size\":11784792,\"Created\":\"2026-07-08T01:52:18.75468447Z\",\"LastTagTime\":\"2026-10-16T22:41:26.56889522Z\"},{\"ID\":\"sha256:9c2dee7f8ed74d317e4027c06a10f169b625638189de8d4555d0b3486a5aeb34\",\"ContainerName\":\"wallet-bench-k6-1\",\"Repository\":\"grafana/k6\",\"Tag\":\"2.3.0\",\"Platform\":\"linux/amd64\",\"Size\":36137595,\"Created\":\"2026-09-21T15:08:50.791347217Z\",\"LastTagTime\":\"2026-10-16T22:52:18.227009345Z\"},{\"ID\":\"sha256:138bf11628fa8f4ff0f75b1d7c965e782a8cf24354605bccf8ca5b0b32057406\",\"ContainerName\":\"wallet-bench-app-1\",\"Repository\":\"wallet-bench-app\",\"Tag\":\"latest\",\"Platform\":\"linux/amd64\",\"Size\":10375042,\"Created\":\"2026-10-16T22:55:41.349314423Z\",\"LastTagTime\":\"2026-10-17T02:29:52.701110586Z\"},{\"ID\":\"sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e\",\"ContainerName\":\"wallet-bench-prometheus-1\",\"Repository\":\"prom/prometheus\",\"Tag\":\"v3.15.0\",\"Platform\":\"linux/amd64\",\"Size\":114044730,\"Created\":\"2026-09-25T08:06:23.137236845Z\",\"LastTagTime\":\"2026-10-16T22:41:29.848354061Z\"},{\"ID\":\"sha256:b279c01f4cfb8f985a482e4014cabc1e2697b9d7a6c8c8db2e40f4d9f93687c7\",\"ContainerName\":\"wallet-bench-localstack-1\",\"Repository\":\"localstack/localstack\",\"Tag\":\"3.8\",\"Platform\":\"linux/amd64\",\"Size\":636458941,\"Created\":\"2024-10-08T11:22:04.971577725Z\",\"LastTagTime\":\"2026-10-14T23:21:35.26864952Z\"},{\"ID\":\"sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73\",\"ContainerName\":\"wallet-bench-postgres-1\",\"Repository\":\"postgres\",\"Tag\":\"17-alpine\",\"Platform\":\"linux/amd64\",\"Size\":117204007,\"Created\":\"2026-08-13T19:17:35.122910679Z\",\"LastTagTime\":\"2026-09-02T22:13:29.746332082Z\"},{\"ID\":\"sha256:76cc2074cb6642631f34a898ced71e6aeaa6b1a4d78c4daa743275a22e0c5be7\",\"ContainerName\":\"wallet-bench-migrate-1\",\"Repository\":\"migrate/migrate\",\"Tag\":\"v4.20.1\",\"Platform\":\"linux/amd64\",\"Size\":25158307,\"Created\":\"2026-09-09T06:03:51.78281504Z\",\"LastTagTime\":\"2026-10-16T20:00:11.509280194Z\"},{\"ID\":\"sha256:09a381c715ab0b111835b70f2905955274843a219c6f27efb348e4d9f4086858\",\"ContainerName\":\"wallet-bench-keycloak-1\",\"Repository\":\"quay.io/keycloak/keycloak\",\"Tag\":\"26.0\",\"Platform\":\"linux/amd64\",\"Size\":237761605,\"Created\":\"2025-02-20T14:47:15.267919298Z\",\"LastTagTime\":\"2026-10-14T23:20:50.816283903Z\"},{\"ID\":\"sha256:836b967b5abcf1f7758066aa6b348619267a2f1459f72d472840570f9bd88a17\",\"ContainerName\":\"wallet-bench-jaeger-1\",\"Repository\":\"jaegertracing/jaeger\",\"Tag\":\"2.22.0\",\"Platform\":\"linux/amd64\",\"Size\":55079731,\"Created\":\"2026-10-06T14:49:07.379146618Z\",\"LastTagTime\":\"2026-10-16T22:41:22.31254346Z\"}]",
+  "cpu_model": "Intel(R) Core(TM) i5-10300H CPU @ 2.50GHz",
+  "cpus": 4,
+  "memory": [
+    "Mem:            7942        3866         163         134        4239        4076"
+  ],
+  "kernel": "6.18.33.2-microsoft-standard-WSL2",
+  "settings": {
+    "SCENARIO": "read-mix",
+    "MODE": "steady",
+    "RATE": "30",
+    "DURATION": "5m",
+    "REPEAT": "1",
+    "WARMUP": "60s",
+    "WALLETS": "100000",
+    "KNEE_START": "50",
+    "KNEE_STEP": "50",
+    "KNEE_MAX": "600",
+    "KNEE_STEP_DURATION": "60s"
+  },
+  "started_unix": 1792204324,
+  "finished_unix": 1792204627,
+  "k6_exit": 0,
+  "verify_exit": 0
+}
