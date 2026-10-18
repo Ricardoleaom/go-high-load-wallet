@@ -207,21 +207,31 @@ func (r *TransactionRepository) GetByID(
 	return transaction, nil
 }
 
+// The unique indexes on (provider_id, idempotency_key) and (provider_id,
+// external_id) are partial, WHERE kind <> 'OPENING': a lookup that does not
+// repeat that predicate cannot use them and reads the whole table.
+const (
+	transactionIDByIdempotencyKeyQuery = `
+		SELECT id
+		FROM transactions
+		WHERE provider_id = $1 AND idempotency_key = $2 AND kind <> 'OPENING'
+	`
+	transactionIDByExternalIDQuery = `
+		SELECT id
+		FROM transactions
+		WHERE provider_id = $1 AND external_id = $2 AND kind <> 'OPENING'
+	`
+)
+
 // GetByIdempotencyKey retrieves a transaction using its provider and key.
 func (r *TransactionRepository) GetByIdempotencyKey(
 	ctx context.Context,
 	providerID string,
 	idempotencyKey string,
 ) (wager.Transaction, error) {
-	const query = `
-		SELECT id
-		FROM transactions
-		WHERE provider_id = $1 AND idempotency_key = $2
-	`
-
 	var id string
 	err := r.db.QueryRowContext(
-		ctx, query, providerID, idempotencyKey,
+		ctx, transactionIDByIdempotencyKeyQuery, providerID, idempotencyKey,
 	).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return wager.Transaction{}, ErrTransactionNotFound
@@ -239,15 +249,9 @@ func (r *TransactionRepository) GetByExternalID(
 	providerID string,
 	externalID string,
 ) (wager.Transaction, error) {
-	const query = `
-		SELECT id
-		FROM transactions
-		WHERE provider_id = $1 AND external_id = $2
-	`
-
 	var id string
 	err := r.db.QueryRowContext(
-		ctx, query, providerID, externalID,
+		ctx, transactionIDByExternalIDQuery, providerID, externalID,
 	).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return wager.Transaction{}, ErrTransactionNotFound
