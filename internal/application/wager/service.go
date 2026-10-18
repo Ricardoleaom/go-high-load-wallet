@@ -115,6 +115,7 @@ func (s *Service) Submit(ctx context.Context, input SubmitInput) (Result, error)
 	if err := validateSubmitInput(input); err != nil {
 		return Result{}, err
 	}
+	input.WalletID, input.PlayerID = ids.Canonical(input.WalletID), ids.Canonical(input.PlayerID)
 
 	payloadHash, err := ComputePayloadHash(input)
 	if err != nil {

@@ -867,3 +867,24 @@ func TestSubmitRejectsMalformedIDsAndLongFields(t *testing.T) {
 		t.Fatalf("transactions recorded for invalid input = %d, want 0", count)
 	}
 }
+
+// UUIDs are case-insensitive, and PostgreSQL hands them back in lower case:
+// the same wallet in upper case is the same wallet, and the same operation
+// is a replay.
+func TestSubmitTreatsUpperCaseIDsAsTheSameWallet(t *testing.T) {
+	service, db, ctx := newTestService(t)
+	walletID := createTestWallet(t, ctx, db, "100.00")
+
+	upper := betInput(strings.ToUpper(walletID), "provider-a", newTestID(t), mustMoney(t, "10.00"))
+	first, err := service.Submit(ctx, upper)
+	if err != nil || first.Status != domainwager.StatusProcessed {
+		t.Fatalf("Submit with upper-case IDs = %+v, %v; want PROCESSED", first, err)
+	}
+
+	lower := upper
+	lower.WalletID, lower.PlayerID = walletID, walletID
+	again, err := service.Submit(ctx, lower)
+	if err != nil || !again.IdempotentReplay || again.TransactionID != first.TransactionID {
+		t.Fatalf("same operation in lower case = %+v, %v; want a replay of %s", again, err, first.TransactionID)
+	}
+}

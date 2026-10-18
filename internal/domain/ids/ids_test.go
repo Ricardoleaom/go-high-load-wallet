@@ -21,3 +21,9 @@ func TestValid(t *testing.T) {
 		}
 	}
 }
+
+func TestCanonical(t *testing.T) {
+	if got := Canonical("0192F28F-5DC0-7D58-BDB2-814AD6A0F4A1"); got != "0192f28f-5dc0-7d58-bdb2-814ad6a0f4a1" {
+		t.Fatalf("Canonical = %q, want the lower-case form", got)
+	}
+}
