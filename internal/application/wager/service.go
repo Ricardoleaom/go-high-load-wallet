@@ -36,20 +36,18 @@ var (
 // key included.
 const MaxFieldLength = 255
 
+// The failure codes are the domain's; these names keep the use case's
+// callers independent of where they are defined.
 const (
-	FailureInsufficientBalance         = "INSUFFICIENT_BALANCE"
-	FailureRollbackInsufficientBalance = "ROLLBACK_INSUFFICIENT_BALANCE"
-	FailureCurrencyMismatch            = "CURRENCY_MISMATCH"
-	FailureReferenceNotProcessed       = "REFERENCE_NOT_PROCESSED"
-	FailureReferenceMismatch           = "REFERENCE_MISMATCH"
-	FailureReferenceKindNotReversible  = "REFERENCE_KIND_NOT_REVERSIBLE"
-	FailureReferenceAlreadyReversed    = "REFERENCE_ALREADY_REVERSED"
-	FailureReferenceNotFoundTimeout    = "REFERENCE_NOT_FOUND_TIMEOUT"
+	FailureInsufficientBalance         = domainwager.FailureInsufficientBalance
+	FailureRollbackInsufficientBalance = domainwager.FailureRollbackInsufficientBalance
+	FailureCurrencyMismatch            = domainwager.FailureCurrencyMismatch
+	FailureReferenceNotProcessed       = domainwager.FailureReferenceNotProcessed
+	FailureReferenceMismatch           = domainwager.FailureReferenceMismatch
+	FailureReferenceKindNotReversible  = domainwager.FailureReferenceKindNotReversible
+	FailureReferenceAlreadyReversed    = domainwager.FailureReferenceAlreadyReversed
+	FailureReferenceNotFoundTimeout    = domainwager.FailureReferenceNotFoundTimeout
 )
-
-// maxReferenceAttempts bounds how many times the retry worker re-checks a
-// REFUND/ROLLBACK reference before giving up and rejecting it.
-const maxReferenceAttempts = 8
 
 type Service struct {
 	db           *sql.DB
@@ -506,27 +504,6 @@ func minorUnitsToDecimal(units int64) string {
 	return fmt.Sprintf("%d.%02d", units/100, units%100)
 }
 
-func referenceBackoff(attempt int) time.Duration {
-	const base = 5 * time.Second
-	const maxBackoff = 5 * time.Minute
-	const maxShift = 20 // base<<20 already dwarfs maxBackoff; caps the shift count
-
-	if attempt <= 0 {
-		return base
-	}
-
-	shift := attempt - 1
-	if shift > maxShift {
-		shift = maxShift
-	}
-
-	d := base << uint(shift)
-	if d <= 0 || d > maxBackoff {
-		return maxBackoff
-	}
-	return d
-}
-
 // processReversal handles REFUND and ROLLBACK. isNew distinguishes a fresh
 // submission (HTTP/SQS, transaction not persisted yet) from a retry by the
 // pending-reference worker (transaction already persisted as
@@ -546,66 +523,18 @@ func (s *Service) processReversal(
 		return Result{}, fmt.Errorf("resolve reference: %w", err)
 	}
 
-	if original.Status() == domainwager.StatusPending || original.Status() == domainwager.StatusPendingReference {
+	switch decision, failureCode := domainwager.DecideReversal(original, true, transaction); decision {
+	case domainwager.ReversalWait:
 		return s.deferReversal(ctx, transaction, isNew, correlationID, attempts)
-	}
-
-	if original.Status() != domainwager.StatusProcessed {
-		return s.rejectReversal(ctx, transaction, isNew, correlationID, FailureReferenceNotProcessed)
-	}
-
-	if !referenceMatches(original, transaction) {
-		return s.rejectReversal(ctx, transaction, isNew, correlationID, FailureReferenceMismatch)
-	}
-
-	if !reversibleKind(transaction.Kind(), original.Kind()) {
-		return s.rejectReversal(ctx, transaction, isNew, correlationID, FailureReferenceKindNotReversible)
+	case domainwager.ReversalReject:
+		return s.rejectReversal(ctx, transaction, isNew, correlationID, failureCode)
 	}
 
 	return s.applyReversal(ctx, transaction, isNew, correlationID, original)
 }
 
-func referenceMatches(original, reversal domainwager.Transaction) bool {
-	if original.ProviderID() != reversal.ProviderID() ||
-		original.PlayerID() != reversal.PlayerID() ||
-		original.WalletID() != reversal.WalletID() ||
-		original.RoundID() != reversal.RoundID() ||
-		original.Amount().Currency() != reversal.Amount().Currency() {
-		return false
-	}
-
-	cmp, err := original.Amount().Compare(reversal.Amount())
-	return err == nil && cmp == 0
-}
-
-func reversibleKind(reversalKind, originalKind domainwager.Kind) bool {
-	switch reversalKind {
-	case domainwager.KindRefund:
-		return originalKind == domainwager.KindBet
-	case domainwager.KindRollback:
-		return originalKind == domainwager.KindBet ||
-			originalKind == domainwager.KindWin ||
-			originalKind == domainwager.KindRefund
-	default:
-		return false
-	}
-}
-
-// reversalDirection reports which way money moves to undo the original
-// transaction: REFUND always credits back a BET; ROLLBACK undoes whatever
-// the original movement was.
-func reversalDirection(reversalKind, originalKind domainwager.Kind) ledger.Direction {
-	if reversalKind == domainwager.KindRefund {
-		return ledger.DirectionCredit
-	}
-	if originalKind == domainwager.KindBet {
-		return ledger.DirectionCredit
-	}
-	return ledger.DirectionDebit
-}
-
 // deferReversal persists (or reschedules) a REFUND/ROLLBACK whose reference
-// is still unresolved, giving up after maxReferenceAttempts.
+// is still unresolved, giving up after domainwager.MaxReferenceAttempts.
 func (s *Service) deferReversal(
 	ctx context.Context,
 	transaction domainwager.Transaction,
@@ -613,12 +542,12 @@ func (s *Service) deferReversal(
 	correlationID string,
 	attempts int,
 ) (Result, error) {
-	if attempts >= maxReferenceAttempts {
+	if attempts >= domainwager.MaxReferenceAttempts {
 		return s.rejectReversal(ctx, transaction, isNew, correlationID, FailureReferenceNotFoundTimeout)
 	}
 
 	nextAttempt := attempts + 1
-	nextAttemptAt := time.Now().UTC().Add(referenceBackoff(nextAttempt))
+	nextAttemptAt := time.Now().UTC().Add(domainwager.ReferenceBackoff(nextAttempt))
 
 	dbTx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -725,7 +654,7 @@ func (s *Service) applyReversal(
 		return Result{}, fmt.Errorf("persist resolved reference: %w", err)
 	}
 
-	direction := reversalDirection(transaction.Kind(), original.Kind())
+	direction := domainwager.ReversalDirection(transaction.Kind(), original.Kind())
 	insufficientFailureCode := ""
 	if direction == ledger.DirectionDebit {
 		insufficientFailureCode = FailureRollbackInsufficientBalance
