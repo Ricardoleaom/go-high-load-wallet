@@ -662,3 +662,77 @@ func TestFiftyConcurrentDuplicateSubmissions(t *testing.T) {
 		t.Errorf("ledger entries = %d, want 1", ledgerCount)
 	}
 }
+
+func TestResolveIdempotencyRaceReportsKeyMismatch(t *testing.T) {
+	service, db, ctx := newTestService(t)
+	walletID := createTestWallet(t, ctx, db, "100.00")
+
+	winner := betInput(walletID, "provider-a", newTestID(t), mustMoney(t, "10.00"))
+	if _, err := service.Submit(ctx, winner); err != nil {
+		t.Fatalf("Submit winner: %v", err)
+	}
+
+	// The loser of a race on the external ID carries another key: its own
+	// key was never stored, but the operation was, under the winner's key.
+	loser := winner
+	loser.IdempotencyKey = "provider-a:another-key-" + newTestID(t)
+	hash, err := ComputePayloadHash(loser)
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+
+	_, err = service.resolveIdempotencyRace(ctx, loser, hash)
+	if !errors.Is(err, ErrIdempotencyKeyMismatch) {
+		t.Fatalf("resolveIdempotencyRace error = %v, want ErrIdempotencyKeyMismatch", err)
+	}
+}
+
+func TestConcurrentSubmissionsWithOneExternalIDAndDifferentKeys(t *testing.T) {
+	serviceA, db, ctx := newTestService(t)
+	serviceB, _, _ := newTestService(t)
+	serviceC, _, _ := newTestService(t)
+	services := []*Service{serviceA, serviceB, serviceC}
+	walletID := createTestWallet(t, ctx, db, "100.00")
+	externalID := newTestID(t)
+
+	const attempts = 8
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	results := make([]Result, attempts)
+	errs := make([]error, attempts)
+	for i := 0; i < attempts; i++ {
+		input := betInput(walletID, "provider-a", externalID, mustMoney(t, "10.00"))
+		input.IdempotencyKey = fmt.Sprintf("provider-a:key-%d-%s", i, newTestID(t))
+		wg.Add(1)
+		go func(i int, input SubmitInput) {
+			defer wg.Done()
+			<-start
+			results[i], errs[i] = services[i%len(services)].Submit(ctx, input)
+		}(i, input)
+	}
+	close(start)
+	wg.Wait()
+
+	processed, mismatched := 0, 0
+	for i, err := range errs {
+		switch {
+		case err == nil && results[i].Status == domainwager.StatusProcessed:
+			processed++
+		case errors.Is(err, ErrIdempotencyKeyMismatch):
+			mismatched++
+		default:
+			t.Errorf("Submit[%d] = %+v, %v; want PROCESSED or ErrIdempotencyKeyMismatch", i, results[i], err)
+		}
+	}
+	if processed != 1 || mismatched != attempts-1 {
+		t.Fatalf("processed %d and mismatched %d, want 1 and %d", processed, mismatched, attempts-1)
+	}
+
+	var balance int64
+	if err := db.QueryRowContext(ctx, `SELECT balance_minor_units FROM wallets WHERE id = $1`, walletID).Scan(&balance); err != nil {
+		t.Fatalf("read balance: %v", err)
+	}
+	if balance != 9000 {
+		t.Fatalf("balance = %d, want 9000 (one debit)", balance)
+	}
+}

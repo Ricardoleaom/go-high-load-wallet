@@ -183,14 +183,33 @@ func (s *Service) Submit(ctx context.Context, input SubmitInput) (Result, error)
 		if s.onConcurrencyConflict != nil {
 			s.onConcurrencyConflict()
 		}
-		existing, lookupErr := s.transactions.GetByIdempotencyKey(ctx, input.ProviderID, input.IdempotencyKey)
-		if lookupErr != nil {
-			return Result{}, fmt.Errorf("resolve idempotency race: %w", lookupErr)
-		}
-		return s.replay(ctx, existing, payloadHash)
+		return s.resolveIdempotencyRace(ctx, input, payloadHash)
 	}
 
 	return result, err
+}
+
+// resolveIdempotencyRace answers a submission whose insert lost a race on a
+// unique index to a concurrent one, the same way Submit's lookups would have
+// answered it a moment later: a winner under the same key is replayed, and a
+// winner with the same external ID under another key is a key mismatch.
+func (s *Service) resolveIdempotencyRace(ctx context.Context, input SubmitInput, payloadHash string) (Result, error) {
+	existing, err := s.transactions.GetByIdempotencyKey(ctx, input.ProviderID, input.IdempotencyKey)
+	if err == nil {
+		return s.replay(ctx, existing, payloadHash)
+	}
+	if !errors.Is(err, postgres.ErrTransactionNotFound) {
+		return Result{}, fmt.Errorf("resolve idempotency race: %w", err)
+	}
+
+	byExternal, err := s.transactions.GetByExternalID(ctx, input.ProviderID, input.ExternalID)
+	if err != nil {
+		return Result{}, fmt.Errorf("resolve idempotency race: %w", err)
+	}
+	if byExternal.IdempotencyKey() != input.IdempotencyKey {
+		return Result{}, ErrIdempotencyKeyMismatch
+	}
+	return s.replay(ctx, byExternal, payloadHash)
 }
 
 // errIdempotencyRace signals that Create lost a race against a concurrent
