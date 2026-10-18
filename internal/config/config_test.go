@@ -13,6 +13,8 @@ func setRequired(t *testing.T) {
 	t.Setenv("JWKS_URL", "http://localhost:8081/certs")
 	t.Setenv("SQS_TRANSACTIONS_QUEUE_URL", "http://localhost:4566/000000000000/in.fifo")
 	t.Setenv("SQS_EVENTS_QUEUE_URL", "http://localhost:4566/000000000000/out.fifo")
+	t.Setenv("JWT_ISSUER", "http://localhost:8081/realms/wagering")
+	t.Setenv("JWT_AUDIENCE", "wallet-api")
 }
 
 func TestLoadDefaultsReproduceTheDeliveredBehavior(t *testing.T) {
@@ -139,6 +141,18 @@ func TestLoadReadsTimeouts(t *testing.T) {
 		t.Run(key, func(t *testing.T) {
 			setRequired(t)
 			t.Setenv(key, "soon")
+			if _, err := Load(); err == nil || !strings.Contains(err.Error(), key) {
+				t.Fatalf("Load error = %v, want one naming %s", err, key)
+			}
+		})
+	}
+}
+
+func TestLoadRequiresJWTIssuerAndAudience(t *testing.T) {
+	for _, key := range []string{"JWT_ISSUER", "JWT_AUDIENCE"} {
+		t.Run(key, func(t *testing.T) {
+			setRequired(t)
+			t.Setenv(key, "")
 			if _, err := Load(); err == nil || !strings.Contains(err.Error(), key) {
 				t.Fatalf("Load error = %v, want one naming %s", err, key)
 			}

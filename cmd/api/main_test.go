@@ -32,6 +32,8 @@ func TestFxAppStartsAndStopsCleanly(t *testing.T) {
 
 	t.Setenv("DATABASE_URL", databaseURL)
 	t.Setenv("JWKS_URL", issuer.JWKSURL())
+	t.Setenv("JWT_ISSUER", issuer.URL())
+	t.Setenv("JWT_AUDIENCE", jwttest.Audience)
 	t.Setenv("AWS_REGION", "us-east-1")
 	t.Setenv("AWS_ACCESS_KEY_ID", "test")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test")

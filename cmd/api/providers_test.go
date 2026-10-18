@@ -17,7 +17,7 @@ import (
 func TestNewAuthenticatorKeepsRefreshingAfterStartup(t *testing.T) {
 	issuer := jwttest.NewIssuer(t)
 	lc := fxtest.NewLifecycle(t)
-	cfg := config.Config{JWKSURL: issuer.JWKSURL(), JWKSRefreshInterval: 50 * time.Millisecond}
+	cfg := config.Config{JWKSURL: issuer.JWKSURL(), JWKSRefreshInterval: 50 * time.Millisecond, JWTIssuer: issuer.URL(), JWTAudience: jwttest.Audience}
 
 	auth, err := newAuthenticator(lc, cfg, observability.New())
 	if err != nil {
@@ -57,7 +57,7 @@ func TestNewAuthenticatorRetriesUntilJWKSIsUp(t *testing.T) {
 	t.Cleanup(starting.Close)
 
 	lc := fxtest.NewLifecycle(t)
-	cfg := config.Config{JWKSURL: starting.URL, JWKSRefreshInterval: time.Hour}
+	cfg := config.Config{JWKSURL: starting.URL, JWKSRefreshInterval: time.Hour, JWTIssuer: issuer.URL(), JWTAudience: jwttest.Audience}
 	if _, err := newAuthenticator(lc, cfg, observability.New()); err != nil {
 		t.Fatalf("gave up while the JWKS was still coming up: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestNewAuthenticatorGivesUpAfterTheStartupTimeout(t *testing.T) {
 	t.Cleanup(down.Close)
 
 	started := time.Now()
-	_, err := newAuthenticator(fxtest.NewLifecycle(t), config.Config{JWKSURL: down.URL}, observability.New())
+	_, err := newAuthenticator(fxtest.NewLifecycle(t), config.Config{JWKSURL: down.URL, JWTIssuer: "https://issuer.example", JWTAudience: jwttest.Audience}, observability.New())
 	if err == nil {
 		t.Fatal("newAuthenticator succeeded without a JWKS")
 	}

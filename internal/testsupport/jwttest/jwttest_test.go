@@ -61,3 +61,33 @@ func newKeyfunc(t *testing.T, url string) keyfunc.Keyfunc {
 	}
 	return keys
 }
+
+func TestTokensCarryIssuerAndAudience(t *testing.T) {
+	issuer := jwttest.NewIssuer(t)
+	keys := newKeyfunc(t, issuer.JWKSURL())
+
+	strict := []jwt.ParserOption{
+		jwt.WithValidMethods([]string{"RS256"}),
+		jwt.WithIssuer(issuer.URL()),
+		jwt.WithAudience(jwttest.Audience),
+		jwt.WithExpirationRequired(),
+	}
+	for name, token := range map[string]string{
+		"provider": issuer.ProviderToken(t, "provider-a"),
+		"internal": issuer.InternalToken(t),
+	} {
+		if _, err := jwt.Parse(token, keys.Keyfunc, strict...); err != nil {
+			t.Errorf("%s token fails strict parsing: %v", name, err)
+		}
+	}
+
+	for name, override := range map[string]jwt.MapClaims{
+		"other issuer":   {"iss": "https://elsewhere.example/realms/other"},
+		"other audience": {"aud": "another-api"},
+		"no expiry":      {"exp": nil},
+	} {
+		if _, err := jwt.Parse(issuer.ProviderTokenWith(t, "provider-a", override), keys.Keyfunc, strict...); err == nil {
+			t.Errorf("%s token passed strict parsing", name)
+		}
+	}
+}

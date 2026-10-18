@@ -47,7 +47,9 @@ func newAPIHarness(t *testing.T, opts ...func(*httpapi.Dependencies)) *apiHarnes
 
 	issuer := jwttest.NewIssuer(t)
 	metrics := observability.New()
-	auth, err := httpapi.NewAuthenticator(ctx, issuer.JWKSURL(), time.Hour, metrics)
+	auth, err := httpapi.NewAuthenticator(ctx, httpapi.AuthConfig{
+		JWKSURL: issuer.JWKSURL(), RefreshInterval: time.Hour, Issuer: issuer.URL(), Audience: jwttest.Audience,
+	}, metrics)
 	if err != nil {
 		t.Fatalf("NewAuthenticator: %v", err)
 	}

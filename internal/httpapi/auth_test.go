@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/jwttest"
@@ -22,7 +24,7 @@ func TestNewAuthenticatorFailsWhenJWKSIsUnavailable(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	if _, err := httpapi.NewAuthenticator(ctx, unavailable.URL, time.Hour, observability.New()); err == nil {
+	if _, err := httpapi.NewAuthenticator(ctx, httpapi.AuthConfig{JWKSURL: unavailable.URL, RefreshInterval: time.Hour, Issuer: "https://issuer.example", Audience: jwttest.Audience}, observability.New()); err == nil {
 		t.Fatal("NewAuthenticator succeeded without a reachable JWKS")
 	}
 }
@@ -33,7 +35,7 @@ func TestAuthenticatorStopsTrustingRevokedKeys(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	auth, err := httpapi.NewAuthenticator(ctx, issuer.JWKSURL(), 50*time.Millisecond, observability.New())
+	auth, err := httpapi.NewAuthenticator(ctx, httpapi.AuthConfig{JWKSURL: issuer.JWKSURL(), RefreshInterval: 50 * time.Millisecond, Issuer: issuer.URL(), Audience: jwttest.Audience}, observability.New())
 	if err != nil {
 		t.Fatalf("NewAuthenticator: %v", err)
 	}
@@ -76,7 +78,7 @@ func TestUnknownKeyIsRejectedQuicklyWhileTheIdPHangs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	auth, err := httpapi.NewAuthenticator(ctx, idp.URL, time.Hour, observability.New())
+	auth, err := httpapi.NewAuthenticator(ctx, httpapi.AuthConfig{JWKSURL: idp.URL, RefreshInterval: time.Hour, Issuer: issuer.URL(), Audience: jwttest.Audience}, observability.New())
 	if err != nil {
 		t.Fatalf("NewAuthenticator: %v", err)
 	}
@@ -122,5 +124,51 @@ func waitForStatus(t *testing.T, h http.Handler, token string, want int) {
 			t.Fatalf("status stayed %d, want %d", got, want)
 		}
 		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+func strictAuthenticator(t *testing.T, issuer *jwttest.Issuer) *httpapi.Authenticator {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	auth, err := httpapi.NewAuthenticator(ctx, httpapi.AuthConfig{
+		JWKSURL:         issuer.JWKSURL(),
+		RefreshInterval: time.Hour,
+		Issuer:          issuer.URL(),
+		Audience:        jwttest.Audience,
+	}, observability.New())
+	if err != nil {
+		t.Fatalf("NewAuthenticator: %v", err)
+	}
+	return auth
+}
+
+func TestAuthenticatorRejectsForeignIssuer(t *testing.T) {
+	issuer := jwttest.NewIssuer(t)
+	protected := strictAuthenticator(t, issuer).Middleware(noContent())
+	token := issuer.ProviderTokenWith(t, "provider-a", jwt.MapClaims{"iss": "https://elsewhere.example/realms/other"})
+	if status := statusFor(protected, token); status != http.StatusUnauthorized {
+		t.Fatalf("token from another issuer: status %d, want 401", status)
+	}
+	if status := statusFor(protected, issuer.ProviderToken(t, "provider-a")); status != http.StatusNoContent {
+		t.Fatalf("valid token: status %d, want 204", status)
+	}
+}
+
+func TestAuthenticatorRejectsWrongAudience(t *testing.T) {
+	issuer := jwttest.NewIssuer(t)
+	protected := strictAuthenticator(t, issuer).Middleware(noContent())
+	token := issuer.ProviderTokenWith(t, "provider-a", jwt.MapClaims{"aud": "another-api"})
+	if status := statusFor(protected, token); status != http.StatusUnauthorized {
+		t.Fatalf("token for another audience: status %d, want 401", status)
+	}
+}
+
+func TestAuthenticatorRejectsTokensWithoutExpiry(t *testing.T) {
+	issuer := jwttest.NewIssuer(t)
+	protected := strictAuthenticator(t, issuer).Middleware(noContent())
+	token := issuer.ProviderTokenWith(t, "provider-a", jwt.MapClaims{"exp": nil})
+	if status := statusFor(protected, token); status != http.StatusUnauthorized {
+		t.Fatalf("token without exp: status %d, want 401", status)
 	}
 }

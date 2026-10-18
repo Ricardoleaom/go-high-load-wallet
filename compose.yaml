@@ -35,6 +35,10 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      # Tokens carry the same issuer whether they were requested from the
+      # host (localhost:8081) or from inside the network (keycloak:8080).
+      KC_HOSTNAME: http://localhost:8081
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
     volumes:
       - ./deploy/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     ports:
@@ -73,6 +77,8 @@ services:
       HTTP_PORT: "8080"
       DATABASE_URL: postgres://app:local_dev_password@postgres:5432/wallet?sslmode=disable
       JWKS_URL: http://keycloak:8080/realms/wagering/protocol/openid-connect/certs
+      JWT_ISSUER: http://localhost:8081/realms/wagering
+      JWT_AUDIENCE: wallet-api
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test

@@ -37,6 +37,9 @@ type Config struct {
 
 	JWKSURL             string
 	JWKSRefreshInterval time.Duration
+	// Tokens must be issued by JWTIssuer for JWTAudience.
+	JWTIssuer   string
+	JWTAudience string
 
 	AWSRegion            string
 	AWSAccessKeyID       string
@@ -59,6 +62,8 @@ func Load() (Config, error) {
 		AdminAddr:            getEnv("ADMIN_ADDR", "127.0.0.1:6060"),
 		DatabaseURL:          os.Getenv("DATABASE_URL"),
 		JWKSURL:              os.Getenv("JWKS_URL"),
+		JWTIssuer:            os.Getenv("JWT_ISSUER"),
+		JWTAudience:          os.Getenv("JWT_AUDIENCE"),
 		AWSRegion:            getEnv("AWS_REGION", "us-east-1"),
 		AWSAccessKeyID:       getEnv("AWS_ACCESS_KEY_ID", "test"),
 		AWSSecretAccessKey:   getEnv("AWS_SECRET_ACCESS_KEY", "test"),
@@ -103,6 +108,8 @@ func Load() (Config, error) {
 	for key, value := range map[string]string{
 		"DATABASE_URL":               cfg.DatabaseURL,
 		"JWKS_URL":                   cfg.JWKSURL,
+		"JWT_ISSUER":                 cfg.JWTIssuer,
+		"JWT_AUDIENCE":               cfg.JWTAudience,
 		"SQS_TRANSACTIONS_QUEUE_URL": cfg.TransactionsQueueURL,
 		"SQS_EVENTS_QUEUE_URL":       cfg.EventsQueueURL,
 	} {
