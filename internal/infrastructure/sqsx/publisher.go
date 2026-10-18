@@ -30,8 +30,9 @@ func NewOutboxPublisher(
 	queueURL string,
 	outbox *postgres.OutboxRepository,
 	metrics *observability.Metrics,
+	batch int,
 ) *OutboxPublisher {
-	return &OutboxPublisher{client: client, queueURL: queueURL, outbox: outbox, metrics: metrics, batch: 20}
+	return &OutboxPublisher{client: client, queueURL: queueURL, outbox: outbox, metrics: metrics, batch: batch}
 }
 
 // Run polls on a fixed interval until ctx is canceled.
@@ -44,16 +45,29 @@ func (p *OutboxPublisher) Run(ctx context.Context, interval time.Duration) error
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			published, err := p.outbox.PublishDue(ctx, p.batch, backoff, p.publish)
-			if err != nil {
-				slog.Error("publish outbox batch", "error", err)
-				continue
-			}
-			if published > 0 {
-				slog.Info("published outbox events", "count", published)
+			if _, err := p.PublishOnce(ctx); err != nil {
+				slog.ErrorContext(ctx, "publish outbox batch", "error", err)
 			}
 		}
 	}
+}
+
+// PublishOnce runs one publishing round: it claims up to the configured
+// batch of due events, sends them and records the round's duration.
+func (p *OutboxPublisher) PublishOnce(ctx context.Context) (int, error) {
+	ctx, span := tracer.Start(ctx, "outbox.publish_batch")
+	defer span.End()
+
+	started := time.Now()
+	published, err := p.outbox.PublishDue(ctx, p.batch, backoff, p.publish)
+	observability.ObserveDuration(ctx, p.metrics.OutboxBatchDuration, time.Since(started).Seconds())
+	if err != nil {
+		return published, err
+	}
+	if published > 0 {
+		slog.InfoContext(ctx, "published outbox events", "count", published)
+	}
+	return published, nil
 }
 
 func (p *OutboxPublisher) publish(ctx context.Context, event postgres.OutboxEvent) error {

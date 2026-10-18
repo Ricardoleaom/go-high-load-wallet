@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
@@ -75,6 +76,7 @@ func (h *handler) submitWagerTransaction(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	started := time.Now()
 	result, err := h.deps.WagerService.Submit(r.Context(), wagerapp.SubmitInput{
 		ProviderID:          providerID,
 		ExternalID:          req.ExternalTransactionID,
@@ -87,16 +89,17 @@ func (h *handler) submitWagerTransaction(w http.ResponseWriter, r *http.Request)
 		Amount:              amount,
 		ReferenceExternalID: req.ReferenceExternalTransactionID,
 	})
+	wagerapp.RecordSubmit(r.Context(), h.deps.Metrics, "http", wager.Kind(req.Kind), result, err, started)
 	logger := slog.With("transport", "http", "providerId", providerID, "walletId", req.WalletID)
 	if err != nil {
-		logger.Error("submit wager transaction", "externalTransactionId", req.ExternalTransactionID, "error", err)
+		logger.ErrorContext(r.Context(), "submit wager transaction", "externalTransactionId", req.ExternalTransactionID, "error", err)
 		writeSubmitError(w, err)
 		return
 	}
 
 	// Without an inbound correlation ID, the use case correlates the outbox
 	// events by transaction ID, so the log uses the same value.
-	logger.Info("wager transaction handled",
+	logger.InfoContext(r.Context(), "wager transaction handled",
 		"correlationId", result.TransactionID,
 		"transactionId", result.TransactionID,
 		"status", result.Status,

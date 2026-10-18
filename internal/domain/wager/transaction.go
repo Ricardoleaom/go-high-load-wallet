@@ -166,6 +166,17 @@ func (t Transaction) GameID() string {
 	return t.gameID
 }
 
+// Known reports whether k is one of the kinds the service understands;
+// callers use it to keep metric labels bounded.
+func (k Kind) Known() bool {
+	switch k {
+	case KindOpening, KindBet, KindWin, KindLoss, KindRefund, KindRollback:
+		return true
+	default:
+		return false
+	}
+}
+
 func (t Transaction) Kind() Kind {
 	return t.kind
 }

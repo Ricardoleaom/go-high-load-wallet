@@ -1,0 +1,24 @@
+                                                QUERY PLAN                                                 
+-----------------------------------------------------------------------------------------------------------
+ Seq Scan on transactions (actual time=8.701..8.702 rows=0 loops=1)
+   Filter: ((provider_id = 'bench-provider'::text) AND (idempotency_key = 'bench-provider:missing'::text))
+   Rows Removed by Filter: 100000
+   Buffers: shared hit=1736
+ Planning:
+   Buffers: shared hit=199
+ Planning Time: 2.536 ms
+ Execution Time: 8.762 ms
+(8 rows)
+
+                                       QUERY PLAN                                       
+----------------------------------------------------------------------------------------
+ Seq Scan on transactions (actual time=10.769..10.770 rows=0 loops=1)
+   Filter: ((provider_id = 'bench-provider'::text) AND (external_id = 'missing'::text))
+   Rows Removed by Filter: 100000
+   Buffers: shared hit=1736
+ Planning:
+   Buffers: shared hit=199
+ Planning Time: 3.891 ms
+ Execution Time: 10.818 ms
+(8 rows)
+

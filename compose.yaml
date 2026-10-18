@@ -79,8 +79,81 @@ services:
       SQS_ENDPOINT: http://localstack:4566
       SQS_TRANSACTIONS_QUEUE_URL: http://localstack:4566/000000000000/wager-transactions.fifo
       SQS_EVENTS_QUEUE_URL: http://localstack:4566/000000000000/wager-events.fifo
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Reachable by Prometheus on the compose network; published on the
+      # host's loopback only.
+      ADMIN_ADDR: 0.0.0.0:6060
+      PPROF_ENABLED: ${PPROF_ENABLED:-false}
+      DB_MAX_OPEN_CONNS: ${DB_MAX_OPEN_CONNS:-10}
+      DB_MAX_IDLE_CONNS: ${DB_MAX_IDLE_CONNS:-5}
+      OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE:-20}
+      OUTBOX_PUBLISH_INTERVAL: ${OUTBOX_PUBLISH_INTERVAL:-2s}
+      # Empty disables tracing; `make up-obs` points it at Jaeger.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT-}
+      OTEL_SERVICE_NAME: go-high-load-wallet
+      OTEL_TRACES_SAMPLER: parentbased_traceidratio
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-1}
     ports:
       - "8080:8080"
+      - "127.0.0.1:6060:6060"
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    profiles: [obs]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2d
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    profiles: [obs]
+    depends_on:
+      - prometheus
+      - jaeger
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+
+  jaeger:
+    image: jaegertracing/jaeger:2.22.0
+    profiles: [obs]
+    ports:
+      - "16686:16686"
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.20.1
+    profiles: [obs]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_NAME: postgresql://app:local_dev_password@postgres:5432/wallet?sslmode=disable
+
+  k6:
+    image: grafana/k6:2.3.0
+    profiles: [bench]
+    # Writes results as the host user so bench/results stays editable.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    volumes:
+      - ./bench/k6:/scripts:ro
+      - ./bench/data:/data:ro
+      - ./bench/results:/results
+    environment:
+      K6_PROMETHEUS_RW_SERVER_URL: http://prometheus:9090/api/v1/write
+      K6_PROMETHEUS_RW_TREND_STATS: p(50),p(95),p(99),max
+      K6_PROMETHEUS_RW_PUSH_INTERVAL: 5s
 
 volumes:
   postgres_data:

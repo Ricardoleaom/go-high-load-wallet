@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-17 01:44:01 -03
+Duration: 30s, Total samples = 15.79s (52.63%)
+Showing nodes accounting for 7.46s, 47.25% of 15.79s total
+Dropped 754 nodes (cum <= 0.08s)
+Showing top 15 nodes out of 325
+      flat  flat%   sum%        cum   cum%
+     5.56s 35.21% 35.21%      5.56s 35.21%  internal/runtime/syscall/linux.Syscall6
+     0.42s  2.66% 37.87%      0.42s  2.66%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.19s  1.20% 39.08%      0.19s  1.20%  runtime.memmove
+     0.18s  1.14% 40.22%      0.18s  1.14%  memeqbody
+     0.12s  0.76% 40.98%      0.12s  0.76%  runtime.spanClass.sizeclass
+     0.11s   0.7% 41.67%      0.11s   0.7%  context.(*valueCtx).Done
+     0.11s   0.7% 42.37%      1.43s  9.06%  github.com/jackc/pgx/v5/pgproto3.(*Frontend).Receive
+     0.11s   0.7% 43.07%      0.36s  2.28%  runtime.mapaccess2_faststr
+     0.10s  0.63% 43.70%      0.10s  0.63%  context.value
+     0.10s  0.63% 44.33%      0.10s  0.63%  runtime.futex
+     0.10s  0.63% 44.97%      0.11s   0.7%  runtime.mallocgcSmallScanNoHeaderSC7
+     0.09s  0.57% 45.54%      0.09s  0.57%  encoding/json/internal/jsonwire.ConsumeSimpleString
+     0.09s  0.57% 46.11%      1.16s  7.35%  github.com/jackc/pgx/v5/pgconn/internal/bgreader.(*BGReader).Read
+     0.09s  0.57% 46.68%      0.09s  0.57%  indexbytebody
+     0.09s  0.57% 47.25%      0.09s  0.57%  internal/runtime/maps.(*Map).Used

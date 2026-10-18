@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"time"
 
+	"go.opentelemetry.io/otel"
+
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 )
 
@@ -32,15 +34,17 @@ func (w *RetryWorker) Run(ctx context.Context, interval time.Duration) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			count, err := w.service.RetryPendingReferences(ctx, w.batch)
+			roundCtx, span := tracer.Start(ctx, "reference_retry.run")
+			count, err := w.service.RetryPendingReferences(roundCtx, w.batch)
 			if err != nil {
-				slog.Error("retry pending references", "error", err)
-				continue
-			}
-			if count > 0 {
+				slog.ErrorContext(roundCtx, "retry pending references", "error", err)
+			} else if count > 0 {
 				w.metrics.ReferenceRetriesTotal.Add(float64(count))
-				slog.Info("retried pending references", "count", count)
+				slog.InfoContext(roundCtx, "retried pending references", "count", count)
 			}
+			span.End()
 		}
 	}
 }
+
+var tracer = otel.Tracer("github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager")

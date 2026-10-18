@@ -1,0 +1,423 @@
+goroutine profile: total 531
+250 @ 0x490f2a 0x44faf7 0x490125 0x506147 0x5071c8 0x5071b6 0x5db0e5 0x5eaba5 0x790cd2 0x498441
+#	0x490124	internal/poll.runtime_pollWait+0x84		runtime/netpoll.go:351
+#	0x506146	internal/poll.(*pollDesc).wait+0x26		internal/poll/fd_poll_runtime.go:84
+#	0x5071c7	internal/poll.(*pollDesc).waitRead+0x2a7	internal/poll/fd_poll_runtime.go:89
+#	0x5071b5	internal/poll.(*FD).Read+0x295			internal/poll/fd_unix.go:170
+#	0x5db0e4	net.(*netFD).Read+0x24				net/fd_posix.go:68
+#	0x5eaba4	net.(*conn).Read+0x44				net/net.go:196
+#	0x790cd1	net/http.(*connReader).backgroundRead+0x31	net/http/server.go:746
+
+66 @ 0x490f2a 0x4690b7 0x8aa68e 0x8ac997 0x8b508f 0x8ab762 0x8ac818 0xcd51e5 0xcd512e 0xcdb485 0xf5e013 0x798ec9 0x79aaaf 0xf62eea 0x798ec9 0xf62d42 0x798ec9 0x79aaaf 0xf5af85 0xf5b9d5 0x798ec9 0x7bc3ee 0x7971fc 0x498441
+#	0x8aa68d	database/sql.(*DB).conn+0x40d													database/sql/sql.go:1374
+#	0x8ac996	database/sql.(*DB).query+0x56													database/sql/sql.go:1764
+#	0x8b508e	database/sql.(*DB).QueryContext.func1+0x4e											database/sql/sql.go:1747
+#	0x8ab761	database/sql.(*DB).retry+0x41													database/sql/sql.go:1581
+#	0x8ac817	database/sql.(*DB).QueryContext+0x97												database/sql/sql.go:1746
+#	0xcd51e4	database/sql.(*DB).QueryRowContext+0x164											database/sql/sql.go:1847
+#	0xcd512d	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres.(*TransactionRepository).GetByExternalID+0xad	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres/transaction_repository.go:249
+#	0xcdb484	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).Submit+0x4a4					github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:117
+#	0xf5e012	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*handler).submitWagerTransaction+0x5d2				github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/wagering.go:80
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce												net/http/server.go:2923
+#	0xf62ee9	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.metricsMiddleware.func1+0xc9					github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/handler.go:78
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0xf62d41	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*Authenticator).Middleware.func1+0x301				github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/auth.go:111
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce												net/http/server.go:2923
+#	0xf5af84	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP+0x1284					go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:194
+#	0xf5b9d4	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func2.1+0x34					go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:67
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x7bc3ed	net/http.serverHandler.ServeHTTP+0x8d												net/http/server.go:3436
+#	0x7971fb	net/http.(*conn).serve+0x6db													net/http/server.go:2157
+
+63 @ 0x490f2a 0x4690b7 0x8aa68e 0x8ac997 0x8b508f 0x8ab762 0x8ac818 0xcd7818 0xcd7797 0xcdb827 0xf5e013 0x798ec9 0x79aaaf 0xf62eea 0x798ec9 0xf62d42 0x798ec9 0x79aaaf 0xf5af85 0xf5b9d5 0x798ec9 0x7bc3ee 0x7971fc 0x498441
+#	0x8aa68d	database/sql.(*DB).conn+0x40d											database/sql/sql.go:1374
+#	0x8ac996	database/sql.(*DB).query+0x56											database/sql/sql.go:1764
+#	0x8b508e	database/sql.(*DB).QueryContext.func1+0x4e									database/sql/sql.go:1747
+#	0x8ab761	database/sql.(*DB).retry+0x41											database/sql/sql.go:1581
+#	0x8ac817	database/sql.(*DB).QueryContext+0x97										database/sql/sql.go:1746
+#	0xcd7817	database/sql.(*DB).QueryRowContext+0x1b7									database/sql/sql.go:1847
+#	0xcd7796	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres.(*WalletRepository).GetByID+0x136	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres/wallet_repository.go:117
+#	0xcdb826	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).Submit+0x846			github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:131
+#	0xf5e012	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*handler).submitWagerTransaction+0x5d2		github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/wagering.go:80
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28										net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce										net/http/server.go:2923
+#	0xf62ee9	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.metricsMiddleware.func1+0xc9			github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/handler.go:78
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28										net/http/server.go:2358
+#	0xf62d41	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*Authenticator).Middleware.func1+0x301		github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/auth.go:111
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28										net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce										net/http/server.go:2923
+#	0xf5af84	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP+0x1284			go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:194
+#	0xf5b9d4	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func2.1+0x34			go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:67
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28										net/http/server.go:2358
+#	0x7bc3ed	net/http.serverHandler.ServeHTTP+0x8d										net/http/server.go:3436
+#	0x7971fb	net/http.(*conn).serve+0x6db											net/http/server.go:2157
+
+44 @ 0x490f2a 0x4690b7 0x8aa68e 0x8ac997 0x8b508f 0x8ab762 0x8ac818 0xcd4d25 0xcd4c6e 0xcdb254 0xf5e013 0x798ec9 0x79aaaf 0xf62eea 0x798ec9 0xf62d42 0x798ec9 0x79aaaf 0xf5af85 0xf5b9d5 0x798ec9 0x7bc3ee 0x7971fc 0x498441
+#	0x8aa68d	database/sql.(*DB).conn+0x40d													database/sql/sql.go:1374
+#	0x8ac996	database/sql.(*DB).query+0x56													database/sql/sql.go:1764
+#	0x8b508e	database/sql.(*DB).QueryContext.func1+0x4e											database/sql/sql.go:1747
+#	0x8ab761	database/sql.(*DB).retry+0x41													database/sql/sql.go:1581
+#	0x8ac817	database/sql.(*DB).QueryContext+0x97												database/sql/sql.go:1746
+#	0xcd4d24	database/sql.(*DB).QueryRowContext+0x164											database/sql/sql.go:1847
+#	0xcd4c6d	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres.(*TransactionRepository).GetByIdempotencyKey+0xad	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres/transaction_repository.go:223
+#	0xcdb253	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).Submit+0x273					github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:109
+#	0xf5e012	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*handler).submitWagerTransaction+0x5d2				github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/wagering.go:80
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce												net/http/server.go:2923
+#	0xf62ee9	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.metricsMiddleware.func1+0xc9					github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/handler.go:78
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0xf62d41	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*Authenticator).Middleware.func1+0x301				github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/auth.go:111
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce												net/http/server.go:2923
+#	0xf5af84	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP+0x1284					go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:194
+#	0xf5b9d4	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func2.1+0x34					go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:67
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x7bc3ed	net/http.serverHandler.ServeHTTP+0x8d												net/http/server.go:3436
+#	0x7971fb	net/http.(*conn).serve+0x6db													net/http/server.go:2157
+
+40 @ 0x490f2a 0x4690b7 0x8aa68e 0x8ad58d 0x8b53be 0x8ab762 0x8ad4ac 0xcdd42a 0xcdbd85 0xf5e013 0x798ec9 0x79aaaf 0xf62eea 0x798ec9 0xf62d42 0x798ec9 0x79aaaf 0xf5af85 0xf5b9d5 0x798ec9 0x7bc3ee 0x7971fc 0x498441
+#	0x8aa68d	database/sql.(*DB).conn+0x40d										database/sql/sql.go:1374
+#	0x8ad58c	database/sql.(*DB).begin+0x2c										database/sql/sql.go:1896
+#	0x8b53bd	database/sql.(*DB).BeginTx.func1+0x3d									database/sql/sql.go:1879
+#	0x8ab761	database/sql.(*DB).retry+0x41										database/sql/sql.go:1581
+#	0x8ad4ab	database/sql.(*DB).BeginTx+0x6b										database/sql/sql.go:1878
+#	0xcdd429	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).processMovement+0xa9	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:270
+#	0xcdbd84	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).Submit+0xda4		github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:168
+#	0xf5e012	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*handler).submitWagerTransaction+0x5d2	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/wagering.go:80
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce									net/http/server.go:2923
+#	0xf62ee9	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.metricsMiddleware.func1+0xc9		github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/handler.go:78
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0xf62d41	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*Authenticator).Middleware.func1+0x301	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/auth.go:111
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce									net/http/server.go:2923
+#	0xf5af84	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP+0x1284		go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:194
+#	0xf5b9d4	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func2.1+0x34		go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:67
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x7bc3ed	net/http.serverHandler.ServeHTTP+0x8d									net/http/server.go:3436
+#	0x7971fb	net/http.(*conn).serve+0x6db										net/http/server.go:2157
+
+11 @ 0x490f2a 0x4690b7 0x8aa68e 0x8ad58d 0x8b53be 0x8ab762 0x8ad4ac 0xcdd42a 0xcdbee5 0xf5e013 0x798ec9 0x79aaaf 0xf62eea 0x798ec9 0xf62d42 0x798ec9 0x79aaaf 0xf5af85 0xf5b9d5 0x798ec9 0x7bc3ee 0x7971fc 0x498441
+#	0x8aa68d	database/sql.(*DB).conn+0x40d										database/sql/sql.go:1374
+#	0x8ad58c	database/sql.(*DB).begin+0x2c										database/sql/sql.go:1896
+#	0x8b53bd	database/sql.(*DB).BeginTx.func1+0x3d									database/sql/sql.go:1879
+#	0x8ab761	database/sql.(*DB).retry+0x41										database/sql/sql.go:1581
+#	0x8ad4ab	database/sql.(*DB).BeginTx+0x6b										database/sql/sql.go:1878
+#	0xcdd429	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).processMovement+0xa9	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:270
+#	0xcdbee4	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).Submit+0xf04		github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:170
+#	0xf5e012	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*handler).submitWagerTransaction+0x5d2	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/wagering.go:80
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce									net/http/server.go:2923
+#	0xf62ee9	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.metricsMiddleware.func1+0xc9		github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/handler.go:78
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0xf62d41	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*Authenticator).Middleware.func1+0x301	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/auth.go:111
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce									net/http/server.go:2923
+#	0xf5af84	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP+0x1284		go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:194
+#	0xf5b9d4	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func2.1+0x34		go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:67
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x7bc3ed	net/http.serverHandler.ServeHTTP+0x8d									net/http/server.go:3436
+#	0x7971fb	net/http.(*conn).serve+0x6db										net/http/server.go:2157
+
+10 @ 0x490f2a 0x41c96e 0x41c492 0x8ae4ab 0x498441
+#	0x8ae4aa	database/sql.(*Tx).awaitDone+0x2a	database/sql/sql.go:2217
+
+10 @ 0x490f2a 0x4690b7 0x8aa68e 0x8ac997 0x8b508f 0x8ab762 0x8ac818 0xcd410f 0xcd406e 0xcd5d71 0xce1f88 0xce05cf 0xcdc1ef 0xf5e013 0x798ec9 0x79aaaf 0xf62eea 0x798ec9 0xf62d42 0x798ec9 0x79aaaf 0xf5af85 0xf5b9d5 0x798ec9 0x7bc3ee 0x7971fc 0x498441
+#	0x8aa68d	database/sql.(*DB).conn+0x40d												database/sql/sql.go:1374
+#	0x8ac996	database/sql.(*DB).query+0x56												database/sql/sql.go:1764
+#	0x8b508e	database/sql.(*DB).QueryContext.func1+0x4e										database/sql/sql.go:1747
+#	0x8ab761	database/sql.(*DB).retry+0x41												database/sql/sql.go:1581
+#	0x8ac817	database/sql.(*DB).QueryContext+0x97											database/sql/sql.go:1746
+#	0xcd410e	database/sql.(*DB).QueryRowContext+0x2ee										database/sql/sql.go:1847
+#	0xcd406d	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres.(*TransactionRepository).GetByID+0x24d	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres/transaction_repository.go:149
+#	0xcd5d70	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres.(*TransactionRepository).LockByID+0x2d0	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres/transaction_repository.go:331
+#	0xce1f87	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).applyReversal+0x1c7			github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:645
+#	0xce05ce	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).processReversal+0x84e			github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:507
+#	0xcdc1ee	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).Submit+0x120e				github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:174
+#	0xf5e012	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*handler).submitWagerTransaction+0x5d2			github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/wagering.go:80
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28											net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce											net/http/server.go:2923
+#	0xf62ee9	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.metricsMiddleware.func1+0xc9				github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/handler.go:78
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28											net/http/server.go:2358
+#	0xf62d41	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*Authenticator).Middleware.func1+0x301			github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/auth.go:111
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28											net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce											net/http/server.go:2923
+#	0xf5af84	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP+0x1284				go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:194
+#	0xf5b9d4	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func2.1+0x34				go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:67
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28											net/http/server.go:2358
+#	0x7bc3ed	net/http.serverHandler.ServeHTTP+0x8d											net/http/server.go:3436
+#	0x7971fb	net/http.(*conn).serve+0x6db												net/http/server.go:2157
+
+8 @ 0x490f2a 0x4690b7 0x8aa68e 0x8ad58d 0x8b53be 0x8ab762 0x8ad4ac 0xcde79f 0xcdc07d 0xf5e013 0x798ec9 0x79aaaf 0xf62eea 0x798ec9 0xf62d42 0x798ec9 0x79aaaf 0xf5af85 0xf5b9d5 0x798ec9 0x7bc3ee 0x7971fc 0x498441
+#	0x8aa68d	database/sql.(*DB).conn+0x40d										database/sql/sql.go:1374
+#	0x8ad58c	database/sql.(*DB).begin+0x2c										database/sql/sql.go:1896
+#	0x8b53bd	database/sql.(*DB).BeginTx.func1+0x3d									database/sql/sql.go:1879
+#	0x8ab761	database/sql.(*DB).retry+0x41										database/sql/sql.go:1581
+#	0x8ad4ab	database/sql.(*DB).BeginTx+0x6b										database/sql/sql.go:1878
+#	0xcde79e	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).processLoss+0x23e	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:334
+#	0xcdc07c	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).Submit+0x109c		github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:172
+#	0xf5e012	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*handler).submitWagerTransaction+0x5d2	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/wagering.go:80
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce									net/http/server.go:2923
+#	0xf62ee9	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.metricsMiddleware.func1+0xc9		github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/handler.go:78
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0xf62d41	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*Authenticator).Middleware.func1+0x301	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/auth.go:111
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce									net/http/server.go:2923
+#	0xf5af84	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP+0x1284		go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:194
+#	0xf5b9d4	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func2.1+0x34		go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:67
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x7bc3ed	net/http.serverHandler.ServeHTTP+0x8d									net/http/server.go:3436
+#	0x7971fb	net/http.(*conn).serve+0x6db										net/http/server.go:2157
+
+4 @ 0x490f2a 0x4690b7 0x8aa68e 0x8ad58d 0x8b53be 0x8ab762 0x8ad4ac 0xce1e45 0xce05cf 0xcdc1ef 0xf5e013 0x798ec9 0x79aaaf 0xf62eea 0x798ec9 0xf62d42 0x798ec9 0x79aaaf 0xf5af85 0xf5b9d5 0x798ec9 0x7bc3ee 0x7971fc 0x498441
+#	0x8aa68d	database/sql.(*DB).conn+0x40d										database/sql/sql.go:1374
+#	0x8ad58c	database/sql.(*DB).begin+0x2c										database/sql/sql.go:1896
+#	0x8b53bd	database/sql.(*DB).BeginTx.func1+0x3d									database/sql/sql.go:1879
+#	0x8ab761	database/sql.(*DB).retry+0x41										database/sql/sql.go:1581
+#	0x8ad4ab	database/sql.(*DB).BeginTx+0x6b										database/sql/sql.go:1878
+#	0xce1e44	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).applyReversal+0x84	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:639
+#	0xce05ce	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).processReversal+0x84e	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:507
+#	0xcdc1ee	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).Submit+0x120e		github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:174
+#	0xf5e012	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*handler).submitWagerTransaction+0x5d2	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/wagering.go:80
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce									net/http/server.go:2923
+#	0xf62ee9	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.metricsMiddleware.func1+0xc9		github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/handler.go:78
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0xf62d41	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*Authenticator).Middleware.func1+0x301	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/auth.go:111
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce									net/http/server.go:2923
+#	0xf5af84	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP+0x1284		go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:194
+#	0xf5b9d4	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func2.1+0x34		go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:67
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28									net/http/server.go:2358
+#	0x7bc3ed	net/http.serverHandler.ServeHTTP+0x8d									net/http/server.go:3436
+#	0x7971fb	net/http.(*conn).serve+0x6db										net/http/server.go:2157
+
+3 @ 0x490f2a 0x44faf7 0x490125 0x506147 0x5071c8 0x5071b6 0x5db0e5 0x5eaba5 0x7b1cc7 0x7019a3 0x701ad2 0x7b287e 0x498441
+#	0x490124	internal/poll.runtime_pollWait+0x84		runtime/netpoll.go:351
+#	0x506146	internal/poll.(*pollDesc).wait+0x26		internal/poll/fd_poll_runtime.go:84
+#	0x5071c7	internal/poll.(*pollDesc).waitRead+0x2a7	internal/poll/fd_poll_runtime.go:89
+#	0x5071b5	internal/poll.(*FD).Read+0x295			internal/poll/fd_unix.go:170
+#	0x5db0e4	net.(*netFD).Read+0x24				net/fd_posix.go:68
+#	0x5eaba4	net.(*conn).Read+0x44				net/net.go:196
+#	0x7b1cc6	net/http.(*persistConn).Read+0x46		net/http/transport.go:2300
+#	0x7019a2	bufio.(*Reader).fill+0x102			bufio/bufio.go:113
+#	0x701ad1	bufio.(*Reader).Peek+0x51			bufio/bufio.go:152
+#	0x7b287d	net/http.(*persistConn).readLoop+0x17d		net/http/transport.go:2493
+
+3 @ 0x490f2a 0x4690b7 0x7b4166 0x498441
+#	0x7b4165	net/http.(*persistConn).writeLoop+0xe5	net/http/transport.go:2833
+
+2 @ 0x490f2a 0x44faf7 0x490125 0x506147 0x50abdd 0x50abcb 0x5dcd89 0x5f3bfb 0x5f2f10 0x79c399 0xf671ad 0x498441
+#	0x490124	internal/poll.runtime_pollWait+0x84		runtime/netpoll.go:351
+#	0x506146	internal/poll.(*pollDesc).wait+0x26		internal/poll/fd_poll_runtime.go:84
+#	0x50abdc	internal/poll.(*pollDesc).waitRead+0x27c	internal/poll/fd_poll_runtime.go:89
+#	0x50abca	internal/poll.(*FD).Accept+0x26a		internal/poll/fd_unix.go:618
+#	0x5dcd88	net.(*netFD).accept+0x28			net/fd_unix.go:149
+#	0x5f3bfa	net.(*TCPListener).accept+0x1a			net/tcpsock_posix.go:159
+#	0x5f2f0f	net.(*TCPListener).Accept+0x2f			net/tcpsock.go:387
+#	0x79c398	net/http.(*Server).Serve+0x378			net/http/server.go:3574
+#	0xf671ac	main.serve.func1.1+0x12c			github.com/Ricardoleaom/go-high-load-wallet/cmd/api/lifecycle.go:100
+
+2 @ 0x490f2a 0x4690b7 0x8aa68e 0x8ac997 0x8b508f 0x8ab762 0x8ac818 0xcd410f 0xcd406e 0xcd53a5 0xcdfe56 0xcdc1ef 0xf5e013 0x798ec9 0x79aaaf 0xf62eea 0x798ec9 0xf62d42 0x798ec9 0x79aaaf 0xf5af85 0xf5b9d5 0x798ec9 0x7bc3ee 0x7971fc 0x498441
+#	0x8aa68d	database/sql.(*DB).conn+0x40d													database/sql/sql.go:1374
+#	0x8ac996	database/sql.(*DB).query+0x56													database/sql/sql.go:1764
+#	0x8b508e	database/sql.(*DB).QueryContext.func1+0x4e											database/sql/sql.go:1747
+#	0x8ab761	database/sql.(*DB).retry+0x41													database/sql/sql.go:1581
+#	0x8ac817	database/sql.(*DB).QueryContext+0x97												database/sql/sql.go:1746
+#	0xcd410e	database/sql.(*DB).QueryRowContext+0x2ee											database/sql/sql.go:1847
+#	0xcd406d	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres.(*TransactionRepository).GetByID+0x24d		github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres/transaction_repository.go:149
+#	0xcd53a4	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres.(*TransactionRepository).GetByExternalID+0x324	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres/transaction_repository.go:259
+#	0xcdfe55	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).processReversal+0xd5				github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:483
+#	0xcdc1ee	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).Submit+0x120e					github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:174
+#	0xf5e012	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*handler).submitWagerTransaction+0x5d2				github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/wagering.go:80
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce												net/http/server.go:2923
+#	0xf62ee9	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.metricsMiddleware.func1+0xc9					github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/handler.go:78
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0xf62d41	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*Authenticator).Middleware.func1+0x301				github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/auth.go:111
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce												net/http/server.go:2923
+#	0xf5af84	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP+0x1284					go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:194
+#	0xf5b9d4	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func2.1+0x34					go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:67
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x7bc3ed	net/http.serverHandler.ServeHTTP+0x8d												net/http/server.go:3436
+#	0x7971fb	net/http.(*conn).serve+0x6db													net/http/server.go:2157
+
+2 @ 0x490f2a 0x4690b7 0x8aa68e 0x8ac997 0x8b508f 0x8ab762 0x8ac818 0xcd51e5 0xcd512e 0xcdfe56 0xcdc1ef 0xf5e013 0x798ec9 0x79aaaf 0xf62eea 0x798ec9 0xf62d42 0x798ec9 0x79aaaf 0xf5af85 0xf5b9d5 0x798ec9 0x7bc3ee 0x7971fc 0x498441
+#	0x8aa68d	database/sql.(*DB).conn+0x40d													database/sql/sql.go:1374
+#	0x8ac996	database/sql.(*DB).query+0x56													database/sql/sql.go:1764
+#	0x8b508e	database/sql.(*DB).QueryContext.func1+0x4e											database/sql/sql.go:1747
+#	0x8ab761	database/sql.(*DB).retry+0x41													database/sql/sql.go:1581
+#	0x8ac817	database/sql.(*DB).QueryContext+0x97												database/sql/sql.go:1746
+#	0xcd51e4	database/sql.(*DB).QueryRowContext+0x164											database/sql/sql.go:1847
+#	0xcd512d	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres.(*TransactionRepository).GetByExternalID+0xad	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres/transaction_repository.go:249
+#	0xcdfe55	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).processReversal+0xd5				github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:483
+#	0xcdc1ee	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*Service).Submit+0x120e					github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/service.go:174
+#	0xf5e012	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*handler).submitWagerTransaction+0x5d2				github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/wagering.go:80
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce												net/http/server.go:2923
+#	0xf62ee9	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.metricsMiddleware.func1+0xc9					github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/handler.go:78
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0xf62d41	github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi.(*Authenticator).Middleware.func1+0x301				github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi/auth.go:111
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce												net/http/server.go:2923
+#	0xf5af84	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP+0x1284					go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:194
+#	0xf5b9d4	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.NewMiddleware.func2.1+0x34					go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp@v0.72.0/handler.go:67
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28												net/http/server.go:2358
+#	0x7bc3ed	net/http.serverHandler.ServeHTTP+0x8d												net/http/server.go:3436
+#	0x7971fb	net/http.(*conn).serve+0x6db													net/http/server.go:2157
+
+1 @ 0x4224c9 0x493278 0x8279d3 0x498441
+#	0x493277	os/signal.signal_recv+0x97	runtime/sigqueue.go:152
+#	0x8279d2	os/signal.loop+0x12		os/signal/signal_unix.go:23
+
+1 @ 0x44c1d1 0x48fc9d 0x855eb1 0x855b85 0x852ae9 0x86de14 0x86e85c 0x798ec9 0x79aaaf 0x7bc3ee 0x7971fc 0x498441
+#	0x855eb0	runtime/pprof.writeRuntimeProfile+0xb0	runtime/pprof/pprof.go:848
+#	0x855b84	runtime/pprof.writeGoroutine+0x44	runtime/pprof/pprof.go:781
+#	0x852ae8	runtime/pprof.(*Profile).WriteTo+0x148	runtime/pprof/pprof.go:405
+#	0x86de13	net/http/pprof.handler.ServeHTTP+0x553	net/http/pprof/pprof.go:272
+#	0x86e85b	net/http/pprof.Index+0xdb		net/http/pprof/pprof.go:391
+#	0x798ec8	net/http.HandlerFunc.ServeHTTP+0x28	net/http/server.go:2358
+#	0x79aaae	net/http.(*ServeMux).ServeHTTP+0x1ce	net/http/server.go:2923
+#	0x7bc3ed	net/http.serverHandler.ServeHTTP+0x8d	net/http/server.go:3436
+#	0x7971fb	net/http.(*conn).serve+0x6db		net/http/server.go:2157
+
+1 @ 0x490f2a 0x41c96e 0x41c492 0x82da8f 0x82d98e 0xf65677 0x456b07 0x498441
+#	0x82da8e	go.uber.org/fx.(*App).run+0xae	go.uber.org/fx@v1.24.0/app.go:613
+#	0x82d98d	go.uber.org/fx.(*App).Run+0x2d	go.uber.org/fx@v1.24.0/app.go:600
+#	0xf65676	main.main+0x536			github.com/Ricardoleaom/go-high-load-wallet/cmd/api/main.go:105
+#	0x456b06	runtime.main+0x426		runtime/proc.go:302
+
+1 @ 0x490f2a 0x44faf7 0x490125 0x506147 0x5071c8 0x5071b6 0x5db0e5 0x5eaba5 0x7910f0 0x7019a3 0x701ad2 0x797353 0x498441
+#	0x490124	internal/poll.runtime_pollWait+0x84		runtime/netpoll.go:351
+#	0x506146	internal/poll.(*pollDesc).wait+0x26		internal/poll/fd_poll_runtime.go:84
+#	0x5071c7	internal/poll.(*pollDesc).waitRead+0x2a7	internal/poll/fd_poll_runtime.go:89
+#	0x5071b5	internal/poll.(*FD).Read+0x295			internal/poll/fd_unix.go:170
+#	0x5db0e4	net.(*netFD).Read+0x24				net/fd_posix.go:68
+#	0x5eaba4	net.(*conn).Read+0x44				net/net.go:196
+#	0x7910ef	net/http.(*connReader).Read+0x14f		net/http/server.go:856
+#	0x7019a2	bufio.(*Reader).fill+0x102			bufio/bufio.go:113
+#	0x701ad1	bufio.(*Reader).Peek+0x51			bufio/bufio.go:152
+#	0x797352	net/http.(*conn).serve+0x832			net/http/server.go:2193
+
+1 @ 0x490f2a 0x4690b7 0x7b4f6b 0x7a8ada 0x7bc318 0xd1d088 0x7768b4 0x7760f0 0x778297 0xd1c058 0xd1c046 0xcff04f 0xcec478 0xd04ab9 0xcec3e3 0xd0ff6a 0xcec3e3 0xe9fd3d 0xcec3e3 0xd10e1c 0xcec3e3 0xd1d3b3 0xcec3e3 0xd106e2 0xce84bf 0xce848d 0xcec923 0xcec5b8 0xebb7da 0xcec523 0xeb9a4c 0xcec523 0xd3996a 0xcec523 0xea2063 0xcec523 0xec41f4 0xcec523 0xebafd1 0xcec523 0xeba308 0xcec523 0xd02f04 0xcec523 0xd1675c 0xd15b2e 0xcec523 0xd020aa 0xce939f 0xce936d 0xcec923 0xcec338 0xd10a63 0xcec2a3 0xd11c0d 0xcec2a3 0xd0fd85 0xce75ff 0xce75cd 0xcec923 0xcec868 0xe9fad9 0xcec7b1 0xebff7c 0xcec7b1 0xe9e935 0xceb154 0xceb117 0xcec923 0xcec6f8 0xec6046 0xcec663 0xebf0ba 0xcea25f 0xcea22d 0xcec923 0xce6292 0xcec923 0xe9e24b 0xeb14e5 0xed1d0e 0xf66c1f 0x498441
+#	0x7b4f6a	net/http.(*persistConn).roundTrip+0x84a										net/http/transport.go:3092
+#	0x7a8ad9	net/http.(*Transport).roundTrip+0xad9										net/http/transport.go:725
+#	0x7bc317	net/http.(*Transport).RoundTrip+0x17										net/http/roundtrip.go:33
+#	0xd1d087	github.com/aws/aws-sdk-go-v2/aws/transport/http.suppressBadHTTPRedirectTransport.RoundTrip+0x27			github.com/aws/aws-sdk-go-v2@v1.47.3/aws/transport/http/client.go:399
+#	0x7768b3	net/http.send+0x653												net/http/client.go:266
+#	0x7760ef	net/http.(*Client).send+0x24f											net/http/client.go:187
+#	0x778296	net/http.(*Client).do+0x9f6											net/http/client.go:745
+#	0xd1c057	net/http.(*Client).Do+0x57											net/http/client.go:604
+#	0xd1c045	github.com/aws/aws-sdk-go-v2/aws/transport/http.(*BuildableClient).Do+0x45					github.com/aws/aws-sdk-go-v2@v1.47.3/aws/transport/http/client.go:88
+#	0xcff04e	github.com/aws/smithy-go/transport/http.ClientHandler.Handle+0x38e						github.com/aws/smithy-go@v1.28.5/transport/http/client.go:92
+#	0xcec477	github.com/aws/smithy-go/middleware.deserializeWrapHandler.HandleDeserialize+0x37				github.com/aws/smithy-go@v1.28.5/middleware/step_deserialize.go:272
+#	0xd04ab8	github.com/aws/smithy-go/transport/http.(*RequestResponseLogger).HandleDeserialize+0x2d8			github.com/aws/smithy-go@v1.28.5/transport/http/middleware_http_logging.go:58
+#	0xcec3e2	github.com/aws/smithy-go/middleware.decoratedDeserializeHandler.HandleDeserialize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_deserialize.go:289
+#	0xd0ff69	github.com/aws/aws-sdk-go-v2/aws/middleware.RecordResponseTiming.HandleDeserialize+0xc9				github.com/aws/aws-sdk-go-v2@v1.47.3/aws/middleware/middleware.go:63
+#	0xcec3e2	github.com/aws/smithy-go/middleware.decoratedDeserializeHandler.HandleDeserialize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_deserialize.go:289
+#	0xe9fd3c	github.com/aws/aws-sdk-go-v2/service/sqs.(*deserializeResponseMiddleware).HandleDeserialize+0x9c		github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/api_client.go:491
+#	0xcec3e2	github.com/aws/smithy-go/middleware.decoratedDeserializeHandler.HandleDeserialize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_deserialize.go:289
+#	0xd10e1b	github.com/aws/aws-sdk-go-v2/aws/middleware.(*RequestIDRetriever).HandleDeserialize+0x5b			github.com/aws/aws-sdk-go-v2@v1.47.3/aws/middleware/request_id_retriever.go:33
+#	0xcec3e2	github.com/aws/smithy-go/middleware.decoratedDeserializeHandler.HandleDeserialize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_deserialize.go:289
+#	0xd1d3b2	github.com/aws/aws-sdk-go-v2/aws/transport/http.(*ResponseErrorWrapper).HandleDeserialize+0x52			github.com/aws/aws-sdk-go-v2@v1.47.3/aws/transport/http/response_error_middleware.go:31
+#	0xcec3e2	github.com/aws/smithy-go/middleware.decoratedDeserializeHandler.HandleDeserialize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_deserialize.go:289
+#	0xd106e1	github.com/aws/aws-sdk-go-v2/aws/middleware.AddRawResponse.HandleDeserialize+0x61				github.com/aws/aws-sdk-go-v2@v1.47.3/aws/middleware/middleware.go:193
+#	0xce84be	github.com/aws/smithy-go/middleware.decoratedDeserializeHandler.HandleDeserialize+0xde				github.com/aws/smithy-go@v1.28.5/middleware/step_deserialize.go:289
+#	0xce848c	github.com/aws/smithy-go/middleware.(*DeserializeStep).HandleMiddleware+0xac					github.com/aws/smithy-go@v1.28.5/middleware/step_deserialize.go:115
+#	0xcec922	github.com/aws/smithy-go/middleware.decoratedHandler.Handle+0x42						github.com/aws/smithy-go@v1.28.5/middleware/middleware.go:57
+#	0xcec5b7	github.com/aws/smithy-go/middleware.finalizeWrapHandler.HandleFinalize+0x37					github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:271
+#	0xebb7d9	github.com/aws/aws-sdk-go-v2/service/sqs.(*signRequestMiddleware).HandleFinalize+0x599				github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/auth.go:354
+#	0xcec522	github.com/aws/smithy-go/middleware.decoratedFinalizeHandler.HandleFinalize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:287
+#	0xeb9a4b	github.com/aws/aws-sdk-go-v2/service/sqs.(*setLegacyContextSigningOptionsMiddleware).HandleFinalize+0x5ab	github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/auth.go:53
+#	0xcec522	github.com/aws/smithy-go/middleware.decoratedFinalizeHandler.HandleFinalize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:287
+#	0xd39969	github.com/aws/aws-sdk-go-v2/aws/signer/v4.(*ComputePayloadSHA256).HandleFinalize+0x4a9				github.com/aws/aws-sdk-go-v2@v1.47.3/aws/signer/v4/middleware.go:194
+#	0xcec522	github.com/aws/smithy-go/middleware.decoratedFinalizeHandler.HandleFinalize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:287
+#	0xea2062	github.com/aws/aws-sdk-go-v2/service/sqs.(*disableHTTPSMiddleware).HandleFinalize+0x142				github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/api_client.go:983
+#	0xcec522	github.com/aws/smithy-go/middleware.decoratedFinalizeHandler.HandleFinalize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:287
+#	0xec41f3	github.com/aws/aws-sdk-go-v2/service/sqs.(*resolveEndpointV2Middleware).HandleFinalize+0x1093			github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/endpoints.go:569
+#	0xcec522	github.com/aws/smithy-go/middleware.decoratedFinalizeHandler.HandleFinalize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:287
+#	0xebafd0	github.com/aws/aws-sdk-go-v2/service/sqs.(*getIdentityMiddleware).HandleFinalize+0x3f0				github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/auth.go:296
+#	0xcec522	github.com/aws/smithy-go/middleware.decoratedFinalizeHandler.HandleFinalize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:287
+#	0xeba307	github.com/aws/aws-sdk-go-v2/service/sqs.(*resolveAuthSchemeMiddleware).HandleFinalize+0x487			github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/auth.go:176
+#	0xcec522	github.com/aws/smithy-go/middleware.decoratedFinalizeHandler.HandleFinalize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:287
+#	0xd02f03	github.com/aws/smithy-go/transport/http.(*InterceptAttempt).HandleFinalize+0x143				github.com/aws/smithy-go@v1.28.5/transport/http/interceptor_middleware.go:316
+#	0xcec522	github.com/aws/smithy-go/middleware.decoratedFinalizeHandler.HandleFinalize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:287
+#	0xd1675b	github.com/aws/aws-sdk-go-v2/aws/retry.(*Attempt).handleAttempt+0x53b						github.com/aws/aws-sdk-go-v2@v1.47.3/aws/retry/middleware.go:238
+#	0xd15b2d	github.com/aws/aws-sdk-go-v2/aws/retry.(*Attempt).HandleFinalize+0x64d						github.com/aws/aws-sdk-go-v2@v1.47.3/aws/retry/middleware.go:138
+#	0xcec522	github.com/aws/smithy-go/middleware.decoratedFinalizeHandler.HandleFinalize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:287
+#	0xd020a9	github.com/aws/smithy-go/transport/http.(*InterceptBeforeRetryLoop).HandleFinalize+0x109			github.com/aws/smithy-go@v1.28.5/transport/http/interceptor_middleware.go:131
+#	0xce939e	github.com/aws/smithy-go/middleware.decoratedFinalizeHandler.HandleFinalize+0xde				github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:287
+#	0xce936c	github.com/aws/smithy-go/middleware.(*FinalizeStep).HandleMiddleware+0xac					github.com/aws/smithy-go@v1.28.5/middleware/step_finalize.go:114
+#	0xcec922	github.com/aws/smithy-go/middleware.decoratedHandler.Handle+0x42						github.com/aws/smithy-go@v1.28.5/middleware/middleware.go:57
+#	0xcec337	github.com/aws/smithy-go/middleware.buildWrapHandler.HandleBuild+0x37						github.com/aws/smithy-go@v1.28.5/middleware/step_build.go:271
+#	0xd10a62	github.com/aws/aws-sdk-go-v2/aws/middleware.(*RecursionDetection).HandleBuild+0x262				github.com/aws/aws-sdk-go-v2@v1.47.3/aws/middleware/recursion_detection.go:46
+#	0xcec2a2	github.com/aws/smithy-go/middleware.decoratedBuildHandler.HandleBuild+0x42					github.com/aws/smithy-go@v1.28.5/middleware/step_build.go:287
+#	0xd11c0c	github.com/aws/aws-sdk-go-v2/aws/middleware.(*RequestUserAgent).HandleBuild+0x8c				github.com/aws/aws-sdk-go-v2@v1.47.3/aws/middleware/user_agent.go:348
+#	0xcec2a2	github.com/aws/smithy-go/middleware.decoratedBuildHandler.HandleBuild+0x42					github.com/aws/smithy-go@v1.28.5/middleware/step_build.go:287
+#	0xd0fd84	github.com/aws/aws-sdk-go-v2/aws/middleware.ClientRequestID.HandleBuild+0x1e4					github.com/aws/aws-sdk-go-v2@v1.47.3/aws/middleware/middleware.go:42
+#	0xce75fe	github.com/aws/smithy-go/middleware.decoratedBuildHandler.HandleBuild+0xde					github.com/aws/smithy-go@v1.28.5/middleware/step_build.go:287
+#	0xce75cc	github.com/aws/smithy-go/middleware.(*BuildStep).HandleMiddleware+0xac						github.com/aws/smithy-go@v1.28.5/middleware/step_build.go:114
+#	0xcec922	github.com/aws/smithy-go/middleware.decoratedHandler.Handle+0x42						github.com/aws/smithy-go@v1.28.5/middleware/middleware.go:57
+#	0xcec867	github.com/aws/smithy-go/middleware.serializeWrapHandler.HandleSerialize+0x47					github.com/aws/smithy-go@v1.28.5/middleware/step_serialize.go:278
+#	0xe9fad8	github.com/aws/aws-sdk-go-v2/service/sqs.(*serializeRequestMiddleware).HandleSerialize+0x298			github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/api_client.go:473
+#	0xcec7b0	github.com/aws/smithy-go/middleware.decoratedSerializeHandler.HandleSerialize+0x50				github.com/aws/smithy-go@v1.28.5/middleware/step_serialize.go:294
+#	0xebff7b	github.com/aws/aws-sdk-go-v2/service/sqs.(*ResolveEndpoint).HandleSerialize+0x89b				github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/endpoints.go:87
+#	0xcec7b0	github.com/aws/smithy-go/middleware.decoratedSerializeHandler.HandleSerialize+0x50				github.com/aws/smithy-go@v1.28.5/middleware/step_serialize.go:294
+#	0xe9e934	github.com/aws/aws-sdk-go-v2/service/sqs.(*setOperationInputMiddleware).HandleSerialize+0xb4			github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/api_client.go:364
+#	0xceb153	github.com/aws/smithy-go/middleware.decoratedSerializeHandler.HandleSerialize+0x113				github.com/aws/smithy-go@v1.28.5/middleware/step_serialize.go:294
+#	0xceb116	github.com/aws/smithy-go/middleware.(*SerializeStep).HandleMiddleware+0xd6					github.com/aws/smithy-go@v1.28.5/middleware/step_serialize.go:121
+#	0xcec922	github.com/aws/smithy-go/middleware.decoratedHandler.Handle+0x42						github.com/aws/smithy-go@v1.28.5/middleware/middleware.go:57
+#	0xcec6f7	github.com/aws/smithy-go/middleware.initializeWrapHandler.HandleInitialize+0x37					github.com/aws/smithy-go@v1.28.5/middleware/step_initialize.go:272
+#	0xec6045	github.com/aws/aws-sdk-go-v2/service/sqs.(*validateOpReceiveMessage).HandleInitialize+0xc5			github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/validators.go:310
+#	0xcec662	github.com/aws/smithy-go/middleware.decoratedInitializeHandler.HandleInitialize+0x42				github.com/aws/smithy-go@v1.28.5/middleware/step_initialize.go:288
+#	0xebf0b9	github.com/aws/aws-sdk-go-v2/service/sqs.validateMessageChecksumMiddleware.HandleInitialize+0x59		github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/cust_checksum_validation.go:179
+#	0xcea25e	github.com/aws/smithy-go/middleware.decoratedInitializeHandler.HandleInitialize+0xde				github.com/aws/smithy-go@v1.28.5/middleware/step_initialize.go:288
+#	0xcea22c	github.com/aws/smithy-go/middleware.(*InitializeStep).HandleMiddleware+0xac					github.com/aws/smithy-go@v1.28.5/middleware/step_initialize.go:115
+#	0xcec922	github.com/aws/smithy-go/middleware.decoratedHandler.Handle+0x42						github.com/aws/smithy-go@v1.28.5/middleware/middleware.go:57
+#	0xce6291	github.com/aws/smithy-go/middleware.(*Stack).HandleMiddleware+0x171						github.com/aws/smithy-go@v1.28.5/middleware/stack.go:109
+#	0xcec922	github.com/aws/smithy-go/middleware.decoratedHandler.Handle+0x42						github.com/aws/smithy-go@v1.28.5/middleware/middleware.go:57
+#	0xe9e24a	github.com/aws/aws-sdk-go-v2/service/sqs.(*Client).invokeOperation+0xbca					github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/api_client.go:314
+#	0xeb14e4	github.com/aws/aws-sdk-go-v2/service/sqs.(*Client).ReceiveMessage+0x104						github.com/aws/aws-sdk-go-v2/service/sqs@v1.52.4/api_op_ReceiveMessage.go:59
+#	0xed1d0d	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx.(*Consumer).Run+0x12d			github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx/consumer.go:101
+#	0xf66c1e	main.runBackground.func1.1+0x7e											github.com/Ricardoleaom/go-high-load-wallet/cmd/api/lifecycle.go:34
+
+1 @ 0x490f2a 0x4690b7 0x8340e5 0x498441
+#	0x8340e4	go.uber.org/fx.(*signalReceivers).relayer+0xa4	go.uber.org/fx@v1.24.0/signal.go:84
+
+1 @ 0x490f2a 0x4690b7 0x8a939e 0x498441
+#	0x8a939d	database/sql.(*DB).connectionCleaner+0x9d	database/sql/sql.go:1109
+
+1 @ 0x490f2a 0x4690b7 0x8a9e09 0x498441
+#	0x8a9e08	database/sql.(*DB).connectionOpener+0x88	database/sql/sql.go:1266
+
+1 @ 0x490f2a 0x4690b7 0x8aa68e 0x8ad58d 0x8b53be 0x8ab762 0x8ad4ac 0xcd2716 0xed3ac5 0xed388b 0xf67315 0xf66c1f 0x498441
+#	0x8aa68d	database/sql.(*DB).conn+0x40d												database/sql/sql.go:1374
+#	0x8ad58c	database/sql.(*DB).begin+0x2c												database/sql/sql.go:1896
+#	0x8b53bd	database/sql.(*DB).BeginTx.func1+0x3d											database/sql/sql.go:1879
+#	0x8ab761	database/sql.(*DB).retry+0x41												database/sql/sql.go:1581
+#	0x8ad4ab	database/sql.(*DB).BeginTx+0x6b												database/sql/sql.go:1878
+#	0xcd2715	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres.(*OutboxRepository).PublishDue+0x75	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres/outbox_repository.go:91
+#	0xed3ac4	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx.(*OutboxPublisher).PublishOnce+0x124		github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx/publisher.go:62
+#	0xed388a	github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx.(*OutboxPublisher).Run+0x10a			github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx/publisher.go:48
+#	0xf67314	main.registerOutboxPublisher.func1+0x34											github.com/Ricardoleaom/go-high-load-wallet/cmd/api/lifecycle.go:119
+#	0xf66c1e	main.runBackground.func1.1+0x7e												github.com/Ricardoleaom/go-high-load-wallet/cmd/api/lifecycle.go:34
+
+1 @ 0x490f2a 0x4690b7 0xb1324f 0xb1ee5c 0x4a352a 0x498441
+#	0xb1324e	go.opentelemetry.io/otel/sdk/trace.(*batchSpanProcessor).processQueue+0x10e	go.opentelemetry.io/otel/sdk@v1.47.0/trace/batch_span_processor.go:328
+#	0xb1ee5b	go.opentelemetry.io/otel/sdk/trace.NewBatchSpanProcessor.func2+0x1b		go.opentelemetry.io/otel/sdk@v1.47.0/trace/batch_span_processor.go:128
+#	0x4a3529	sync.(*WaitGroup).Go.func1+0x49							sync/waitgroup.go:258
+
+1 @ 0x490f2a 0x4690b7 0xcdad25 0xf67375 0xf66c1f 0x498441
+#	0xcdad24	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager.(*RetryWorker).Run+0x104	github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager/retry_worker.go:33
+#	0xf67374	main.registerReferenceRetryWorker.func1+0x34							github.com/Ricardoleaom/go-high-load-wallet/cmd/api/lifecycle.go:125
+#	0xf66c1e	main.runBackground.func1.1+0x7e									github.com/Ricardoleaom/go-high-load-wallet/cmd/api/lifecycle.go:34
+
+1 @ 0x490f2a 0x4690b7 0xeed353 0x498441
+#	0xeed352	github.com/MicahParks/jwkset.NewStorageFromHTTP.func2+0xd2	github.com/MicahParks/jwkset@v0.11.3/storage.go:300
+
+1 @ 0x498441
+

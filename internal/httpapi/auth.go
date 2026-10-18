@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -83,10 +82,11 @@ func NewAuthenticator(
 // handler.go), so it records http_requests_total for them itself.
 func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
 		header := r.Header.Get("Authorization")
 		tokenString, ok := strings.CutPrefix(header, "Bearer ")
 		if !ok || tokenString == "" {
-			a.rejectUnauthenticated(w, r, "missing bearer token")
+			a.rejectUnauthenticated(w, r, "missing bearer token", started)
 			return
 		}
 
@@ -96,7 +96,7 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 			jwt.WithValidMethods([]string{"RS256"}),
 		)
 		if err != nil {
-			a.rejectUnauthenticated(w, r, "invalid or expired token")
+			a.rejectUnauthenticated(w, r, "invalid or expired token", started)
 			return
 		}
 
@@ -112,11 +112,9 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-func (a *Authenticator) rejectUnauthenticated(w http.ResponseWriter, r *http.Request, message string) {
+func (a *Authenticator) rejectUnauthenticated(w http.ResponseWriter, r *http.Request, message string, started time.Time) {
 	writeError(w, http.StatusUnauthorized, "UNAUTHENTICATED", message)
-	a.metrics.HTTPRequestsTotal.WithLabelValues(
-		r.Pattern, normalizeMethod(r.Method), strconv.Itoa(http.StatusUnauthorized),
-	).Inc()
+	recordRequest(a.metrics, r, http.StatusUnauthorized, started)
 }
 
 func providerIDFromContext(ctx context.Context) (string, bool) {

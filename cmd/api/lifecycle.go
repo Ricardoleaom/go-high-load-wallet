@@ -14,6 +14,7 @@ import (
 	wagerapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wager"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/config"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
 )
 
 // runBackground starts fn in a goroutine on OnStart and, on OnStop, cancels
@@ -50,9 +51,39 @@ func runBackground(lc fx.Lifecycle, name string, fn func(ctx context.Context) er
 	})
 }
 
+// registerTracing installs the OpenTelemetry provider before anything else
+// starts and flushes it last on the way down.
+func registerTracing(lc fx.Lifecycle) error {
+	shutdown, err := observability.SetupTracing(context.Background())
+	if err != nil {
+		return err
+	}
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			if err := shutdown(ctx); err != nil {
+				slog.Warn("flush traces on shutdown", "error", err)
+			}
+			return nil
+		},
+	})
+	return nil
+}
+
 func registerHTTPServer(lc fx.Lifecycle, cfg config.Config, handler http.Handler) {
+	serve(lc, "HTTP", ":"+cfg.HTTPPort, handler)
+}
+
+// registerAdminServer serves metrics (and pprof when enabled) on their own
+// address, loopback by default, so they stay off the public network.
+func registerAdminServer(lc fx.Lifecycle, cfg config.Config, metrics *observability.Metrics) {
+	serve(lc, "admin", cfg.AdminAddr, observability.AdminHandler(metrics, cfg.PprofEnabled))
+}
+
+// serve listens on OnStart, so a taken port fails the boot, and drains
+// in-flight requests on OnStop within the shutdown deadline.
+func serve(lc fx.Lifecycle, name, addr string, handler http.Handler) {
 	server := &http.Server{
-		Addr:              ":" + cfg.HTTPPort,
+		Addr:              addr,
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
@@ -65,9 +96,9 @@ func registerHTTPServer(lc fx.Lifecycle, cfg config.Config, handler http.Handler
 			}
 
 			go func() {
-				slog.Info("HTTP server listening", "addr", server.Addr)
+				slog.Info("server listening", "server", name, "addr", server.Addr)
 				if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					slog.Error("HTTP server stopped with error", "error", err)
+					slog.Error("server stopped with error", "server", name, "error", err)
 				}
 			}()
 

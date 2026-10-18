@@ -1,6 +1,9 @@
 .git
 .github
+.superpowers
+bench
 bin
 docs
+tools
 *:Zone.Identifier
 .env

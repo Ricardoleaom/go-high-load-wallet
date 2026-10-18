@@ -1,0 +1,53 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "name": "non_negative_balance",
+      "invariant": "I1",
+      "violations": 0,
+      "samples": []
+    },
+    {
+      "name": "balance_matches_ledger",
+      "invariant": "I2",
+      "violations": 0,
+      "samples": []
+    },
+    {
+      "name": "processed_movement_has_one_entry",
+      "invariant": "I4",
+      "violations": 0,
+      "samples": []
+    },
+    {
+      "name": "entry_points_to_processed_transaction",
+      "invariant": "I4",
+      "violations": 0,
+      "samples": []
+    },
+    {
+      "name": "loss_has_no_entry",
+      "invariant": "I4",
+      "violations": 0,
+      "samples": []
+    },
+    {
+      "name": "single_successful_reversal",
+      "invariant": "I5",
+      "violations": 0,
+      "samples": []
+    },
+    {
+      "name": "no_pending_transactions",
+      "invariant": "synchronous processing",
+      "violations": 0,
+      "samples": []
+    },
+    {
+      "name": "terminal_transaction_has_event",
+      "invariant": "I6",
+      "violations": 0,
+      "samples": []
+    }
+  ]
+}

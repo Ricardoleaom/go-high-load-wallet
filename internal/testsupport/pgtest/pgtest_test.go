@@ -61,3 +61,44 @@ func TestMigrateIsIdempotentAndSafeConcurrently(t *testing.T) {
 		}
 	}
 }
+
+func TestFreshURLIsolatesDatabases(t *testing.T) {
+	first, second := pgtest.FreshURL(t), pgtest.FreshURL(t)
+	if first == second {
+		t.Fatal("FreshURL returned the same database twice")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	firstDB, err := sql.Open("pgx", first)
+	if err != nil {
+		t.Fatalf("open first: %v", err)
+	}
+	defer func() { _ = firstDB.Close() }()
+	if _, err := firstDB.ExecContext(ctx, `CREATE TABLE only_in_first (id int)`); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+
+	secondDB, err := sql.Open("pgx", second)
+	if err != nil {
+		t.Fatalf("open second: %v", err)
+	}
+	defer func() { _ = secondDB.Close() }()
+
+	var found bool
+	err = secondDB.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'only_in_first')`,
+	).Scan(&found)
+	if err != nil {
+		t.Fatalf("look up table: %v", err)
+	}
+	if found {
+		t.Fatal("a table created in one fresh database is visible in another")
+	}
+
+	var wallets int
+	if err := secondDB.QueryRowContext(ctx, `SELECT count(*) FROM wallets`).Scan(&wallets); err != nil {
+		t.Fatalf("fresh database is not migrated: %v", err)
+	}
+}

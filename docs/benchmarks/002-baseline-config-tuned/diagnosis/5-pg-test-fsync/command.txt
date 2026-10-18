@@ -1,0 +1,2 @@
+# docker volume create fsync-test
+# docker run --rm --cpuset-cpus 0-1 -v fsync-test:/data postgres:17-alpine pg_test_fsync -s 3 -f /data/pg_test_fsync.out

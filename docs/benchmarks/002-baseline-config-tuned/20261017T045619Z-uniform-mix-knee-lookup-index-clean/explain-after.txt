@@ -1,0 +1,24 @@
+                                                 QUERY PLAN                                                  
+-------------------------------------------------------------------------------------------------------------
+ Index Scan using idx_transactions_idempotency_key on transactions (actual time=0.041..0.041 rows=0 loops=1)
+   Index Cond: (idempotency_key = 'bench-provider:missing'::text)
+   Filter: (provider_id = 'bench-provider'::text)
+   Buffers: shared read=2
+ Planning:
+   Buffers: shared hit=227 read=2
+ Planning Time: 4.117 ms
+ Execution Time: 0.129 ms
+(8 rows)
+
+                                               QUERY PLAN                                                
+---------------------------------------------------------------------------------------------------------
+ Index Scan using idx_transactions_external_id on transactions (actual time=0.064..0.064 rows=0 loops=1)
+   Index Cond: (external_id = 'missing'::text)
+   Filter: (provider_id = 'bench-provider'::text)
+   Buffers: shared read=2
+ Planning:
+   Buffers: shared hit=227
+ Planning Time: 3.536 ms
+ Execution Time: 0.336 ms
+(8 rows)
+

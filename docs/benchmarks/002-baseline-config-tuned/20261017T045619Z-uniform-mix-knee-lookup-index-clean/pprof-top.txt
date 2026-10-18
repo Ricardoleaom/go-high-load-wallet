@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-17 02:08:12 -03
+Duration: 30s, Total samples = 17.60s (58.66%)
+Showing nodes accounting for 8.79s, 49.94% of 17.60s total
+Dropped 889 nodes (cum <= 0.09s)
+Showing top 15 nodes out of 282
+      flat  flat%   sum%        cum   cum%
+     6.32s 35.91% 35.91%      6.32s 35.91%  internal/runtime/syscall/linux.Syscall6
+     0.53s  3.01% 38.92%      0.53s  3.01%  crypto/internal/fips140/sha256.blockAVX2
+     0.50s  2.84% 41.76%      0.50s  2.84%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.26s  1.48% 43.24%      0.26s  1.48%  runtime.memmove
+     0.17s  0.97% 44.20%      0.19s  1.08%  runtime.step
+     0.14s   0.8% 45.00%      0.34s  1.93%  runtime.mapaccess2_faststr
+     0.12s  0.68% 45.68%      0.12s  0.68%  runtime.futex
+     0.10s  0.57% 46.25%      0.10s  0.57%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     0.10s  0.57% 46.82%      0.11s  0.62%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+     0.10s  0.57% 47.39%      0.70s  3.98%  runtime.mallocgc
+     0.10s  0.57% 47.95%      0.10s  0.57%  runtime.nextFreeFast (inline)
+     0.09s  0.51% 48.47%      0.27s  1.53%  github.com/jackc/pgx/v5/pgconn/ctxwatch.(*ContextWatcher).Unwatch
+     0.09s  0.51% 48.98%      0.09s  0.51%  internal/runtime/maps.(*Map).Used
+     0.09s  0.51% 49.49%      0.09s  0.51%  memeqbody
+     0.08s  0.45% 49.94%      0.12s  0.68%  runtime.mallocgcSmallScanNoHeaderSC2

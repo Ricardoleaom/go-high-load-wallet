@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-16 22:34:35 -03
+Duration: 30s, Total samples = 2.77s ( 9.23%)
+Showing nodes accounting for 1.40s, 50.54% of 2.77s total
+Dropped 237 nodes (cum <= 0.01s)
+Showing top 15 nodes out of 344
+      flat  flat%   sum%        cum   cum%
+     0.93s 33.57% 33.57%      0.93s 33.57%  internal/runtime/syscall/linux.Syscall6
+     0.08s  2.89% 36.46%      0.08s  2.89%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.06s  2.17% 38.63%      0.06s  2.17%  runtime.memclrNoHeapPointers
+     0.04s  1.44% 40.07%      0.04s  1.44%  runtime.futex
+     0.04s  1.44% 41.52%      0.04s  1.44%  runtime.gopark
+     0.03s  1.08% 42.60%      0.03s  1.08%  runtime.interhash
+     0.03s  1.08% 43.68%      0.10s  3.61%  runtime.mapaccess2_faststr
+     0.03s  1.08% 44.77%      0.03s  1.08%  runtime.memmove
+     0.03s  1.08% 45.85%      0.06s  2.17%  runtime.pcvalue
+     0.03s  1.08% 46.93%      0.20s  7.22%  runtime.schedule
+     0.02s  0.72% 47.65%      0.02s  0.72%  context.(*valueCtx).Done
+     0.02s  0.72% 48.38%      0.07s  2.53%  context.AfterFunc.func1
+     0.02s  0.72% 49.10%      0.10s  3.61%  crypto/internal/fips140/bigmod.(*Nat).montgomeryMul
+     0.02s  0.72% 49.82%      0.02s  0.72%  github.com/felixge/httpsnoop.(*rwState).doHeader
+     0.02s  0.72% 50.54%      0.60s 21.66%  github.com/jackc/pgx/v5/pgconn.(*PgConn).flushWithPotentialWriteReadDeadlock

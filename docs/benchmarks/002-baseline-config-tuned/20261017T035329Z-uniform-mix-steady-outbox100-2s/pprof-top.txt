@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-17 00:58:29 -03
+Duration: 30s, Total samples = 2.37s ( 7.90%)
+Showing nodes accounting for 1.28s, 54.01% of 2.37s total
+Dropped 269 nodes (cum <= 0.01s)
+Showing top 15 nodes out of 330
+      flat  flat%   sum%        cum   cum%
+     0.91s 38.40% 38.40%      0.91s 38.40%  internal/runtime/syscall/linux.Syscall6
+     0.06s  2.53% 40.93%      0.06s  2.53%  runtime.futex
+     0.04s  1.69% 42.62%      0.04s  1.69%  runtime.memmove
+     0.04s  1.69% 44.30%      0.06s  2.53%  runtime.scanObject
+     0.03s  1.27% 45.57%      0.03s  1.27%  runtime.memclrNoHeapPointers
+     0.02s  0.84% 46.41%      0.02s  0.84%  context.value
+     0.02s  0.84% 47.26%      0.02s  0.84%  encoding/json/internal/jsonwire.AppendQuote
+     0.02s  0.84% 48.10%      0.03s  1.27%  github.com/aws/aws-sdk-go-v2/service/sqs.resolveResult
+     0.02s  0.84% 48.95%      0.02s  0.84%  github.com/aws/aws-sdk-go-v2/service/sqs.startMetricTimer.func1
+     0.02s  0.84% 49.79%      0.02s  0.84%  internal/runtime/maps.ctrlGroup.matchH2
+     0.02s  0.84% 50.63%      0.02s  0.84%  io.(*LimitedReader).Read
+     0.02s  0.84% 51.48%      0.02s  0.84%  memeqbody
+     0.02s  0.84% 52.32%      0.02s  0.84%  runtime.chansend
+     0.02s  0.84% 53.16%      0.02s  0.84%  runtime.interhash
+     0.02s  0.84% 54.01%      0.15s  6.33%  runtime.mallocgc

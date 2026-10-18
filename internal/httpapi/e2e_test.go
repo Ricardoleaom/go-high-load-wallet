@@ -27,8 +27,9 @@ import (
 // apiHarness runs the real handler, use cases and repositories against a
 // real PostgreSQL, with jwttest standing in for Keycloak.
 type apiHarness struct {
-	server *httptest.Server
-	issuer *jwttest.Issuer
+	server  *httptest.Server
+	issuer  *jwttest.Issuer
+	metrics *observability.Metrics
 }
 
 func newAPIHarness(t *testing.T) *apiHarness {
@@ -68,7 +69,7 @@ func newAPIHarness(t *testing.T) *apiHarness {
 	}))
 	t.Cleanup(server.Close)
 
-	return &apiHarness{server: server, issuer: issuer}
+	return &apiHarness{server: server, issuer: issuer, metrics: metrics}
 }
 
 type apiResponse struct {
@@ -360,4 +361,49 @@ func TestE2EReconciliationIsConsistentAfterMovements(t *testing.T) {
 	requireStatus(t, resp, http.StatusOK)
 	requireField(t, resp, "consistent", true)
 	requireField(t, resp, "checkedEntries", float64(2))
+}
+
+func TestE2ESubmitLatencyIsRecordedPerKindAndStatus(t *testing.T) {
+	t.Parallel()
+	h := newAPIHarness(t)
+	walletID, playerID := h.openWallet(t, "100.00")
+
+	requireStatus(t, h.submit(t, h.issuer.ProviderToken(t, "provider-a"), wagerBody(walletID, playerID, "BET", "10.00")), http.StatusOK)
+
+	if got := histogramCount(t, h.metrics, "wager_submit_duration_seconds",
+		map[string]string{"transport": "http", "kind": "BET", "status": "PROCESSED"}); got != 1 {
+		t.Fatalf("submit observations = %d, want 1", got)
+	}
+	if got := histogramCount(t, h.metrics, "http_request_duration_seconds",
+		map[string]string{"route": "POST /wagering/transactions", "method": "POST", "status_class": "2xx"}); got != 1 {
+		t.Fatalf("HTTP observations = %d, want 1", got)
+	}
+}
+
+// histogramCount returns the sample count of the series whose labels match.
+func histogramCount(t *testing.T, metrics *observability.Metrics, name string, labels map[string]string) uint64 {
+	t.Helper()
+	families, err := metrics.Registry.Gather()
+	if err != nil {
+		t.Fatalf("gather metrics: %v", err)
+	}
+	for _, family := range families {
+		if family.GetName() != name {
+			continue
+		}
+	series:
+		for _, metric := range family.GetMetric() {
+			got := map[string]string{}
+			for _, pair := range metric.GetLabel() {
+				got[pair.GetName()] = pair.GetValue()
+			}
+			for key, value := range labels {
+				if got[key] != value {
+					continue series
+				}
+			}
+			return metric.GetHistogram().GetSampleCount()
+		}
+	}
+	return 0
 }

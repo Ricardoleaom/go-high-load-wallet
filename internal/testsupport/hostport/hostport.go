@@ -3,7 +3,12 @@
 // Docker Desktop on WSL allocates published ports inside its own VM, blind to
 // what listens in the WSL distro, and will publish a port a local process
 // already holds on 127.0.0.1: the test then talks to that process instead of
-// the container. Reserving the port here first rules that out.
+// the container. Picking a port nothing here listens on first rules that out.
+//
+// A small window remains: the probe releases the port before Docker
+// publishes it, so a process that binds that exact port in between would
+// still be reached instead of the container. Ephemeral ports make the
+// collision unlikely, and a test that hits it fails rather than passes.
 package hostport
 
 import (

@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-17 00:08:08 -03
+Duration: 30s, Total samples = 2.13s ( 7.10%)
+Showing nodes accounting for 1.11s, 52.11% of 2.13s total
+Dropped 231 nodes (cum <= 0.01s)
+Showing top 15 nodes out of 295
+      flat  flat%   sum%        cum   cum%
+     0.70s 32.86% 32.86%      0.70s 32.86%  internal/runtime/syscall/linux.Syscall6
+     0.08s  3.76% 36.62%      0.08s  3.76%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.04s  1.88% 38.50%      0.04s  1.88%  memeqbody
+     0.04s  1.88% 40.38%      0.04s  1.88%  runtime.futex
+     0.03s  1.41% 41.78%      0.03s  1.41%  database/sql.(*driverConn).resetSession
+     0.03s  1.41% 43.19%      0.03s  1.41%  runtime.nanotime1
+     0.03s  1.41% 44.60%      0.03s  1.41%  runtime.nextFreeFast (inline)
+     0.02s  0.94% 45.54%      0.02s  0.94%  context.(*cancelCtx).Done
+     0.02s  0.94% 46.48%      0.02s  0.94%  context.(*valueCtx).Done
+     0.02s  0.94% 47.42%      0.17s  7.98%  github.com/jackc/pgx/v5/pgconn.(*PgConn).peekMessage
+     0.02s  0.94% 48.36%      1.53s 71.83%  go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp.(*middleware).serveHTTP
+     0.02s  0.94% 49.30%      0.03s  1.41%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+     0.02s  0.94% 50.23%      0.02s  0.94%  reflect.Value.Field
+     0.02s  0.94% 51.17%      0.10s  4.69%  runtime.mallocgc
+     0.02s  0.94% 52.11%      0.02s  0.94%  runtime.mallocgcSmallScanNoHeaderSC5

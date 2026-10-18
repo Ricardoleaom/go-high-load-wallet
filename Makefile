@@ -5,9 +5,13 @@ IMAGE ?= go-high-load-wallet:$(VERSION)
 # actionlint runs from its own module: its YAML dependency conflicts with
 # golangci-lint's inside tools/go.mod.
 ACTIONLINT_VERSION := v1.7.12
+# Host-side access to the compose PostgreSQL (seed, verify).
+POSTGRES_HOST_PORT ?= 5432
+DATABASE_URL ?= postgres://app:local_dev_password@localhost:$(POSTGRES_HOST_PORT)/wallet?sslmode=disable
+WALLETS ?= 100000
 
 .DEFAULT_GOAL := help
-.PHONY: help up down clean test test-short lint lint-ci vuln build image
+.PHONY: help up up-obs down clean test test-short lint lint-ci vuln build image seed verify bench
 
 help: ## List the available targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -15,11 +19,14 @@ help: ## List the available targets
 up: ## Start the default stack (Postgres, Keycloak, LocalStack, API)
 	VERSION=$(VERSION) docker compose up -d --build
 
+up-obs: ## Start the stack plus Prometheus, Grafana, Jaeger and the PostgreSQL exporter, with tracing on
+	OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318 VERSION=$(VERSION) docker compose --profile obs up -d --build
+
 down: ## Stop the stack, keeping data volumes
-	docker compose down
+	docker compose --profile obs down
 
 clean: ## Stop the stack and delete its data volumes
-	docker compose down -v
+	docker compose --profile obs down -v
 
 test: ## Run every test, integration included (needs Docker or DATABASE_URL)
 	go test -race -count=1 ./...
@@ -41,3 +48,12 @@ build: ## Build the API binary into bin/
 
 image: ## Build the API container image
 	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE) .
+
+seed: ## Load WALLETS benchmark wallets into DATABASE_URL (add TRUNCATE=1 to empty it first)
+	go run ./cmd/seed -database-url "$(DATABASE_URL)" -wallets $(WALLETS) $(if $(TRUNCATE),-truncate)
+
+verify: ## Check the financial invariants of DATABASE_URL (exit 1 on any violation)
+	go run ./cmd/verify -database-url "$(DATABASE_URL)"
+
+bench: ## Run a load scenario in its own compose project: SCENARIO, MODE (steady|knee), RATE, DURATION, REPEAT, WALLETS
+	bench/run.sh

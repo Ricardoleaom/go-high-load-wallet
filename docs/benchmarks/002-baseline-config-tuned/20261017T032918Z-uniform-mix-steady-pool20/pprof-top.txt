@@ -1,0 +1,24 @@
+File: api
+Build ID: 117ea704fa6bb00241132f203b79485b1d5e46db
+Type: cpu
+Time: 2026-10-17 00:34:16 -03
+Duration: 30s, Total samples = 3.31s (11.03%)
+Showing nodes accounting for 2.02s, 61.03% of 3.31s total
+Dropped 263 nodes (cum <= 0.02s)
+Showing top 15 nodes out of 342
+      flat  flat%   sum%        cum   cum%
+     1.56s 47.13% 47.13%      1.56s 47.13%  internal/runtime/syscall/linux.Syscall6
+     0.07s  2.11% 49.24%      0.07s  2.11%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.05s  1.51% 50.76%      0.05s  1.51%  runtime.futex
+     0.04s  1.21% 51.96%      0.04s  1.21%  internal/runtime/maps.(*Map).Used
+     0.04s  1.21% 53.17%      0.04s  1.21%  runtime.memmove
+     0.03s  0.91% 54.08%      0.03s  0.91%  context.(*valueCtx).Done
+     0.03s  0.91% 54.98%      0.03s  0.91%  crypto/internal/fips140/sha256.blockAVX2
+     0.03s  0.91% 55.89%      0.17s  5.14%  github.com/jackc/pgx/v5/pgconn.(*PgConn).receiveMessage
+     0.03s  0.91% 56.80%      0.03s  0.91%  internal/runtime/maps.ctrlGroup.matchH2
+     0.03s  0.91% 57.70%      0.03s  0.91%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.03s  0.91% 58.61%      0.03s  0.91%  runtime.memclrNoHeapPointers
+     0.02s   0.6% 59.21%      0.03s  0.91%  context.(*cancelCtx).Done
+     0.02s   0.6% 59.82%      0.06s  1.81%  database/sql.(*Rows).close
+     0.02s   0.6% 60.42%      0.02s   0.6%  encoding/json/internal/jsonopts.(*Struct).Join
+     0.02s   0.6% 61.03%      0.03s  0.91%  encoding/json/v2.makeString
