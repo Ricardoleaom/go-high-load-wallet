@@ -4,6 +4,7 @@ go 1.27.2
 
 require (
 	github.com/MicahParks/keyfunc/v3 v3.8.2
+	github.com/anishathalye/porcupine v1.3.1
 	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/aws/aws-sdk-go-v2/config v1.33.9
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.9
