@@ -219,3 +219,47 @@ func sampleCount(t *testing.T, metrics *observability.Metrics, name string, labe
 	}
 	return 0
 }
+
+func TestConsumerClassifiesMalformedIDsAsInvalid(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	endpoint := sqstest.Start(ctx, t)
+	queueURL := sqstest.CreateFIFOQueue(ctx, t, endpoint, "wager-transactions.fifo")
+	client := sqstest.Client(ctx, t, endpoint)
+	db := openFreshDB(ctx, t)
+
+	wallets := postgres.NewWalletRepository(db)
+	transactions := postgres.NewTransactionRepository(db)
+	metrics := observability.New()
+	consumer := sqsx.NewConsumer(client, queueURL, db, postgres.NewInboxRepository(db),
+		wagerapp.NewService(db, wallets, transactions, postgres.NewLedgerRepository(db), postgres.NewOutboxRepository(db)),
+		metrics)
+
+	send(ctx, t, client, queueURL, "malformed", "malformed-ids", betEnvelope(t, "abc", "def"))
+
+	runCtx, stop := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() { done <- consumer.Run(runCtx) }()
+
+	deadline := time.Now().Add(60 * time.Second)
+	for outcomeCount(t, metrics, "invalid") < 1 {
+		if time.Now().After(deadline) {
+			stop()
+			t.Fatalf("outcomes after 60s: invalid=%d error=%d", outcomeCount(t, metrics, "invalid"), outcomeCount(t, metrics, "error"))
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	stop()
+	if err := <-done; err != nil {
+		t.Fatalf("consumer stopped with error: %v", err)
+	}
+
+	var recorded int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM transactions`).Scan(&recorded); err != nil {
+		t.Fatalf("count transactions: %v", err)
+	}
+	if recorded != 0 {
+		t.Fatalf("transactions recorded = %d, want 0", recorded)
+	}
+}

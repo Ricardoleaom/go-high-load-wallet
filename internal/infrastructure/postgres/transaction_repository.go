@@ -49,6 +49,7 @@ func (r *TransactionRepository) Create(
 			game_id,
 			kind,
 			amount_minor_units,
+			currency,
 			reference_external_id,
 			reference_id,
 			status,
@@ -59,8 +60,8 @@ func (r *TransactionRepository) Create(
 		VALUES (
 			$1, NULLIF($2, ''), NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''),
 			$6, $7, NULLIF($8, ''), NULLIF($9, ''),
-			$10, $11, NULLIF($12, ''), NULLIF($13, ''), $14,
-			NULLIF($15, ''), $16, $17
+			$10, $11, $12, NULLIF($13, ''), NULLIF($14, ''), $15,
+			NULLIF($16, ''), $17, $18
 		)
 	`
 
@@ -78,6 +79,7 @@ func (r *TransactionRepository) Create(
 		transaction.GameID(),
 		string(transaction.Kind()),
 		transaction.Amount().AmountInMinorUnits(),
+		transaction.Amount().Currency(),
 		transaction.ReferenceExternalID(),
 		transaction.ResolvedReferenceID(),
 		string(transaction.Status()),
@@ -97,12 +99,29 @@ func (r *TransactionRepository) Create(
 	return nil
 }
 
+// queryer is what reads need from either the pool or a transaction, so a
+// read inside a transaction never asks the pool for a second connection.
+type queryer interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 // GetByID retrieves a transaction and reconstructs its domain representation.
 func (r *TransactionRepository) GetByID(
 	ctx context.Context,
 	id string,
 ) (wager.Transaction, error) {
-	const query = `
+	return r.getByID(ctx, r.db, id, false)
+}
+
+// getByID reads through q and, with lock, takes the row lock in the same
+// statement.
+func (r *TransactionRepository) getByID(
+	ctx context.Context,
+	q queryer,
+	id string,
+	lock bool,
+) (wager.Transaction, error) {
+	query := `
 		SELECT
 			t.id,
 			t.provider_id,
@@ -115,7 +134,7 @@ func (r *TransactionRepository) GetByID(
 			t.game_id,
 			t.kind,
 			t.amount_minor_units,
-			w.currency,
+			t.currency,
 			t.reference_external_id,
 			t.reference_id,
 			t.status,
@@ -123,9 +142,11 @@ func (r *TransactionRepository) GetByID(
 			t.created_at,
 			t.updated_at
 		FROM transactions t
-		JOIN wallets w ON w.id = t.wallet_id
 		WHERE t.id = $1
 	`
+	if lock {
+		query += ` FOR UPDATE`
+	}
 
 	var (
 		input               wager.Input
@@ -146,7 +167,7 @@ func (r *TransactionRepository) GetByID(
 		updatedAt           sql.NullTime
 	)
 
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err := q.QueryRowContext(ctx, query, id).Scan(
 		&input.ID,
 		&providerID,
 		&externalID,
@@ -207,21 +228,31 @@ func (r *TransactionRepository) GetByID(
 	return transaction, nil
 }
 
+// The unique indexes on (provider_id, idempotency_key) and (provider_id,
+// external_id) are partial, WHERE kind <> 'OPENING': a lookup that does not
+// repeat that predicate cannot use them and reads the whole table.
+const (
+	transactionIDByIdempotencyKeyQuery = `
+		SELECT id
+		FROM transactions
+		WHERE provider_id = $1 AND idempotency_key = $2 AND kind <> 'OPENING'
+	`
+	transactionIDByExternalIDQuery = `
+		SELECT id
+		FROM transactions
+		WHERE provider_id = $1 AND external_id = $2 AND kind <> 'OPENING'
+	`
+)
+
 // GetByIdempotencyKey retrieves a transaction using its provider and key.
 func (r *TransactionRepository) GetByIdempotencyKey(
 	ctx context.Context,
 	providerID string,
 	idempotencyKey string,
 ) (wager.Transaction, error) {
-	const query = `
-		SELECT id
-		FROM transactions
-		WHERE provider_id = $1 AND idempotency_key = $2
-	`
-
 	var id string
 	err := r.db.QueryRowContext(
-		ctx, query, providerID, idempotencyKey,
+		ctx, transactionIDByIdempotencyKeyQuery, providerID, idempotencyKey,
 	).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return wager.Transaction{}, ErrTransactionNotFound
@@ -239,15 +270,9 @@ func (r *TransactionRepository) GetByExternalID(
 	providerID string,
 	externalID string,
 ) (wager.Transaction, error) {
-	const query = `
-		SELECT id
-		FROM transactions
-		WHERE provider_id = $1 AND external_id = $2
-	`
-
 	var id string
 	err := r.db.QueryRowContext(
-		ctx, query, providerID, externalID,
+		ctx, transactionIDByExternalIDQuery, providerID, externalID,
 	).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return wager.Transaction{}, ErrTransactionNotFound
@@ -315,20 +340,10 @@ func (r *TransactionRepository) LockByID(
 	tx *sql.Tx,
 	id string,
 ) (wager.Transaction, error) {
-	var locked string
-	err := tx.QueryRowContext(
-		ctx,
-		`SELECT id FROM transactions WHERE id = $1 FOR UPDATE`,
-		id,
-	).Scan(&locked)
-	if errors.Is(err, sql.ErrNoRows) {
-		return wager.Transaction{}, ErrTransactionNotFound
+	if tx == nil {
+		return wager.Transaction{}, errors.New("lock transaction: nil database transaction")
 	}
-	if err != nil {
-		return wager.Transaction{}, fmt.Errorf("lock transaction: %w", err)
-	}
-
-	return r.GetByID(ctx, id)
+	return r.getByID(ctx, tx, id, true)
 }
 
 // HasSuccessfulReversal reports whether the referenced transaction already
@@ -433,23 +448,34 @@ func (r *TransactionRepository) ListDuePendingReferences(
 	}
 	defer rows.Close()
 
-	var due []DuePendingReference
+	type claim struct {
+		id       string
+		attempts int
+	}
+	var claims []claim
 	for rows.Next() {
-		var id string
-		var attempts int
-		if err := rows.Scan(&id, &attempts); err != nil {
+		var c claim
+		if err := rows.Scan(&c.id, &c.attempts); err != nil {
 			return nil, fmt.Errorf("scan pending reference: %w", err)
 		}
-
-		transaction, err := r.GetByID(ctx, id)
-		if err != nil {
-			return nil, fmt.Errorf("load pending reference transaction: %w", err)
-		}
-
-		due = append(due, DuePendingReference{Transaction: transaction, Attempts: attempts})
+		claims = append(claims, c)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate pending references: %w", err)
+	}
+	// Release the claim's connection before loading each transaction, which
+	// takes one of its own.
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close pending references: %w", err)
+	}
+
+	due := make([]DuePendingReference, 0, len(claims))
+	for _, c := range claims {
+		transaction, err := r.GetByID(ctx, c.id)
+		if err != nil {
+			return nil, fmt.Errorf("load pending reference transaction: %w", err)
+		}
+		due = append(due, DuePendingReference{Transaction: transaction, Attempts: c.attempts})
 	}
 
 	return due, nil

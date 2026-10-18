@@ -339,13 +339,13 @@ func TestListDuePendingReferencesClaimsEachRowOnce(t *testing.T) {
 			INSERT INTO transactions (
 				id, provider_id, external_id, idempotency_key, payload_hash,
 				wallet_id, player_id, round_id, game_id, kind,
-				amount_minor_units, status, reference_external_id,
+				amount_minor_units, currency, status, reference_external_id,
 				reference_next_attempt_at
 			)
 			VALUES (
 				$1, 'test-provider', $2, $2, 'test-hash',
 				$3, $4, 'round-test', 'game-test', 'REFUND',
-				1000, 'PENDING_REFERENCE', 'original-bet-id',
+				1000, 'BRL', 'PENDING_REFERENCE', 'original-bet-id',
 				NOW()
 			)
 		`, ids[i], ids[i], walletID, playerID)
@@ -401,5 +401,85 @@ func TestListDuePendingReferencesClaimsEachRowOnce(t *testing.T) {
 	totalClaimed := len(results[0]) + len(results[1])
 	if totalClaimed != total {
 		t.Errorf("total claimed = %d, want %d (every row claimed exactly once)", totalClaimed, total)
+	}
+}
+
+// singleConnectionDB returns a database whose pool holds one connection,
+// with a wallet in it: any code path that needs a second connection while
+// holding the first blocks until its context expires.
+func singleConnectionDB(t *testing.T) (*sql.DB, string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	db, err := Open(ctx, pgtest.FreshURL(t), WithMaxOpenConns(1))
+	if err != nil {
+		t.Fatalf("open PostgreSQL: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	walletID := newTransactionTestID(t)
+	if _, err := db.ExecContext(ctx,
+		`INSERT INTO wallets (id, player_id, currency, balance_minor_units) VALUES ($1, $2, 'BRL', 10000)`,
+		walletID, newTransactionTestID(t)); err != nil {
+		t.Fatalf("create test wallet: %v", err)
+	}
+	return db, walletID
+}
+
+func persist(t *testing.T, db *sql.DB, repo *TransactionRepository, transaction wager.Transaction) {
+	t.Helper()
+	tx, err := db.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	if err := repo.Create(context.Background(), tx, transaction); err != nil {
+		t.Fatalf("create transaction: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+}
+
+func TestLockByIDDoesNotNeedASecondConnection(t *testing.T) {
+	db, walletID := singleConnectionDB(t)
+	repo := NewTransactionRepository(db)
+	transaction := newTestWager(t, walletID)
+	persist(t, db, repo, transaction)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	locked, err := repo.LockByID(ctx, tx, transaction.ID())
+	if err != nil {
+		t.Fatalf("LockByID with the only connection held by its transaction: %v", err)
+	}
+	if locked.ID() != transaction.ID() {
+		t.Fatalf("locked %s, want %s", locked.ID(), transaction.ID())
+	}
+}
+
+func TestListDuePendingReferencesDoesNotNeedASecondConnection(t *testing.T) {
+	db, walletID := singleConnectionDB(t)
+	repo := NewTransactionRepository(db)
+	transaction := newTestWager(t, walletID)
+	if err := transaction.MarkPendingReference(); err != nil {
+		t.Fatalf("mark pending reference: %v", err)
+	}
+	persist(t, db, repo, transaction)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	due, err := repo.ListDuePendingReferences(ctx, 10)
+	if err != nil {
+		t.Fatalf("ListDuePendingReferences with a one-connection pool: %v", err)
+	}
+	if len(due) != 1 || due[0].Transaction.ID() != transaction.ID() {
+		t.Fatalf("due = %+v, want only %s", due, transaction.ID())
 	}
 }

@@ -1,0 +1,24 @@
+File: api
+Build ID: 1c012c4f6c7e25b25532e183d38298bdfbe7e53b
+Type: cpu
+Time: 2026-10-17 23:31:22 -03
+Duration: 30s, Total samples = 5.95s (19.83%)
+Showing nodes accounting for 3.59s, 60.34% of 5.95s total
+Dropped 439 nodes (cum <= 0.03s)
+Showing top 15 nodes out of 314
+      flat  flat%   sum%        cum   cum%
+     2.86s 48.07% 48.07%      2.86s 48.07%  internal/runtime/syscall/linux.Syscall6
+     0.13s  2.18% 50.25%      0.13s  2.18%  runtime.futex
+     0.12s  2.02% 52.27%      0.12s  2.02%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.05s  0.84% 53.11%      0.07s  1.18%  context.value
+     0.05s  0.84% 53.95%      0.10s  1.68%  database/sql.driverArgsConnLocked
+     0.05s  0.84% 54.79%      0.05s  0.84%  runtime.memclrNoHeapPointers
+     0.04s  0.67% 55.46%      0.04s  0.67%  indexbytebody
+     0.04s  0.67% 56.13%      0.05s  0.84%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr
+     0.04s  0.67% 56.81%      0.04s  0.67%  runtime.mallocgcSmallScanNoHeaderSC3
+     0.04s  0.67% 57.48%      0.04s  0.67%  runtime.memmove
+     0.04s  0.67% 58.15%      0.04s  0.67%  runtime.nanotime
+     0.04s  0.67% 58.82%      0.04s  0.67%  runtime.tryDeferToSpanScan
+     0.03s   0.5% 59.33%      0.03s   0.5%  crypto/internal/fips140/sha256.blockAVX2
+     0.03s   0.5% 59.83%      0.03s   0.5%  encoding/json/internal/jsonopts.(*Struct).Join
+     0.03s   0.5% 60.34%      2.18s 36.64%  github.com/jackc/pgx/v5/pgconn.(*PgConn).ExecStatement

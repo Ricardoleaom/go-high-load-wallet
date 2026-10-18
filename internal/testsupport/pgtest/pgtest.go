@@ -144,6 +144,26 @@ func unavailableError(cause error) error {
 // database and safe to call from several processes at once: golang-migrate
 // serializes runs with a PostgreSQL advisory lock.
 func Migrate(ctx context.Context, url string) error {
+	return withMigrate(ctx, url, func(m *migrate.Migrate) error {
+		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			return fmt.Errorf("apply migrations: %w", err)
+		}
+		return nil
+	})
+}
+
+// MigrateSteps moves the schema n migrations up (n > 0) or down (n < 0),
+// for tests of a migration against data written under the previous schema.
+func MigrateSteps(ctx context.Context, url string, n int) error {
+	return withMigrate(ctx, url, func(m *migrate.Migrate) error {
+		if err := m.Steps(n); err != nil {
+			return fmt.Errorf("migrate %d steps: %w", n, err)
+		}
+		return nil
+	})
+}
+
+func withMigrate(ctx context.Context, url string, run func(*migrate.Migrate) error) error {
 	source, err := iofs.New(migrations.FS, ".")
 	if err != nil {
 		return fmt.Errorf("load embedded migrations: %w", err)
@@ -172,8 +192,5 @@ func Migrate(ctx context.Context, url string) error {
 	}
 	defer func() { _, _ = m.Close() }()
 
-	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("apply migrations: %w", err)
-	}
-	return nil
+	return run(m)
 }

@@ -1,0 +1,24 @@
+File: api
+Build ID: 1c012c4f6c7e25b25532e183d38298bdfbe7e53b
+Type: cpu
+Time: 2026-10-18 00:07:43 -03
+Duration: 30s, Total samples = 23.13s (77.10%)
+Showing nodes accounting for 10.70s, 46.26% of 23.13s total
+Dropped 954 nodes (cum <= 0.12s)
+Showing top 15 nodes out of 290
+      flat  flat%   sum%        cum   cum%
+     7.88s 34.07% 34.07%      7.88s 34.07%  internal/runtime/syscall/linux.Syscall6
+     0.78s  3.37% 37.44%      0.78s  3.37%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.27s  1.17% 38.61%      0.27s  1.17%  runtime.memmove
+     0.21s  0.91% 39.52%      0.22s  0.95%  context.value
+     0.18s  0.78% 40.29%      0.18s  0.78%  runtime.spanClass.sizeclass (inline)
+     0.17s  0.73% 41.03%      0.17s  0.73%  memeqbody
+     0.16s  0.69% 41.72%      0.16s  0.69%  crypto/internal/fips140/sha256.blockAVX2
+     0.15s  0.65% 42.37%      0.15s  0.65%  runtime.nextFreeFast
+     0.15s  0.65% 43.02%      0.34s  1.47%  runtime.tryDeferToSpanScan
+     0.13s  0.56% 43.58%      0.14s  0.61%  encoding/json/internal/jsonwire.AppendQuote
+     0.13s  0.56% 44.14%      0.13s  0.56%  internal/runtime/maps.(*Map).Used
+     0.13s  0.56% 44.70%      0.15s  0.65%  runtime.casgstatus
+     0.12s  0.52% 45.22%      0.12s  0.52%  internal/runtime/maps.ctrlGroup.matchH2
+     0.12s  0.52% 45.74%      0.13s  0.56%  runtime.findfunc
+     0.12s  0.52% 46.26%      0.36s  1.56%  runtime.mallocgcSmallScanNoHeaderSC2

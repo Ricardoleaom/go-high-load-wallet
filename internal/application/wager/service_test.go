@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -660,5 +661,230 @@ func TestFiftyConcurrentDuplicateSubmissions(t *testing.T) {
 	}
 	if ledgerCount != 1 {
 		t.Errorf("ledger entries = %d, want 1", ledgerCount)
+	}
+}
+
+func TestResolveIdempotencyRaceReportsKeyMismatch(t *testing.T) {
+	service, db, ctx := newTestService(t)
+	walletID := createTestWallet(t, ctx, db, "100.00")
+
+	winner := betInput(walletID, "provider-a", newTestID(t), mustMoney(t, "10.00"))
+	if _, err := service.Submit(ctx, winner); err != nil {
+		t.Fatalf("Submit winner: %v", err)
+	}
+
+	// The loser of a race on the external ID carries another key: its own
+	// key was never stored, but the operation was, under the winner's key.
+	loser := winner
+	loser.IdempotencyKey = "provider-a:another-key-" + newTestID(t)
+	hash, err := ComputePayloadHash(loser)
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+
+	_, err = service.resolveIdempotencyRace(ctx, loser, hash)
+	if !errors.Is(err, ErrIdempotencyKeyMismatch) {
+		t.Fatalf("resolveIdempotencyRace error = %v, want ErrIdempotencyKeyMismatch", err)
+	}
+}
+
+func TestConcurrentSubmissionsWithOneExternalIDAndDifferentKeys(t *testing.T) {
+	serviceA, db, ctx := newTestService(t)
+	serviceB, _, _ := newTestService(t)
+	serviceC, _, _ := newTestService(t)
+	services := []*Service{serviceA, serviceB, serviceC}
+	walletID := createTestWallet(t, ctx, db, "100.00")
+	externalID := newTestID(t)
+
+	const attempts = 8
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	results := make([]Result, attempts)
+	errs := make([]error, attempts)
+	for i := 0; i < attempts; i++ {
+		input := betInput(walletID, "provider-a", externalID, mustMoney(t, "10.00"))
+		input.IdempotencyKey = fmt.Sprintf("provider-a:key-%d-%s", i, newTestID(t))
+		wg.Add(1)
+		go func(i int, input SubmitInput) {
+			defer wg.Done()
+			<-start
+			results[i], errs[i] = services[i%len(services)].Submit(ctx, input)
+		}(i, input)
+	}
+	close(start)
+	wg.Wait()
+
+	processed, mismatched := 0, 0
+	for i, err := range errs {
+		switch {
+		case err == nil && results[i].Status == domainwager.StatusProcessed:
+			processed++
+		case errors.Is(err, ErrIdempotencyKeyMismatch):
+			mismatched++
+		default:
+			t.Errorf("Submit[%d] = %+v, %v; want PROCESSED or ErrIdempotencyKeyMismatch", i, results[i], err)
+		}
+	}
+	if processed != 1 || mismatched != attempts-1 {
+		t.Fatalf("processed %d and mismatched %d, want 1 and %d", processed, mismatched, attempts-1)
+	}
+
+	var balance int64
+	if err := db.QueryRowContext(ctx, `SELECT balance_minor_units FROM wallets WHERE id = $1`, walletID).Scan(&balance); err != nil {
+		t.Fatalf("read balance: %v", err)
+	}
+	if balance != 9000 {
+		t.Fatalf("balance = %d, want 9000 (one debit)", balance)
+	}
+}
+
+func TestRetryPendingReferencesContinuesPastAFailure(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	// A database of its own: the retry claims every due pending reference,
+	// and other tests leave some behind in the shared one.
+	db, err := postgres.Open(ctx, pgtest.FreshURL(t))
+	if err != nil {
+		t.Fatalf("open PostgreSQL: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	service := NewService(db, postgres.NewWalletRepository(db), postgres.NewTransactionRepository(db),
+		postgres.NewLedgerRepository(db), postgres.NewOutboxRepository(db))
+	walletID := createTestWallet(t, ctx, db, "100.00")
+
+	pendingRefund := func(betExternalID string) string {
+		refund := betInput(walletID, "provider-a", newTestID(t), mustMoney(t, "10.00"))
+		refund.Kind = domainwager.KindRefund
+		refund.ReferenceExternalID = betExternalID
+		result, err := service.Submit(ctx, refund)
+		if err != nil || result.Status != domainwager.StatusPendingReference {
+			t.Fatalf("submit refund = %+v, %v; want PENDING_REFERENCE", result, err)
+		}
+		if _, err := service.Submit(ctx, betInput(walletID, "provider-a", betExternalID, mustMoney(t, "10.00"))); err != nil {
+			t.Fatalf("submit bet: %v", err)
+		}
+		return result.TransactionID
+	}
+
+	poisonBet, goodBet := newTestID(t), newTestID(t)
+	poisoned := pendingRefund(poisonBet)
+	good := pendingRefund(goodBet)
+
+	// The poisoned refund's original can no longer be read back (updated
+	// before created), and it is due first, so it is tried first.
+	if _, err := db.ExecContext(ctx, `
+		UPDATE transactions SET updated_at = created_at - interval '1 day'
+		WHERE provider_id = 'provider-a' AND external_id = $1`, poisonBet); err != nil {
+		t.Fatalf("corrupt original: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `
+		UPDATE transactions SET reference_next_attempt_at = CASE id
+			WHEN $1::uuid THEN NOW() - interval '2 minutes'
+			ELSE NOW() - interval '1 minute' END
+		WHERE id IN ($1::uuid, $2::uuid)`, poisoned, good); err != nil {
+		t.Fatalf("make refunds due: %v", err)
+	}
+
+	retried, err := service.RetryPendingReferences(ctx, 10)
+	if err == nil {
+		t.Fatal("RetryPendingReferences returned no error for the poisoned refund")
+	}
+	if retried != 1 {
+		t.Fatalf("retried = %d, want 1 (the good refund)", retried)
+	}
+
+	var status string
+	if err := db.QueryRowContext(ctx, `SELECT status FROM transactions WHERE id = $1`, good).Scan(&status); err != nil {
+		t.Fatalf("read good refund: %v", err)
+	}
+	if status != string(domainwager.StatusProcessed) {
+		t.Fatalf("good refund status = %s, want PROCESSED", status)
+	}
+}
+
+func TestRejectedCurrencyMismatchKeepsRequestedCurrency(t *testing.T) {
+	service, db, ctx := newTestService(t)
+	walletID := createTestWallet(t, ctx, db, "100.00")
+
+	usd, err := money.New("10.00", "USD")
+	if err != nil {
+		t.Fatalf("money: %v", err)
+	}
+	result, err := service.Submit(ctx, betInput(walletID, "provider-a", newTestID(t), usd))
+	if err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	if result.Status != domainwager.StatusRejected || result.FailureCode != FailureCurrencyMismatch {
+		t.Fatalf("result = %+v, want REJECTED with %s", result, FailureCurrencyMismatch)
+	}
+
+	stored, err := postgres.NewTransactionRepository(db).GetByID(ctx, result.TransactionID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if got := stored.Amount().String(); got != "10.00 USD" {
+		t.Fatalf("stored amount = %s, want 10.00 USD as requested", got)
+	}
+}
+
+func TestSubmitRejectsMalformedIDsAndLongFields(t *testing.T) {
+	service, db, ctx := newTestService(t)
+	walletID := createTestWallet(t, ctx, db, "100.00")
+	long := strings.Repeat("x", MaxFieldLength+1)
+
+	for _, tc := range []struct {
+		name   string
+		mutate func(*SubmitInput)
+		want   error
+	}{
+		{"wallet ID", func(in *SubmitInput) { in.WalletID = "abc" }, ErrInvalidID},
+		{"player ID", func(in *SubmitInput) { in.PlayerID = "abc" }, ErrInvalidID},
+		{"provider ID", func(in *SubmitInput) { in.ProviderID = long }, ErrFieldTooLong},
+		{"external ID", func(in *SubmitInput) { in.ExternalID = long }, ErrFieldTooLong},
+		{"idempotency key", func(in *SubmitInput) { in.IdempotencyKey = long }, ErrFieldTooLong},
+		{"round ID", func(in *SubmitInput) { in.RoundID = long }, ErrFieldTooLong},
+		{"game ID", func(in *SubmitInput) { in.GameID = long }, ErrFieldTooLong},
+		{"reference", func(in *SubmitInput) {
+			in.Kind = domainwager.KindRefund
+			in.ReferenceExternalID = long
+		}, ErrFieldTooLong},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := betInput(walletID, "provider-a", newTestID(t), mustMoney(t, "10.00"))
+			tc.mutate(&input)
+			_, err := service.Submit(ctx, input)
+			if !errors.Is(err, tc.want) || !errors.Is(err, ErrInvalidInput) {
+				t.Fatalf("Submit error = %v, want %v (an ErrInvalidInput)", err, tc.want)
+			}
+		})
+	}
+
+	var count int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM transactions WHERE wallet_id = $1`, walletID).Scan(&count); err != nil {
+		t.Fatalf("count transactions: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("transactions recorded for invalid input = %d, want 0", count)
+	}
+}
+
+// UUIDs are case-insensitive, and PostgreSQL hands them back in lower case:
+// the same wallet in upper case is the same wallet, and the same operation
+// is a replay.
+func TestSubmitTreatsUpperCaseIDsAsTheSameWallet(t *testing.T) {
+	service, db, ctx := newTestService(t)
+	walletID := createTestWallet(t, ctx, db, "100.00")
+
+	upper := betInput(strings.ToUpper(walletID), "provider-a", newTestID(t), mustMoney(t, "10.00"))
+	first, err := service.Submit(ctx, upper)
+	if err != nil || first.Status != domainwager.StatusProcessed {
+		t.Fatalf("Submit with upper-case IDs = %+v, %v; want PROCESSED", first, err)
+	}
+
+	lower := upper
+	lower.WalletID, lower.PlayerID = walletID, walletID
+	again, err := service.Submit(ctx, lower)
+	if err != nil || !again.IdempotentReplay || again.TransactionID != first.TransactionID {
+		t.Fatalf("same operation in lower case = %+v, %v; want a replay of %s", again, err, first.TransactionID)
 	}
 }

@@ -23,12 +23,23 @@ type Config struct {
 	AdminAddr    string
 	PprofEnabled bool
 
+	// RequestTimeout bounds every authenticated HTTP request.
+	RequestTimeout time.Duration
+
 	DatabaseURL    string
 	DBMaxOpenConns int
 	DBMaxIdleConns int
 
+	// Session limits PostgreSQL enforces on every pooled connection.
+	DBStatementTimeout         time.Duration
+	DBIdleInTransactionTimeout time.Duration
+	DBLockTimeout              time.Duration
+
 	JWKSURL             string
 	JWKSRefreshInterval time.Duration
+	// Tokens must be issued by JWTIssuer for JWTAudience.
+	JWTIssuer   string
+	JWTAudience string
 
 	AWSRegion            string
 	AWSAccessKeyID       string
@@ -51,6 +62,8 @@ func Load() (Config, error) {
 		AdminAddr:            getEnv("ADMIN_ADDR", "127.0.0.1:6060"),
 		DatabaseURL:          os.Getenv("DATABASE_URL"),
 		JWKSURL:              os.Getenv("JWKS_URL"),
+		JWTIssuer:            os.Getenv("JWT_ISSUER"),
+		JWTAudience:          os.Getenv("JWT_AUDIENCE"),
 		AWSRegion:            getEnv("AWS_REGION", "us-east-1"),
 		AWSAccessKeyID:       getEnv("AWS_ACCESS_KEY_ID", "test"),
 		AWSSecretAccessKey:   getEnv("AWS_SECRET_ACCESS_KEY", "test"),
@@ -83,10 +96,20 @@ func Load() (Config, error) {
 	collect(err)
 	cfg.JWKSRefreshInterval, err = durationEnv("JWKS_REFRESH_INTERVAL", time.Hour)
 	collect(err)
+	cfg.RequestTimeout, err = durationEnv("REQUEST_TIMEOUT", 5*time.Second)
+	collect(err)
+	cfg.DBStatementTimeout, err = durationEnv("DB_STATEMENT_TIMEOUT", 5*time.Second)
+	collect(err)
+	cfg.DBIdleInTransactionTimeout, err = durationEnv("DB_IDLE_IN_TRANSACTION_TIMEOUT", 10*time.Second)
+	collect(err)
+	cfg.DBLockTimeout, err = durationEnv("DB_LOCK_TIMEOUT", 2*time.Second)
+	collect(err)
 
 	for key, value := range map[string]string{
 		"DATABASE_URL":               cfg.DatabaseURL,
 		"JWKS_URL":                   cfg.JWKSURL,
+		"JWT_ISSUER":                 cfg.JWTIssuer,
+		"JWT_AUDIENCE":               cfg.JWTAudience,
 		"SQS_TRANSACTIONS_QUEUE_URL": cfg.TransactionsQueueURL,
 		"SQS_EVENTS_QUEUE_URL":       cfg.EventsQueueURL,
 	} {

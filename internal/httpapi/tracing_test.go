@@ -26,7 +26,8 @@ func TestHandlerStartsAServerSpan(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	metrics := observability.New()
-	auth, err := httpapi.NewAuthenticator(ctx, jwttest.NewIssuer(t).JWKSURL(), time.Hour, metrics)
+	issuer := jwttest.NewIssuer(t)
+	auth, err := httpapi.NewAuthenticator(ctx, httpapi.AuthConfig{JWKSURL: issuer.JWKSURL(), RefreshInterval: time.Hour, Issuer: issuer.URL(), Audience: jwttest.Audience}, metrics)
 	if err != nil {
 		t.Fatalf("NewAuthenticator: %v", err)
 	}
@@ -46,7 +47,8 @@ func TestPublicHandlerNoLongerServesMetrics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	metrics := observability.New()
-	auth, err := httpapi.NewAuthenticator(ctx, jwttest.NewIssuer(t).JWKSURL(), time.Hour, metrics)
+	issuer := jwttest.NewIssuer(t)
+	auth, err := httpapi.NewAuthenticator(ctx, httpapi.AuthConfig{JWKSURL: issuer.JWKSURL(), RefreshInterval: time.Hour, Issuer: issuer.URL(), Audience: jwttest.Audience}, metrics)
 	if err != nil {
 		t.Fatalf("NewAuthenticator: %v", err)
 	}

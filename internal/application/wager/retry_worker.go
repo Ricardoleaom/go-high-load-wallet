@@ -11,10 +11,10 @@ import (
 )
 
 // RetryWorker periodically resolves PENDING_REFERENCE transactions whose
-// next attempt is due. Several instances can run it concurrently: the
-// underlying SELECT ... FOR UPDATE SKIP LOCKED pattern used when applying a
-// reversal (see applyReversal's LockByID call) keeps them from double
-// -processing the same reference.
+// next attempt is due. Several instances can run it concurrently: each round
+// claims its rows with SELECT ... FOR UPDATE SKIP LOCKED (see
+// ListDuePendingReferences), and applyReversal locks the original
+// transaction, so no reference is processed twice at once.
 type RetryWorker struct {
 	service *Service
 	metrics *observability.Metrics
@@ -38,7 +38,8 @@ func (w *RetryWorker) Run(ctx context.Context, interval time.Duration) error {
 			count, err := w.service.RetryPendingReferences(roundCtx, w.batch)
 			if err != nil {
 				slog.ErrorContext(roundCtx, "retry pending references", "error", err)
-			} else if count > 0 {
+			}
+			if count > 0 {
 				w.metrics.ReferenceRetriesTotal.Add(float64(count))
 				slog.InfoContext(roundCtx, "retried pending references", "count", count)
 			}

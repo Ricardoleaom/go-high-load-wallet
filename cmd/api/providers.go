@@ -27,6 +27,7 @@ func newDB(lc fx.Lifecycle, cfg config.Config) (*sql.DB, error) {
 		postgres.WithMaxOpenConns(cfg.DBMaxOpenConns),
 		postgres.WithMaxIdleConns(cfg.DBMaxIdleConns),
 		postgres.WithQueryTracing(),
+		postgres.WithSessionTimeouts(cfg.DBStatementTimeout, cfg.DBIdleInTransactionTimeout, cfg.DBLockTimeout),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
@@ -58,7 +59,12 @@ func newAuthenticator(lc fx.Lifecycle, cfg config.Config, metrics *observability
 
 	for attempt := 1; ; attempt++ {
 		ctx, cancel := context.WithCancel(context.Background())
-		auth, err := httpapi.NewAuthenticator(ctx, cfg.JWKSURL, cfg.JWKSRefreshInterval, metrics)
+		auth, err := httpapi.NewAuthenticator(ctx, httpapi.AuthConfig{
+			JWKSURL:         cfg.JWKSURL,
+			RefreshInterval: cfg.JWKSRefreshInterval,
+			Issuer:          cfg.JWTIssuer,
+			Audience:        cfg.JWTAudience,
+		}, metrics)
 		if err == nil {
 			lc.Append(fx.Hook{OnStop: func(context.Context) error {
 				cancel()
@@ -146,6 +152,7 @@ func newReferenceRetryWorker(wagerService *wagerapp.Service, metrics *observabil
 }
 
 func newHTTPHandlerDeps(
+	cfg config.Config,
 	db *sql.DB,
 	wallets *postgres.WalletRepository,
 	transactions *postgres.TransactionRepository,
@@ -166,5 +173,6 @@ func newHTTPHandlerDeps(
 		Auth:              auth,
 		Metrics:           metrics,
 		ReadinessCheckers: []httpapi.ReadinessChecker{sqsReadiness},
+		RequestTimeout:    cfg.RequestTimeout,
 	}
 }

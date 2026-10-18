@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 )
 
@@ -41,13 +41,12 @@ func (h *handler) openWallet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req openWalletRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_BODY", "malformed JSON body")
+	if !decodeBody(w, r, &req) {
 		return
 	}
 
-	if req.PlayerID == "" {
-		writeError(w, http.StatusBadRequest, "INVALID_PLAYER_ID", "playerId is required")
+	if !ids.Valid(req.PlayerID) {
+		writeError(w, http.StatusBadRequest, "INVALID_PLAYER_ID", "playerId must be a UUID")
 		return
 	}
 
@@ -66,7 +65,7 @@ func (h *handler) openWallet(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusConflict, "WALLET_CONFLICT", "a wallet already exists for this player and currency")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not open wallet")
+		writeServerError(w, r, err, "could not open wallet")
 		return
 	}
 
@@ -83,14 +82,17 @@ func (h *handler) getWallet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := r.PathValue("id")
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
 	wlt, err := h.deps.Wallets.GetByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, postgres.ErrWalletNotFound) {
 			writeError(w, http.StatusNotFound, "WALLET_NOT_FOUND", "wallet not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load wallet")
+		writeServerError(w, r, err, "could not load wallet")
 		return
 	}
 
@@ -122,7 +124,10 @@ func (h *handler) getWalletLedger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	walletID := r.PathValue("id")
+	walletID, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
 
 	limit := 50
 	if raw := r.URL.Query().Get("limit"); raw != "" {
@@ -147,7 +152,7 @@ func (h *handler) getWalletLedger(w http.ResponseWriter, r *http.Request) {
 
 	entries, err := h.deps.Ledger.ListByWallet(r.Context(), walletID, afterCreatedAt, afterID, limit)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load ledger")
+		writeServerError(w, r, err, "could not load ledger")
 		return
 	}
 
@@ -189,6 +194,9 @@ func decodeLedgerCursor(cursor string) (time.Time, string, error) {
 	if err != nil {
 		return time.Time{}, "", err
 	}
+	if !ids.Valid(parts[1]) {
+		return time.Time{}, "", errors.New("malformed cursor ID")
+	}
 	return createdAt, parts[1], nil
 }
 
@@ -209,7 +217,10 @@ func (h *handler) reconcileWallet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	walletID := r.PathValue("id")
+	walletID, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
 
 	snapshot, err := h.deps.Ledger.ReconciliationSnapshot(r.Context(), walletID)
 	if err != nil {
@@ -217,13 +228,13 @@ func (h *handler) reconcileWallet(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "WALLET_NOT_FOUND", "wallet not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not reconcile wallet")
+		writeServerError(w, r, err, "could not reconcile wallet")
 		return
 	}
 
 	difference, err := snapshot.StoredBalance.Subtract(snapshot.CalculatedBalance)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not compare balances")
+		writeServerError(w, r, err, "could not compare balances")
 		return
 	}
 

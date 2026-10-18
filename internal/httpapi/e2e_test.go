@@ -32,7 +32,7 @@ type apiHarness struct {
 	metrics *observability.Metrics
 }
 
-func newAPIHarness(t *testing.T) *apiHarness {
+func newAPIHarness(t *testing.T, opts ...func(*httpapi.Dependencies)) *apiHarness {
 	t.Helper()
 	databaseURL := pgtest.URL(t)
 
@@ -47,7 +47,9 @@ func newAPIHarness(t *testing.T) *apiHarness {
 
 	issuer := jwttest.NewIssuer(t)
 	metrics := observability.New()
-	auth, err := httpapi.NewAuthenticator(ctx, issuer.JWKSURL(), time.Hour, metrics)
+	auth, err := httpapi.NewAuthenticator(ctx, httpapi.AuthConfig{
+		JWKSURL: issuer.JWKSURL(), RefreshInterval: time.Hour, Issuer: issuer.URL(), Audience: jwttest.Audience,
+	}, metrics)
 	if err != nil {
 		t.Fatalf("NewAuthenticator: %v", err)
 	}
@@ -57,7 +59,7 @@ func newAPIHarness(t *testing.T) *apiHarness {
 	ledgerRepo := postgres.NewLedgerRepository(db)
 	outbox := postgres.NewOutboxRepository(db)
 
-	server := httptest.NewServer(httpapi.NewHandler(httpapi.Dependencies{
+	deps := httpapi.Dependencies{
 		DB:            db,
 		Wallets:       wallets,
 		Transactions:  transactions,
@@ -66,7 +68,11 @@ func newAPIHarness(t *testing.T) *apiHarness {
 		WagerService:  wagerapp.NewService(db, wallets, transactions, ledgerRepo, outbox),
 		Auth:          auth,
 		Metrics:       metrics,
-	}))
+	}
+	for _, opt := range opts {
+		opt(&deps)
+	}
+	server := httptest.NewServer(httpapi.NewHandler(deps))
 	t.Cleanup(server.Close)
 
 	return &apiHarness{server: server, issuer: issuer, metrics: metrics}

@@ -1,0 +1,24 @@
+File: api
+Build ID: 1c012c4f6c7e25b25532e183d38298bdfbe7e53b
+Type: cpu
+Time: 2026-10-18 00:01:15 -03
+Duration: 30s, Total samples = 2.85s ( 9.50%)
+Showing nodes accounting for 1.57s, 55.09% of 2.85s total
+Dropped 272 nodes (cum <= 0.01s)
+Showing top 15 nodes out of 336
+      flat  flat%   sum%        cum   cum%
+     1.04s 36.49% 36.49%      1.04s 36.49%  internal/runtime/syscall/linux.Syscall6
+     0.19s  6.67% 43.16%      0.19s  6.67%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.07s  2.46% 45.61%      0.07s  2.46%  runtime.futex
+     0.03s  1.05% 46.67%      0.03s  1.05%  indexbytebody
+     0.03s  1.05% 47.72%      0.03s  1.05%  runtime.memmove
+     0.03s  1.05% 48.77%      0.04s  1.40%  runtime.scanObject
+     0.02s   0.7% 49.47%      0.02s   0.7%  context.(*cancelCtx).cancel
+     0.02s   0.7% 50.18%      0.04s  1.40%  context.value
+     0.02s   0.7% 50.88%      0.02s   0.7%  crypto/internal/fips140/sha256.blockAVX2
+     0.02s   0.7% 51.58%      0.02s   0.7%  encoding/json/internal/jsonwire.ConsumeSimpleString
+     0.02s   0.7% 52.28%      0.02s   0.7%  github.com/felixge/httpsnoop.(*rwState).doHeader
+     0.02s   0.7% 52.98%      0.03s  1.05%  github.com/felixge/httpsnoop.Wrap
+     0.02s   0.7% 53.68%      0.02s   0.7%  github.com/jackc/pgx/v5/pgtype.Int8Codec.PlanScan
+     0.02s   0.7% 54.39%      0.04s  1.40%  internal/poll.runtime_pollSetDeadline
+     0.02s   0.7% 55.09%      0.02s   0.7%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).init

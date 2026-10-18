@@ -18,6 +18,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// Audience is the aud every token carries, as the realm's audience mapper
+// adds it for the wallet API.
+const Audience = "wallet-api"
+
 type Issuer struct {
 	server *httptest.Server
 
@@ -34,6 +38,11 @@ func NewIssuer(t testing.TB) *Issuer {
 	issuer.server = httptest.NewServer(issuer)
 	t.Cleanup(issuer.server.Close)
 	return issuer
+}
+
+// URL is the issuer identifier tokens carry in iss.
+func (i *Issuer) URL() string {
+	return i.server.URL + "/realms/test"
 }
 
 func (i *Issuer) JWKSURL() string {
@@ -77,6 +86,26 @@ func (i *Issuer) ProviderToken(t testing.TB, providerID string) string {
 	return i.sign(t, jwt.MapClaims{"provider_id": providerID}, time.Now().Add(5*time.Minute))
 }
 
+// ProviderTokenWith is a valid provider token with override applied last:
+// a value replaces the claim and nil removes it ({"exp": nil} for a token
+// that never expires).
+func (i *Issuer) ProviderTokenWith(t testing.TB, providerID string, override jwt.MapClaims) string {
+	t.Helper()
+	claims := i.standardClaims(jwt.MapClaims{"provider_id": providerID}, time.Now().Add(5*time.Minute))
+	for name, value := range override {
+		if value == nil {
+			delete(claims, name)
+			continue
+		}
+		claims[name] = value
+	}
+
+	i.mu.RLock()
+	key, kid := i.key, i.kid
+	i.mu.RUnlock()
+	return signClaims(t, jwt.SigningMethodRS256, key, kid, claims)
+}
+
 func (i *Issuer) InternalToken(t testing.TB) string {
 	t.Helper()
 	realmAccess := map[string]any{"roles": []string{"internal"}}
@@ -96,15 +125,15 @@ func (i *Issuer) HS256ProviderToken(t testing.TB, providerID string) string {
 	kid := i.kid
 	i.mu.RUnlock()
 
-	return signWith(t, jwt.SigningMethodHS256, []byte("not-the-rsa-key"), kid,
-		jwt.MapClaims{"provider_id": providerID}, time.Now().Add(5*time.Minute))
+	return signClaims(t, jwt.SigningMethodHS256, []byte("not-the-rsa-key"), kid,
+		i.standardClaims(jwt.MapClaims{"provider_id": providerID}, time.Now().Add(5*time.Minute)))
 }
 
 // UnknownKeyProviderToken is signed by a key the JWKS never published.
 func (i *Issuer) UnknownKeyProviderToken(t testing.TB, providerID string) string {
 	t.Helper()
-	return signWith(t, jwt.SigningMethodRS256, generateKey(t), uuid.NewString(),
-		jwt.MapClaims{"provider_id": providerID}, time.Now().Add(5*time.Minute))
+	return signClaims(t, jwt.SigningMethodRS256, generateKey(t), uuid.NewString(),
+		i.standardClaims(jwt.MapClaims{"provider_id": providerID}, time.Now().Add(5*time.Minute)))
 }
 
 func (i *Issuer) sign(t testing.TB, claims jwt.MapClaims, expiresAt time.Time) string {
@@ -113,14 +142,21 @@ func (i *Issuer) sign(t testing.TB, claims jwt.MapClaims, expiresAt time.Time) s
 	key, kid := i.key, i.kid
 	i.mu.RUnlock()
 
-	return signWith(t, jwt.SigningMethodRS256, key, kid, claims, expiresAt)
+	return signClaims(t, jwt.SigningMethodRS256, key, kid, i.standardClaims(claims, expiresAt))
 }
 
-func signWith(t testing.TB, method jwt.SigningMethod, key any, kid string, claims jwt.MapClaims, expiresAt time.Time) string {
-	t.Helper()
+// standardClaims adds what every token from this issuer carries: issuer,
+// audience, issue time and expiry.
+func (i *Issuer) standardClaims(claims jwt.MapClaims, expiresAt time.Time) jwt.MapClaims {
+	claims["iss"] = i.URL()
+	claims["aud"] = Audience
 	claims["iat"] = time.Now().Unix()
 	claims["exp"] = expiresAt.Unix()
+	return claims
+}
 
+func signClaims(t testing.TB, method jwt.SigningMethod, key any, kid string, claims jwt.MapClaims) string {
+	t.Helper()
 	token := jwt.NewWithClaims(method, claims)
 	token.Header["kid"] = kid
 

@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/application/outboxevents"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ledger"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/money"
 	domainwager "github.com/Ricardoleaom/go-high-load-wallet/internal/domain/wager"
@@ -22,7 +24,17 @@ var (
 	ErrIdempotencyConflict    = errors.New("idempotency key reused with different payload")
 	ErrIdempotencyKeyMismatch = errors.New("transaction already recorded under a different idempotency key")
 	ErrWalletNotFound         = postgres.ErrWalletNotFound
+
+	// ErrInvalidInput marks a submission the caller has to fix before
+	// sending it again; ErrInvalidID and ErrFieldTooLong are both one.
+	ErrInvalidInput = errors.New("invalid input")
+	ErrInvalidID    = fmt.Errorf("%w: walletId and playerId must be UUIDs", ErrInvalidInput)
+	ErrFieldTooLong = fmt.Errorf("%w: text fields are limited to %d characters", ErrInvalidInput, MaxFieldLength)
 )
+
+// MaxFieldLength bounds every free-text field of a submission, idempotency
+// key included.
+const MaxFieldLength = 255
 
 const (
 	FailureInsufficientBalance         = "INSUFFICIENT_BALANCE"
@@ -100,6 +112,10 @@ func (s *Service) Submit(ctx context.Context, input SubmitInput) (Result, error)
 	if input.Kind == domainwager.KindOpening {
 		return Result{}, ErrOpeningNotAllowed
 	}
+	if err := validateSubmitInput(input); err != nil {
+		return Result{}, err
+	}
+	input.WalletID, input.PlayerID = ids.Canonical(input.WalletID), ids.Canonical(input.PlayerID)
 
 	payloadHash, err := ComputePayloadHash(input)
 	if err != nil {
@@ -183,14 +199,50 @@ func (s *Service) Submit(ctx context.Context, input SubmitInput) (Result, error)
 		if s.onConcurrencyConflict != nil {
 			s.onConcurrencyConflict()
 		}
-		existing, lookupErr := s.transactions.GetByIdempotencyKey(ctx, input.ProviderID, input.IdempotencyKey)
-		if lookupErr != nil {
-			return Result{}, fmt.Errorf("resolve idempotency race: %w", lookupErr)
-		}
-		return s.replay(ctx, existing, payloadHash)
+		return s.resolveIdempotencyRace(ctx, input, payloadHash)
 	}
 
 	return result, err
+}
+
+// resolveIdempotencyRace answers a submission whose insert lost a race on a
+// unique index to a concurrent one, the same way Submit's lookups would have
+// answered it a moment later: a winner under the same key is replayed, and a
+// winner with the same external ID under another key is a key mismatch.
+func (s *Service) resolveIdempotencyRace(ctx context.Context, input SubmitInput, payloadHash string) (Result, error) {
+	existing, err := s.transactions.GetByIdempotencyKey(ctx, input.ProviderID, input.IdempotencyKey)
+	if err == nil {
+		return s.replay(ctx, existing, payloadHash)
+	}
+	if !errors.Is(err, postgres.ErrTransactionNotFound) {
+		return Result{}, fmt.Errorf("resolve idempotency race: %w", err)
+	}
+
+	byExternal, err := s.transactions.GetByExternalID(ctx, input.ProviderID, input.ExternalID)
+	if err != nil {
+		return Result{}, fmt.Errorf("resolve idempotency race: %w", err)
+	}
+	if byExternal.IdempotencyKey() != input.IdempotencyKey {
+		return Result{}, ErrIdempotencyKeyMismatch
+	}
+	return s.replay(ctx, byExternal, payloadHash)
+}
+
+// validateSubmitInput rejects what would otherwise reach the database as a
+// malformed UUID or an unbounded string, over HTTP and SQS alike.
+func validateSubmitInput(input SubmitInput) error {
+	if !ids.Valid(input.WalletID) || !ids.Valid(input.PlayerID) {
+		return ErrInvalidID
+	}
+	for _, field := range []string{
+		input.ProviderID, input.ExternalID, input.IdempotencyKey,
+		input.RoundID, input.GameID, input.ReferenceExternalID,
+	} {
+		if utf8.RuneCountInString(field) > MaxFieldLength {
+			return ErrFieldTooLong
+		}
+	}
+	return nil
 }
 
 // errIdempotencyRace signals that Create lost a race against a concurrent
@@ -209,20 +261,26 @@ func translateCreateErr(err error) error {
 
 // RetryPendingReferences resolves PENDING_REFERENCE transactions whose next
 // attempt is due. Meant to be called by a background worker on a timer.
+// Every claimed transaction is tried, so one that keeps failing cannot hold
+// back the others; it returns how many were handled and the failures.
 func (s *Service) RetryPendingReferences(ctx context.Context, limit int) (int, error) {
 	due, err := s.transactions.ListDuePendingReferences(ctx, limit)
 	if err != nil {
 		return 0, fmt.Errorf("list due pending references: %w", err)
 	}
 
+	handled := 0
+	var errs []error
 	for _, d := range due {
 		correlationID := d.Transaction.ID()
 		if _, err := s.processReversal(ctx, d.Transaction, false, correlationID, d.Attempts); err != nil {
-			return 0, fmt.Errorf("retry pending reference %s: %w", d.Transaction.ID(), err)
+			errs = append(errs, fmt.Errorf("retry pending reference %s: %w", d.Transaction.ID(), err))
+			continue
 		}
+		handled++
 	}
 
-	return len(due), nil
+	return handled, errors.Join(errs...)
 }
 
 func (s *Service) replay(ctx context.Context, existing domainwager.Transaction, payloadHash string) (Result, error) {

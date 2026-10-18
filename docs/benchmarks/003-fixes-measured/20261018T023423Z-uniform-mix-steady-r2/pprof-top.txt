@@ -1,0 +1,24 @@
+File: api
+Build ID: 1c012c4f6c7e25b25532e183d38298bdfbe7e53b
+Type: cpu
+Time: 2026-10-17 23:38:50 -03
+Duration: 30s, Total samples = 5.87s (19.57%)
+Showing nodes accounting for 3.52s, 59.97% of 5.87s total
+Dropped 369 nodes (cum <= 0.03s)
+Showing top 15 nodes out of 311
+      flat  flat%   sum%        cum   cum%
+     2.91s 49.57% 49.57%      2.91s 49.57%  internal/runtime/syscall/linux.Syscall6
+     0.11s  1.87% 51.45%      0.11s  1.87%  runtime.futex
+     0.06s  1.02% 52.47%      0.06s  1.02%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.06s  1.02% 53.49%      0.07s  1.19%  runtime.mallocgcSmallScanNoHeaderSC4
+     0.05s  0.85% 54.34%      0.16s  2.73%  runtime.reentersyscall
+     0.04s  0.68% 55.03%      0.04s  0.68%  crypto/internal/fips140/sha256.blockAVX2
+     0.04s  0.68% 55.71%      0.04s  0.68%  indexbytebody
+     0.04s  0.68% 56.39%      0.04s  0.68%  runtime.interhash
+     0.03s  0.51% 56.90%      0.11s  1.87%  encoding/json/v2.makeStructArshaler.func2
+     0.03s  0.51% 57.41%      0.03s  0.51%  github.com/golang-jwt/jwt/v5.(*Validator).verifyExpiresAt
+     0.03s  0.51% 57.92%      0.42s  7.16%  github.com/jackc/pgx/v5/pgconn.(*PgConn).receiveMessage
+     0.03s  0.51% 58.43%      0.51s  8.69%  github.com/jackc/pgx/v5/pgproto3.(*chunkReader).Next
+     0.03s  0.51% 58.94%      0.03s  0.51%  internal/runtime/maps.memHashAES
+     0.03s  0.51% 59.45%      0.03s  0.51%  reflect.Value.Field
+     0.03s  0.51% 59.97%      0.03s  0.51%  runtime.exitsyscall

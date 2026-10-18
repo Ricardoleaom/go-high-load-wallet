@@ -144,8 +144,8 @@ func TestVerifyDetectsEachViolation(t *testing.T) {
 		id := uuid.NewString()
 		_, err := db.ExecContext(ctx, `
 			INSERT INTO transactions (id, provider_id, external_id, idempotency_key, payload_hash,
-				wallet_id, player_id, round_id, game_id, kind, amount_minor_units, status)
-			SELECT $1::uuid, 'provider-a', $1::text, $1::text, 'hash', w.id, w.player_id, 'round', 'game', $3, 100, $4
+				wallet_id, player_id, round_id, game_id, kind, amount_minor_units, currency, status)
+			SELECT $1::uuid, 'provider-a', $1::text, $1::text, 'hash', w.id, w.player_id, 'round', 'game', $3, 100, w.currency, $4
 			FROM wallets w WHERE w.id = $2
 		`, id, walletID, kind, status)
 		if err != nil {

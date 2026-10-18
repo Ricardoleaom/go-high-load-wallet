@@ -31,6 +31,9 @@ type Dependencies struct {
 	Auth              *Authenticator
 	Metrics           *observability.Metrics
 	ReadinessCheckers []ReadinessChecker
+
+	// RequestTimeout bounds every authenticated request; zero means none.
+	RequestTimeout time.Duration
 }
 
 type handler struct {
@@ -64,9 +67,26 @@ func NewHandler(deps Dependencies) http.Handler {
 	// actual matched route for every successfully authenticated request.
 	// Auth itself records metrics for the requests it rejects, since those
 	// never reach this inner wrapper at all.
-	mux.Handle("/", deps.Auth.Middleware(metricsMiddleware(deps.Metrics, protected)))
+	// The deadline goes outside metricsMiddleware: it hands on a copy of the
+	// request, as Auth does, and metricsMiddleware must sit on the same
+	// request `protected` matches.
+	mux.Handle("/", deps.Auth.Middleware(withRequestTimeout(deps.RequestTimeout,
+		metricsMiddleware(deps.Metrics, limitBody(protected)))))
 
 	return otelhttp.NewHandler(mux, "http.server")
+}
+
+// withRequestTimeout gives each request a deadline that every database call
+// it makes inherits; zero leaves requests unbounded.
+func withRequestTimeout(timeout time.Duration, next http.Handler) http.Handler {
+	if timeout <= 0 {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), timeout)
+		defer cancel()
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 // metricsMiddleware records every response by route pattern, method and

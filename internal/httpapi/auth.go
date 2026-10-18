@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -40,10 +41,20 @@ func (c claims) hasRole(role string) bool {
 	return false
 }
 
+// AuthConfig says where the signing keys are and which tokens count: the
+// issuer that must have signed them and the audience they must be for.
+type AuthConfig struct {
+	JWKSURL         string
+	RefreshInterval time.Duration
+	Issuer          string
+	Audience        string
+}
+
 // Authenticator validates bearer tokens against the IdP's JWKS.
 type Authenticator struct {
 	keyfunc keyfunc.Keyfunc
 	metrics *observability.Metrics
+	options []jwt.ParserOption
 }
 
 // unknownKeyRefreshTimeout bounds the JWKS re-fetch a token with an unknown
@@ -58,21 +69,35 @@ const unknownKeyRefreshTimeout = 2 * time.Second
 // live as long as the Authenticator, not just this call.
 func NewAuthenticator(
 	ctx context.Context,
-	jwksURL string,
-	refreshInterval time.Duration,
+	cfg AuthConfig,
 	metrics *observability.Metrics,
 ) (*Authenticator, error) {
+	if cfg.Issuer == "" || cfg.Audience == "" {
+		return nil, errors.New("authenticator needs both the token issuer and audience")
+	}
+
 	failOnFirstFetch := false
-	kf, err := keyfunc.NewDefaultOverrideCtx(ctx, []string{jwksURL}, keyfunc.Override{
+	kf, err := keyfunc.NewDefaultOverrideCtx(ctx, []string{cfg.JWKSURL}, keyfunc.Override{
 		NoErrorReturnFirstHTTPReq: &failOnFirstFetch,
-		RefreshInterval:           refreshInterval,
+		RefreshInterval:           cfg.RefreshInterval,
 		RateLimitWaitMax:          unknownKeyRefreshTimeout,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("fetch JWKS from %s: %w", jwksURL, err)
+		return nil, fmt.Errorf("fetch JWKS from %s: %w", cfg.JWKSURL, err)
 	}
 
-	return &Authenticator{keyfunc: kf, metrics: metrics}, nil
+	return &Authenticator{
+		keyfunc: kf,
+		metrics: metrics,
+		// A token signed by the right key is not enough: it must come from
+		// the expected issuer, be meant for this API and expire.
+		options: []jwt.ParserOption{
+			jwt.WithValidMethods([]string{"RS256"}),
+			jwt.WithIssuer(cfg.Issuer),
+			jwt.WithAudience(cfg.Audience),
+			jwt.WithExpirationRequired(),
+		},
+	}, nil
 }
 
 // Middleware rejects requests without a valid bearer token and puts the
@@ -91,10 +116,7 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 		}
 
 		var parsed claims
-		_, err := jwt.ParseWithClaims(
-			tokenString, &parsed, a.keyfunc.Keyfunc,
-			jwt.WithValidMethods([]string{"RS256"}),
-		)
+		_, err := jwt.ParseWithClaims(tokenString, &parsed, a.keyfunc.Keyfunc, a.options...)
 		if err != nil {
 			a.rejectUnauthenticated(w, r, "invalid or expired token", started)
 			return

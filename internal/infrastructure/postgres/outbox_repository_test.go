@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -49,5 +50,105 @@ func TestBacklogCountsOnlyUnpublishedEvents(t *testing.T) {
 	}
 	if oldest < 59*time.Second || oldest > 70*time.Second {
 		t.Fatalf("oldest = %v, want about 60s", oldest)
+	}
+}
+
+func TestPublishDueBacksOffAFailedEvent(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	db, err := Open(ctx, pgtest.FreshURL(t))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	repository := NewOutboxRepository(db)
+
+	eventID := uuid.NewString()
+	if _, err := db.ExecContext(ctx, `
+		INSERT INTO outbox_events (id, aggregate_id, event_type, payload, correlation_id, occurred_at)
+		VALUES ($1, 'aggregate', 'TestEvent', '{}', 'correlation', NOW())
+	`, eventID); err != nil {
+		t.Fatalf("insert outbox event: %v", err)
+	}
+
+	backoff := func(attempts int) time.Duration { return time.Duration(attempts) * time.Hour }
+	failing := func(context.Context, OutboxEvent) error { return errors.New("broker unavailable") }
+	published, err := repository.PublishDue(ctx, 10, backoff, failing)
+	if err != nil || published != 0 {
+		t.Fatalf("PublishDue with a failing send = %d, %v; want 0, nil", published, err)
+	}
+
+	var attempts int
+	var nextAttempt time.Time
+	var publishedAt *time.Time
+	read := func() {
+		t.Helper()
+		if err := db.QueryRowContext(ctx,
+			`SELECT attempts, next_attempt_at, published_at FROM outbox_events WHERE id = $1`, eventID,
+		).Scan(&attempts, &nextAttempt, &publishedAt); err != nil {
+			t.Fatalf("read event: %v", err)
+		}
+	}
+	read()
+	if attempts != 1 || publishedAt != nil || time.Until(nextAttempt) < 59*time.Minute {
+		t.Fatalf("after a failed send: attempts=%d next in %v published=%v; want 1, about 1h, nil",
+			attempts, time.Until(nextAttempt), publishedAt)
+	}
+
+	// Not due yet: nothing is claimed, even with a working send.
+	sent := 0
+	working := func(context.Context, OutboxEvent) error { sent++; return nil }
+	if published, err := repository.PublishDue(ctx, 10, backoff, working); err != nil || published != 0 || sent != 0 {
+		t.Fatalf("PublishDue before the backoff ends = %d, %v (sent %d); want nothing", published, err, sent)
+	}
+
+	if _, err := db.ExecContext(ctx, `UPDATE outbox_events SET next_attempt_at = NOW() WHERE id = $1`, eventID); err != nil {
+		t.Fatalf("make event due: %v", err)
+	}
+	if published, err := repository.PublishDue(ctx, 10, backoff, working); err != nil || published != 1 {
+		t.Fatalf("PublishDue once due = %d, %v; want 1, nil", published, err)
+	}
+	read()
+	if publishedAt == nil {
+		t.Fatal("event not marked published")
+	}
+}
+
+// A batch is published inside one transaction that waits on the broker
+// between statements; the session's idle-in-transaction limit must not end
+// it halfway and undo the bookkeeping of events already sent.
+func TestPublishDueSurvivesSendsSlowerThanTheIdleInTransactionLimit(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	db, err := Open(ctx, pgtest.FreshURL(t), WithSessionTimeouts(0, 200*time.Millisecond, 0))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+	repository := NewOutboxRepository(db)
+
+	for range 2 {
+		if _, err := db.ExecContext(ctx, `
+			INSERT INTO outbox_events (id, aggregate_id, event_type, payload, correlation_id, occurred_at)
+			VALUES ($1, 'aggregate', 'TestEvent', '{}', 'correlation', NOW())
+		`, uuid.NewString()); err != nil {
+			t.Fatalf("insert outbox event: %v", err)
+		}
+	}
+
+	slow := func(context.Context, OutboxEvent) error { time.Sleep(300 * time.Millisecond); return nil }
+	published, err := repository.PublishDue(ctx, 10, func(int) time.Duration { return time.Minute }, slow)
+	if err != nil || published != 2 {
+		t.Fatalf("PublishDue with sends slower than the idle limit = %d, %v; want 2, nil", published, err)
+	}
+
+	var pending int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM outbox_events WHERE published_at IS NULL`).Scan(&pending); err != nil {
+		t.Fatalf("count pending: %v", err)
+	}
+	if pending != 0 {
+		t.Fatalf("pending after the batch = %d, want 0", pending)
 	}
 }

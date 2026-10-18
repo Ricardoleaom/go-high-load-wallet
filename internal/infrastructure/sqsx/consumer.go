@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -205,6 +206,9 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 	wagerapp.RecordSubmit(ctx, c.metrics, "sqs", input.Kind, result, err, submitStarted)
 	if err != nil {
 		logger.ErrorContext(ctx, "process wager transaction from SQS", "error", err)
+		if invalidSubmission(err) {
+			outcome = "invalid"
+		}
 		return
 	}
 
@@ -221,6 +225,18 @@ func (c *Consumer) handle(ctx context.Context, msg sqstypes.Message) {
 	)
 	c.ack(ctx, msg, logger)
 	outcome = "processed"
+}
+
+// invalidSubmission tells a message that can never succeed, whatever the
+// number of redeliveries, from a failure worth retrying. Either way the
+// message stays on the queue and reaches the DLQ after its last attempt.
+func invalidSubmission(err error) bool {
+	return errors.Is(err, wagerapp.ErrInvalidInput) ||
+		errors.Is(err, wagerapp.ErrOpeningNotAllowed) ||
+		errors.Is(err, wager.ErrInvalidTransaction) ||
+		errors.Is(err, wager.ErrInvalidAmount) ||
+		errors.Is(err, money.ErrInvalidAmount) ||
+		errors.Is(err, money.ErrInvalidCurrency)
 }
 
 func (c *Consumer) recordInbox(ctx context.Context, messageID, payloadHash string) (alreadyCompleted bool, err error) {

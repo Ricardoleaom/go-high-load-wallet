@@ -17,3 +17,4 @@ superseded.
 | [0009](0009-benchmark-methodology.md) | Benchmark with an open model, pinned CPUs and invariant checks | accepted |
 | [0010](0010-observability-stack.md) | Observe with Prometheus, OpenTelemetry and Jaeger, behind an admin port | accepted |
 | [0011](0011-self-contained-integration-tests.md) | Make integration tests self-contained with testcontainers | accepted |
+| [0012](0012-time-budgets-and-input-limits.md) | Bound every request in time and size, and answer the client's mistakes with 4xx | accepted |

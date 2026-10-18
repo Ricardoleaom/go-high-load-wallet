@@ -75,11 +75,11 @@ func TestLedgerRepositoryAppendAndGetByTransactionID(t *testing.T) {
 		INSERT INTO transactions (
 			id, provider_id, external_id, idempotency_key, payload_hash,
 			wallet_id, player_id, round_id, game_id, kind,
-			amount_minor_units, status
+			amount_minor_units, currency, status
 		)
 		VALUES (
 			$1, 'test-provider', $2, $3, 'test-hash',
-			$4, $5, 'round-1', 'game-1', 'BET', 1000, 'PROCESSED'
+			$4, $5, 'round-1', 'game-1', 'BET', 1000, 'BRL', 'PROCESSED'
 		)
 	`, transactionID, transactionID, transactionID, walletID, playerID)
 	if err != nil {
@@ -184,17 +184,17 @@ func TestReconciliationSnapshot(t *testing.T) {
 		t.Fatalf("insert wallet: %v", err)
 	}
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO transactions (id, wallet_id, player_id, kind, amount_minor_units, status)
-		VALUES ($1, $2, $2, 'OPENING', 10000, 'PROCESSED')
+		INSERT INTO transactions (id, wallet_id, player_id, kind, amount_minor_units, currency, status)
+		VALUES ($1, $2, $2, 'OPENING', 10000, 'BRL', 'PROCESSED')
 	`, openingID, walletID); err != nil {
 		t.Fatalf("insert opening: %v", err)
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO transactions (
 			id, provider_id, external_id, idempotency_key, payload_hash,
-			wallet_id, player_id, round_id, game_id, kind, amount_minor_units, status
+			wallet_id, player_id, round_id, game_id, kind, amount_minor_units, currency, status
 		)
-		VALUES ($1, 'test-provider', $2, $3, 'test-hash', $4, $4, 'round-1', 'game-1', 'BET', 2500, 'PROCESSED')
+		VALUES ($1, 'test-provider', $2, $3, 'test-hash', $4, $4, 'round-1', 'game-1', 'BET', 2500, 'BRL', 'PROCESSED')
 	`, betID, betID, betID, walletID); err != nil {
 		t.Fatalf("insert bet: %v", err)
 	}

@@ -13,6 +13,8 @@ func setRequired(t *testing.T) {
 	t.Setenv("JWKS_URL", "http://localhost:8081/certs")
 	t.Setenv("SQS_TRANSACTIONS_QUEUE_URL", "http://localhost:4566/000000000000/in.fifo")
 	t.Setenv("SQS_EVENTS_QUEUE_URL", "http://localhost:4566/000000000000/out.fifo")
+	t.Setenv("JWT_ISSUER", "http://localhost:8081/realms/wagering")
+	t.Setenv("JWT_AUDIENCE", "wallet-api")
 }
 
 func TestLoadDefaultsReproduceTheDeliveredBehavior(t *testing.T) {
@@ -98,5 +100,62 @@ func TestParseLogLevel(t *testing.T) {
 	}
 	if _, err := ParseLogLevel("x"); err == nil {
 		t.Error("ParseLogLevel accepted an unknown level")
+	}
+}
+
+func TestLoadReadsTimeouts(t *testing.T) {
+	setRequired(t)
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	for _, c := range []struct {
+		name      string
+		got, want time.Duration
+	}{
+		{"RequestTimeout", cfg.RequestTimeout, 5 * time.Second},
+		{"DBStatementTimeout", cfg.DBStatementTimeout, 5 * time.Second},
+		{"DBIdleInTransactionTimeout", cfg.DBIdleInTransactionTimeout, 10 * time.Second},
+		{"DBLockTimeout", cfg.DBLockTimeout, 2 * time.Second},
+	} {
+		if c.got != c.want {
+			t.Errorf("default %s = %v, want %v", c.name, c.got, c.want)
+		}
+	}
+
+	t.Setenv("REQUEST_TIMEOUT", "750ms")
+	t.Setenv("DB_STATEMENT_TIMEOUT", "3")
+	t.Setenv("DB_IDLE_IN_TRANSACTION_TIMEOUT", "1m")
+	t.Setenv("DB_LOCK_TIMEOUT", "500ms")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.RequestTimeout != 750*time.Millisecond || cfg.DBStatementTimeout != 3*time.Second ||
+		cfg.DBIdleInTransactionTimeout != time.Minute || cfg.DBLockTimeout != 500*time.Millisecond {
+		t.Fatalf("timeouts = %v %v %v %v", cfg.RequestTimeout, cfg.DBStatementTimeout,
+			cfg.DBIdleInTransactionTimeout, cfg.DBLockTimeout)
+	}
+
+	for _, key := range []string{"REQUEST_TIMEOUT", "DB_STATEMENT_TIMEOUT", "DB_IDLE_IN_TRANSACTION_TIMEOUT", "DB_LOCK_TIMEOUT"} {
+		t.Run(key, func(t *testing.T) {
+			setRequired(t)
+			t.Setenv(key, "soon")
+			if _, err := Load(); err == nil || !strings.Contains(err.Error(), key) {
+				t.Fatalf("Load error = %v, want one naming %s", err, key)
+			}
+		})
+	}
+}
+
+func TestLoadRequiresJWTIssuerAndAudience(t *testing.T) {
+	for _, key := range []string{"JWT_ISSUER", "JWT_AUDIENCE"} {
+		t.Run(key, func(t *testing.T) {
+			setRequired(t)
+			t.Setenv(key, "")
+			if _, err := Load(); err == nil || !strings.Contains(err.Error(), key) {
+				t.Fatalf("Load error = %v, want one naming %s", err, key)
+			}
+		})
 	}
 }

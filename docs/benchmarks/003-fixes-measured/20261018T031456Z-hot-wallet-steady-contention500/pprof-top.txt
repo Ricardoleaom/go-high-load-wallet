@@ -1,0 +1,24 @@
+File: api
+Build ID: 1c012c4f6c7e25b25532e183d38298bdfbe7e53b
+Type: cpu
+Time: 2026-10-18 00:17:59 -03
+Duration: 30s, Total samples = 12.67s (42.23%)
+Showing nodes accounting for 6.35s, 50.12% of 12.67s total
+Dropped 757 nodes (cum <= 0.06s)
+Showing top 15 nodes out of 261
+      flat  flat%   sum%        cum   cum%
+     4.50s 35.52% 35.52%      4.50s 35.52%  internal/runtime/syscall/linux.Syscall6
+     0.55s  4.34% 39.86%      0.55s  4.34%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.16s  1.26% 41.12%      0.16s  1.26%  memeqbody
+     0.15s  1.18% 42.30%      0.15s  1.18%  runtime.memmove
+     0.11s  0.87% 43.17%      0.14s  1.10%  context.value
+     0.11s  0.87% 44.04%      0.11s  0.87%  runtime.futex
+     0.10s  0.79% 44.83%      0.10s  0.79%  crypto/internal/fips140/sha256.blockAVX2
+     0.10s  0.79% 45.62%      0.10s  0.79%  runtime.memclrNoHeapPointers
+     0.10s  0.79% 46.41%      0.10s  0.79%  runtime.nextFreeFast (inline)
+     0.09s  0.71% 47.12%      0.11s  0.87%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.08s  0.63% 47.75%      0.64s  5.05%  crypto/internal/fips140/bigmod.(*Nat).montgomeryMul
+     0.08s  0.63% 48.38%      0.61s  4.81%  runtime.mallocgc
+     0.08s  0.63% 49.01%      0.28s  2.21%  runtime.mapaccess2_faststr
+     0.07s  0.55% 49.57%      0.07s  0.55%  internal/runtime/maps.ctrlGroup.matchH2 (inline)
+     0.07s  0.55% 50.12%      0.07s  0.55%  internal/runtime/maps.h2

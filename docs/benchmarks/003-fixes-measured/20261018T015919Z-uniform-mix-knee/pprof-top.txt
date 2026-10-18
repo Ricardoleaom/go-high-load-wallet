@@ -1,0 +1,24 @@
+File: api
+Build ID: 1c012c4f6c7e25b25532e183d38298bdfbe7e53b
+Type: cpu
+Time: 2026-10-17 23:11:35 -03
+Duration: 30s, Total samples = 18.59s (61.96%)
+Showing nodes accounting for 9.11s, 49.00% of 18.59s total
+Dropped 896 nodes (cum <= 0.09s)
+Showing top 15 nodes out of 297
+      flat  flat%   sum%        cum   cum%
+     6.90s 37.12% 37.12%      6.90s 37.12%  internal/runtime/syscall/linux.Syscall6
+     0.32s  1.72% 38.84%      0.32s  1.72%  crypto/internal/fips140/sha256.blockAVX2
+     0.27s  1.45% 40.29%      0.27s  1.45%  runtime.memmove
+     0.22s  1.18% 41.47%      0.22s  1.18%  crypto/internal/fips140/bigmod.addMulVVW2048
+     0.18s  0.97% 42.44%      0.18s  0.97%  internal/runtime/maps.(*Map).Used
+     0.17s  0.91% 43.36%      0.17s  0.91%  internal/runtime/maps.ctrlGroup.matchH2
+     0.16s  0.86% 44.22%      1.28s  6.89%  github.com/jackc/pgx/v5/pgconn/internal/bgreader.(*BGReader).Read
+     0.14s  0.75% 44.97%      0.15s  0.81%  context.value
+     0.12s  0.65% 45.62%      0.13s   0.7%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+     0.12s  0.65% 46.26%      0.12s  0.65%  runtime.nextFreeFast (inline)
+     0.11s  0.59% 46.85%      0.14s  0.75%  runtime.chanrecv
+     0.11s  0.59% 47.44%      0.11s  0.59%  runtime.futex
+     0.11s  0.59% 48.04%      0.11s  0.59%  runtime.memclrNoHeapPointers
+     0.10s  0.54% 48.57%      0.93s  5.00%  runtime.mallocgc
+     0.08s  0.43% 49.00%      1.37s  7.37%  github.com/jackc/pgx/v5/pgproto3.(*chunkReader).Next
