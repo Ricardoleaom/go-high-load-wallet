@@ -38,6 +38,7 @@ func TestLoadDefaultsReproduceTheDeliveredBehavior(t *testing.T) {
 		{"AdminAddr", cfg.AdminAddr, "127.0.0.1:6060"},
 		{"PprofEnabled", cfg.PprofEnabled, false},
 		{"LogLevel", cfg.LogLevel, slog.LevelInfo},
+		{"OpsSampleInterval", cfg.OpsSampleInterval, 5 * time.Second},
 	}
 	for _, c := range checks {
 		if c.got != c.want {
@@ -74,6 +75,7 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 		{"REFERENCE_RETRY_INTERVAL", "-5"},
 		{"LOG_LEVEL", "loud"},
 		{"PPROF_ENABLED", "maybe"},
+		{"OPS_SAMPLE_INTERVAL", "0"},
 		{"CORS_ALLOWED_ORIGINS", "*"},
 		{"CORS_ALLOWED_ORIGINS", "http://localhost:5173/app"},
 		{"CORS_ALLOWED_ORIGINS", "localhost:5173"},

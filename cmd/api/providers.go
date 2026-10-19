@@ -122,6 +122,14 @@ func registerDBMetrics(metrics *observability.Metrics, pool *pgxpool.Pool, outbo
 	metrics.Registry.MustRegister(observability.NewOutboxCollector(outbox.Backlog, 2*time.Second))
 }
 
+// opsWindow is how much history GET /ops/summary keeps: the console's
+// dashboard shows five minutes.
+const opsWindow = 5 * time.Minute
+
+func newOpsSampler(cfg config.Config, metrics *observability.Metrics) *observability.Sampler {
+	return observability.NewSampler(metrics.Registry, cfg.OpsSampleInterval, opsWindow)
+}
+
 func newSQSConsumer(
 	cfg config.Config,
 	client *sqs.Client,
@@ -148,6 +156,7 @@ func newHTTPHandlerDeps(
 	metrics *observability.Metrics,
 	database *postgres.Readiness,
 	queue *sqsx.Readiness,
+	sampler *observability.Sampler,
 ) httpapi.Dependencies {
 	return httpapi.Dependencies{
 		Wagering:          service,
@@ -157,5 +166,6 @@ func newHTTPHandlerDeps(
 		ReadinessCheckers: []httpapi.ReadinessChecker{database, queue},
 		RequestTimeout:    cfg.RequestTimeout,
 		AllowedOrigins:    cfg.CORSAllowedOrigins,
+		Summary:           sampler,
 	}
 }

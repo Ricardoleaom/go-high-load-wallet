@@ -31,6 +31,10 @@ type Config struct {
 	// allowed to call the API; none turns CORS off.
 	CORSAllowedOrigins []string
 
+	// OpsSampleInterval is how often the live summary behind GET
+	// /ops/summary reads the service's metrics.
+	OpsSampleInterval time.Duration
+
 	DatabaseURL    string
 	DBMaxOpenConns int
 	DBMinConns     int
@@ -110,6 +114,8 @@ func Load() (Config, error) {
 	cfg.DBLockTimeout, err = durationEnv("DB_LOCK_TIMEOUT", 2*time.Second)
 	collect(err)
 	cfg.CORSAllowedOrigins, err = originsEnv("CORS_ALLOWED_ORIGINS")
+	collect(err)
+	cfg.OpsSampleInterval, err = durationEnv("OPS_SAMPLE_INTERVAL", 5*time.Second)
 	collect(err)
 
 	for key, value := range map[string]string{

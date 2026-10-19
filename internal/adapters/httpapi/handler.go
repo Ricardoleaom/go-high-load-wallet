@@ -31,6 +31,9 @@ type Dependencies struct {
 
 	// AllowedOrigins are the browser origins CORS admits; none turns it off.
 	AllowedOrigins []string
+
+	// Summary serves GET /ops/summary; nil leaves the route out.
+	Summary OpsSummary
 }
 
 type handler struct {
@@ -51,6 +54,9 @@ func NewHandler(deps Dependencies) http.Handler {
 		"GET /providers/{providerId}/wagering/transactions/{externalId}",
 		h.getTransactionByExternalID,
 	)
+	if deps.Summary != nil {
+		protected.HandleFunc("GET /ops/summary", h.getOpsSummary)
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /health/live", metricsMiddleware(deps.Metrics, http.HandlerFunc(healthLive)))

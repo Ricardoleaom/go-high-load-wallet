@@ -57,6 +57,7 @@ var messagingModule = fx.Module("messaging",
 var httpModule = fx.Module("http",
 	fx.Provide(
 		newAuthenticator,
+		newOpsSampler,
 		newHTTPHandlerDeps,
 		httpapi.NewHandler,
 	),
@@ -72,6 +73,7 @@ var appInvokes = fx.Invoke(
 	registerSQSConsumer,
 	registerRelay,
 	registerReferenceRetryWorker,
+	registerOpsSampler,
 )
 
 func main() {
