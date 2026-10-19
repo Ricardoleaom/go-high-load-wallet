@@ -114,7 +114,10 @@ OpenAPI contract, [`docs/openapi.yaml`](docs/openapi.yaml).
 
 ### For a browser console
 
-A web console signs people in through the public client
+[go-high-load-wallet-web](https://github.com/Ricardoleaom/go-high-load-wallet-web)
+is an operator console (React) and a load lab (Go, open-model, verifies
+every wallet's money after each run) that live in their own repository
+and run against this API. It signs people in through the public client
 `wallet-console` (authorization code with PKCE) and calls the API as an
 `operator`: it opens, reads and reconciles wallets, reads every
 provider's transactions and reads `GET /ops/summary`, the last five
