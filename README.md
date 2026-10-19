@@ -45,7 +45,8 @@ tag `v0.1.0-challenge`) and grows phase by phase along the
 ## Quick start
 
 Requires Docker with Compose, and Go 1.27.2 to run tests or the load
-harness from the host.
+harness from the host. The API examples below also use `jq` to pull a
+field out of a JSON response.
 
 ```sh
 make up        # PostgreSQL, Keycloak, LocalStack (SQS), migrations, API
