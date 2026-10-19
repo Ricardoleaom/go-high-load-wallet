@@ -486,7 +486,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "go_sql_in_use_connections{db_name=\"wallet\"}",
+          "expr": "wallet_db_pool_connections{state=\"acquired\"}",
           "legendFormat": "in use",
           "refId": "A",
           "range": true
@@ -496,7 +496,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "go_sql_idle_connections{db_name=\"wallet\"}",
+          "expr": "wallet_db_pool_connections{state=\"idle\"}",
           "legendFormat": "idle",
           "refId": "B",
           "range": true
@@ -506,8 +506,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "go_sql_max_open_connections{db_name=\"wallet\"}",
-          "legendFormat": "max open",
+          "expr": "wallet_db_pool_max_connections",
+          "legendFormat": "max",
           "refId": "C",
           "range": true
         }
@@ -557,7 +557,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "rate(go_sql_wait_duration_seconds_total{db_name=\"wallet\"}[1m])",
+          "expr": "rate(wallet_db_pool_acquire_wait_seconds_total[1m])",
           "legendFormat": "wait",
           "refId": "A",
           "range": true

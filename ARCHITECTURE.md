@@ -1,36 +1,45 @@
 # Architecture
 
-How the service works as of v0.2.0, and why. The reasoning behind the
+How the service works as of phase 2b (unreleased), and why. The reasoning behind the
 larger choices lives in the [decision records](docs/adr/README.md); where
 the service is heading lives in the [roadmap](ROADMAP.md).
 
 ## 1. Overview
 
 One Go binary (`cmd/api`) runs the HTTP API and three background workers:
-the SQS consumer, the outbox publisher and the pending-reference retry
-worker. Every instance runs all four; they coordinate only through
-PostgreSQL, so any number of instances can run side by side.
+the SQS consumer, the outbox relay and the pending-reference retry worker.
+Every instance runs all four; they coordinate only through PostgreSQL, so
+any number of instances can run side by side.
 
 ```
-providers ──HTTP──► API ─────────────┐
-providers ──SQS───► consumer ────────┤──► PostgreSQL (wallets, transactions, ledger, inbox, outbox)
-                    outbox publisher ◄┘──► SQS events queue
-                    retry worker (PENDING_REFERENCE)
-Keycloak ──JWKS──► API          admin port ──► Prometheus ─► Grafana ◄─ Jaeger (OTLP traces)
+providers ──HTTP──► httpapi ─┐                 ┌─► engine ──one call──► PostgreSQL
+providers ──SQS───► sqsx ────┴─► wagering ─────┤                        (wallets, transactions,
+                                               └─► queries ◄────────────  ledger, inbox, outbox)
+                    relay (outbox ──► SQS events queue)
+                    retry worker (PENDING_REFERENCE ──► engine)
+Keycloak ──JWKS──► httpapi        admin port ──► Prometheus ─► Grafana ◄─ Jaeger (OTLP traces)
 ```
+
+The code follows a hexagonal layout
+([ADR 0013](docs/adr/0013-hexagonal-layout-and-engine-port.md)): the
+domain holds the rules, the app layer the use cases and the ports they
+need, adapters plug transports and storage into those ports, and only
+`cmd/` composes them with Fx. `internal/archtest` checks the dependency
+rule on every import.
 
 | Package | Role |
 | --- | --- |
-| `internal/domain/{money,wallet,wager,ledger}` | Pure domain types and rules; no I/O, no frameworks |
-| `internal/application/{wallet,wager}` | Use cases; they decide where SQL transactions begin and end |
-| `internal/infrastructure/postgres` | Repositories and the atomic wallet movements |
-| `internal/infrastructure/sqsx` | SQS client, consumer and outbox publisher |
-| `internal/httpapi` | HTTP handlers, authentication and request metrics |
-| `internal/observability` | Metrics, tracing, log correlation and the admin handler |
-| `internal/config` | Environment configuration, validated at boot |
+| `internal/domain/{money,ids,wallet,wager,ledger}` | Pure domain types and rules; no I/O, no frameworks |
+| `internal/app/engine` | The `Engine` port every money movement goes through, its reference model (`model`) and contract suite (`enginetest`) |
+| `internal/app/wagering` | The use case HTTP and SQS share: validation, identity, payload hash, retries of pending reversals |
+| `internal/app/queries`, `internal/app/relay`, `internal/app/events` | The read-side port, the outbox relay and its ports, the event envelope |
+| `internal/adapters/postgres` | pgx pool, the engine (one function call per command), reads, outbox, inbox, reference queue |
+| `internal/adapters/httpapi` | HTTP handlers, authentication with a verified-token cache, request metrics |
+| `internal/adapters/sqsx` | SQS client, consumer and the relay's sink |
+| `internal/platform/{config,observability,lifecycle,buildinfo}` | Configuration, metrics and tracing, start and stop of servers and workers, version |
 | `internal/bench/{seed,verify}` | Benchmark seeding and invariant checks (`cmd/seed`, `cmd/verify`) |
 | `internal/testsupport/*` | Containers and fakes for self-contained tests |
-| `cmd/api` | Fx composition and lifecycle |
+| `cmd/api` | Fx composition |
 
 ## 2. Money (`internal/domain/money`)
 
@@ -53,33 +62,37 @@ the service (a reconciliation difference, for example), never from input,
 and a wallet balance cannot go negative (section 5). See
 [ADR 0002](docs/adr/0002-money-as-int64-minor-units.md).
 
-## 3. Database access and SQL transactions
+## 3. Database access: one call per command
 
-`database/sql` over the `jackc/pgx/v5/stdlib` driver, hand-written SQL, no
-ORM; versioned `golang-migrate` migrations in `migrations/` (each with
-`up` and `down`), embedded in the `migrations` package so tests apply
-exactly the same files. `postgres.Open` keeps the shipped pool (10 open,
-5 idle) unless configured, and can trace every statement.
+pgx's own pool (`pgxpool`), hand-written SQL, no ORM; versioned
+`golang-migrate` migrations in `migrations/` (each with `up` and `down`),
+embedded in the `migrations` package so tests apply exactly the same
+files. `postgres.Open` keeps 10 connections at most and 2 at least,
+recycles each after 30 minutes (with 3 minutes of jitter), traces every
+statement on request, and, when a request's context ends mid-statement,
+asks PostgreSQL to cancel it rather than closing the connection
+([ADR 0015](docs/adr/0015-pgxpool-and-server-side-cancellation.md)).
 
-The use case (`internal/application/...`) decides where a transaction
-begins and ends, not the repository: write methods take the caller's
-`*sql.Tx` (and refuse `nil`), so one transaction spans wallet,
-transaction, ledger and outbox.
+Every command the engine runs is **one call to a PL/pgSQL function**
+(migration 13): `wager_submit`, `wager_retry_reference` or `wallet_open`.
+One round trip, one statement, one commit; what a command writes commits
+together or not at all
+([ADR 0014](docs/adr/0014-one-statement-per-command.md)):
 
 | Operation | Committed together |
 | --- | --- |
 | Opening with balance > 0 | wallet, `OPENING` as `PROCESSED`, ledger credit, `WagerTransactionProcessed` and `WalletBalanceChanged` |
 | Opening with zero balance | the wallet only |
 | `BET`/`WIN` processed | `PROCESSED` transaction, conditional wallet `UPDATE`, ledger entry, `WagerTransactionProcessed` and `WalletBalanceChanged` |
-| `BET` without balance or with another currency | the attempt rolls back; a new commit stores the `REJECTED` transaction and `WagerTransactionRejected` |
+| `BET` without balance or with another currency | the `REJECTED` transaction and `WagerTransactionRejected` |
 | `LOSS` | `PROCESSED` transaction and `WagerTransactionProcessed` (wallet and ledger untouched) |
 | `REFUND`/`ROLLBACK` without its reference | `PENDING_REFERENCE` transaction, the retry schedule and `WagerTransactionPendingReference` |
 | `REFUND`/`ROLLBACK` applied | lock on the original transaction, `PROCESSED` reversal, wallet, ledger entry and both events |
 
-A traced `BET` shows 11 SQL statements under its HTTP span: the
-idempotency and wallet lookups, `BEGIN`, the transaction insert, the
-wallet update, the ledger insert, the status update, two outbox inserts and
-`COMMIT`. Collapsing them is phase 2 of the [roadmap](ROADMAP.md).
+A traced `BET` shows one SQL statement under its HTTP span, where phase 2a
+showed eleven (`TestEveryCommandIsOneStatement` counts them). Reads
+(`queries.Reader`) are one statement each too: a transaction comes back
+with the balance it left in the same query.
 
 ## 4. WagerTransaction and its state machine (`internal/domain/wager`)
 
@@ -103,18 +116,19 @@ rebuilds what came from the database without re-applying movements,
 transitions or events, so loading a transaction for a `GET` or a replay
 has no side effect.
 
-**`PENDING` is never committed on its own.** Processing is synchronous:
-the transaction is born `PENDING` in memory and stored already in its final
-state (or in `PENDING_REFERENCE`) in the same commit as the operation, so
-there is no orphan `PENDING` for another instance to pick up. The only
+**`PENDING` is never stored.** Processing is synchronous: the engine
+inserts a transaction directly in its final state (or in
+`PENDING_REFERENCE`) in the same statement as the operation, so there is
+no orphan `PENDING` for another instance to pick up. The state machine
+above is the domain's, which the reference model runs in memory. The only
 durable wait is `PENDING_REFERENCE`, which has its own worker (section 8).
 
 **Transient versus permanent failures.** Infrastructure failures
 (PostgreSQL or SQS down, timeouts, unexpected errors) leave no record: the
 transaction rolls back, nothing commits, and the error reaches the caller.
-HTTP clients get a 500 and can safely resend with the same
-`Idempotency-Key`; SQS messages are not deleted and come back (section
-10). Business rejections are final and stored as `REJECTED` with a
+HTTP clients get a 500 (or a 503 `TIMEOUT`) and can safely resend with
+the same `Idempotency-Key`; SQS messages are not deleted and come back
+(section 10). Business rejections are final and stored as `REJECTED` with a
 `failureCode` (section 12). `FAILED` exists in the domain but the service
 does not store it; messages that exhaust their SQS attempts end in the DLQ.
 
@@ -123,8 +137,8 @@ A transaction keeps its reference in two columns: `reference_external_id`
 internal ID of the original, filled once resolved).
 
 `OPENING` is internal. The HTTP handler rejects `kind: "OPENING"` with 400
-and `Submit` returns `ErrOpeningNotAllowed` as a second barrier, which
-also covers SQS. `OPENING` carries no provider, external IDs, key, hash,
+and `wagering.Validate` returns `ErrOpeningNotAllowed` as a second
+barrier, which also covers SQS. `OPENING` carries no provider, external IDs, key, hash,
 round or game; the `transactions_external_fields_required` constraint
 (migration `000008`) requires them for every other kind, and the unique
 index `idx_transactions_single_opening` prevents a second initial credit.
@@ -139,39 +153,34 @@ changes, so `LOSS` leaves it alone. The schema enforces
 `CHECK (balance_minor_units >= 0)`, `CHECK (version >= 1)` and the
 currency format.
 
-Every movement is one conditional `UPDATE`
-(`internal/infrastructure/postgres/wallet_writer.go`):
+A movement happens inside the engine's function, which locks the wallet
+row (`SELECT ... FOR NO KEY UPDATE`), decides on the locked values
+(unknown wallet or another player's, currency, balance), inserts the
+transaction and then updates the balance and version. The lock is held for
+that one statement and released by its commit, so two concurrent bets
+never decide on the same balance, and different wallets proceed in
+parallel without a global or an application lock, with one instance or
+many. `FOR NO KEY UPDATE` leaves the `KEY SHARE` locks of the foreign keys
+to the wallet free.
 
-```sql
-UPDATE wallets
-SET balance_minor_units = balance_minor_units - $1, version = version + 1, ...
-WHERE id = $2 AND currency = $3 AND balance_minor_units >= $1 AND version < ...
-RETURNING balance_minor_units, version
-```
+**One lock order.** A pending reversal's own row, then the original a
+reversal names, then the wallet. A fresh reversal only reads the wallet
+before locking the original, so it never holds the wallet while waiting
+for a row the retry worker holds; inverting that order produces
+`40P01` deadlocks in `TestFreshRollbackRacesTheRetryWorkerWithoutDeadlock`.
 
-PostgreSQL locks the row during the `UPDATE` and re-evaluates the `WHERE`
-against the latest committed values, so two concurrent bets never read
-the same old balance: there is no window between reading and writing,
-hence no lost update. Each wallet is one row and each `UPDATE` locks only
-its own, so different wallets proceed in parallel without a global lock or
-an application lock, with one instance or many. When the `UPDATE` affects
-no row, a diagnostic read tells an unknown wallet, a currency mismatch and
-an insufficient balance apart to return the right `failureCode`. See
-[ADR 0003](docs/adr/0003-atomic-conditional-wallet-update.md).
+Tests against a real PostgreSQL, with the race detector:
 
-Tests against a real PostgreSQL, with the race detector, where each
-`Service` has its own `*sql.DB` to act as an independent process
-(`internal/application/wager/service_test.go`):
-
-- `TestConcurrentBetsOnSameWallet`: 100.00 and two concurrent 80.00 bets
-  from two instances: one `PROCESSED`, one `REJECTED` with
-  `INSUFFICIENT_BALANCE`, final balance 20.00, a single ledger debit;
-- `TestConcurrentBetsAcrossThreeIndependentInstances`: three 40.00 bets on
-  100.00 across three instances; exactly two process;
-- `TestFiftyConcurrentDuplicateSubmissions`: the same bet 50 times across
-  three instances; one debit;
-- `TestDistinctWalletsProcessConcurrently`: ten wallets moved at once by
-  three instances, all processed.
+- the engine contract (`internal/app/engine/enginetest`, 37 cases) runs
+  against PostgreSQL and the reference model, concurrency cases included:
+  20 concurrent 30.00 bets on 100.00 process exactly three, 50 concurrent
+  duplicates move money once, ten keys for one external ID apply once, ten
+  refunds of one bet apply once;
+- `TestConcurrentBetsAcrossThreeIndependentPools`,
+  `TestDuplicatesAcrossThreeIndependentPoolsMoveMoneyOnce` and
+  `TestDistinctWalletsProcessConcurrently` act as three instances;
+- `TestEngineIsLinearizable` checks a history of 320 concurrent bets,
+  wins, resends and reads on one wallet with porcupine.
 
 ## 6. Idempotency
 
@@ -182,7 +191,7 @@ cannot be applied again under a different key. Both live in
 `transactions`, so idempotency survives restarts of every process.
 
 **Payload hash** (`ComputePayloadHash`,
-`internal/application/wager/payload_hash.go`): SHA-256, hex encoded, of
+`internal/app/wagering/payload_hash.go`): SHA-256, hex encoded, of
 the JSON of a struct with fields in a fixed alphabetical order — `amount`,
 `currency`, `externalId`, `gameId`, `kind`, `playerId`, `providerId`,
 `referenceExternalTransactionId` (omitted when empty), `roundId`,
@@ -190,22 +199,34 @@ the JSON of a struct with fields in a fixed alphabetical order — `amount`,
 SQS envelope, `messageId`) stay out. HTTP and SQS build the same
 `SubmitInput`, so the same operation hashes the same through either.
 
-`Service.Submit`:
+`wagering.Submit` validates the whole submission first (IDs, field
+lengths, the amount rules of its kind), so a request that can never
+succeed answers 400 before anything is looked up. The engine then, in one
+call:
 
-1. look up `(providerId, idempotencyKey)`: found with the same hash →
-   return the stored result with `idempotentReplay: true`; different hash
-   → `IDEMPOTENCY_CONFLICT` (409);
-2. look up `(providerId, externalTransactionId)`: found under another key
-   → `IDEMPOTENCY_KEY_MISMATCH` (409);
-3. otherwise process it as a new operation.
+1. finds the transaction under `(providerId, idempotencyKey)` or, failing
+   that, under `(providerId, externalTransactionId)`, in one statement so
+   both see the same snapshot: the same key with the same hash replays the
+   stored result with `idempotentReplay: true`; the same key with another
+   hash is `IDEMPOTENCY_CONFLICT` (409); the external ID under another key
+   is `IDEMPOTENCY_KEY_MISMATCH` (409);
+2. otherwise processes it as a new operation.
 
 A replay of a `PROCESSED` transaction returns the balance recorded in its
 ledger entry, not the wallet's current balance. Two concurrent first
-submissions of the same key can both pass the lookups; the unique index
-lets one insert win, the loser gets the unique violation (translated to
-`errIdempotencyRace`) and replays the winner. The server never replaces
-the `Idempotency-Key` it receives; the header is mandatory (400 without
-it). See [ADR 0004](docs/adr/0004-idempotency-unique-index-and-payload-hash.md).
+submissions of the same key can both pass the lookup; the transaction is
+inserted with `ON CONFLICT DO NOTHING` before any money moves, so the
+loser inserts nothing, finds the winner and answers with its result in the
+same call (`wager_concurrency_conflicts_total` counts it).
+
+The two unique indexes are led by their own column,
+`(idempotency_key, provider_id)` and `(external_id, provider_id)`
+(migration 14), so each lookup has exactly one index to use even when the
+statistics do not know a provider's rows yet; led by `provider_id`, either
+could serve the other's lookup and read every transaction of the provider.
+The server never replaces the `Idempotency-Key` it receives; the header
+is mandatory (400 without it). See
+[ADR 0004](docs/adr/0004-idempotency-unique-index-and-payload-hash.md).
 
 ## 7. Ledger (`internal/domain/ledger`)
 
@@ -225,10 +246,11 @@ entry; corrections are new entries (a `ROLLBACK`, for example).
 
 `GET /wallets/{id}/ledger` orders by `(created_at, id)`, stable even with
 equal timestamps, and pages with an opaque cursor (`base64url` of
-`created_at|id`), `limit` 50 by default and 500 at most. Because
-`created_at` does not follow lock order, the ledger cannot be checked as a
-chain of `balance_before → balance_after` yet; phase 4 keys it by
-`(wallet_id, version)`.
+`created_at|id`), `limit` 50 by default and 500 at most. The engine takes
+an entry's `created_at` after it locks the wallet, so a wallet's entries
+read in the order they were applied: each `balance_before` is the previous
+`balance_after` (`TestLedgerPagesWithoutGapsOrRepeats`). Phase 4 keys the
+ledger by `(wallet_id, version)` as well.
 
 ## 8. Pending references and reversals
 
@@ -250,23 +272,28 @@ chain of `balance_before → balance_after` yet; phase 4 keys it by
 reversals: the amount must equal the original's.
 
 **Retry.** A pending transaction gets `reference_next_attempt_at` with
-exponential backoff (5 s, 10 s, 20 s, 40 s… capped at 5 minutes). The
-`RetryWorker` runs every `REFERENCE_RETRY_INTERVAL` (15 s), takes up to 20
-due rows and tries again; after 8 attempts (about 15 minutes in total) it
-rejects with `REFERENCE_NOT_FOUND_TIMEOUT` and publishes
-`WagerTransactionRejected`. Rows are claimed atomically
-(`ListDuePendingReferences`: `UPDATE ... WHERE id IN (SELECT ... FOR
-UPDATE SKIP LOCKED)` pushes the next attempt 60 s ahead in the same
-statement), so two instances never take the same row, and a crashed
-instance's claim expires on its own. Covered by
-`TestListDuePendingReferencesClaimsEachRowOnce`.
+exponential backoff (5 s, 10 s, 20 s, 40 s… capped at 5 minutes; the rule
+is `wager.ReferenceBackoff`). The `RetryWorker` runs every
+`REFERENCE_RETRY_INTERVAL` (15 s), claims up to 20 due rows and hands each
+to the engine as a `RetryReference`; after 8 attempts (about 15 minutes in
+total) the engine rejects it with `REFERENCE_NOT_FOUND_TIMEOUT` and
+publishes `WagerTransactionRejected`. Claims are atomic
+(`ReferenceQueue.ClaimDue`: `UPDATE ... WHERE id IN (SELECT ... FOR UPDATE
+SKIP LOCKED)` pushes the next attempt 60 s ahead in the same statement),
+so two instances never take the same row, and a crashed instance's claim
+expires on its own (`TestClaimDueClaimsEachRowOnce`). One reversal that
+keeps failing does not hold back the others claimed with it.
 
 **One successful reversal per original.** The partial unique index
 `idx_transactions_single_successful_reversal` covers
 `(provider_id, reference_id)` where `status = 'PROCESSED' AND kind IN
-('REFUND', 'ROLLBACK')`. Before inserting, the application locks the
+('REFUND', 'ROLLBACK')`. Before inserting, the engine's function locks the
 original with `SELECT ... FOR UPDATE` and checks for an existing reversal;
-the index is the database's guarantee if that check is ever bypassed.
+the index is the database's guarantee if that check is ever bypassed. The
+rules for which originals a reversal may undo live in the domain
+(`wager.DecideReversal`, `wager.ReversalDirection`) and, for PostgreSQL,
+in `wager_resolve_reference`; the contract suite holds both to the same
+answers.
 Because the index spans both kinds, a bet accepts a single successful
 `REFUND` or `ROLLBACK`; undoing the `REFUND` itself is still possible with
 a `ROLLBACK` that references the `REFUND`. A `ROLLBACK` that would debit
@@ -280,28 +307,31 @@ distinct from a bet's `INSUFFICIENT_BALANCE`. See
 transaction as the change that caused it (section 3): no commit, no event;
 commit, event. Nothing is published before the commit.
 
-`OutboxPublisher` runs every `OUTBOX_PUBLISH_INTERVAL` (2 s) in every
-instance. Each round (`PublishOnce`) opens a transaction, claims up to
-`OUTBOX_BATCH_SIZE` (20) due events with `SELECT ... FOR UPDATE SKIP
-LOCKED`, sends each to SQS, marks `published_at` and commits; concurrent
-publishers skip each other's rows. A failed send backs that event off
-exponentially (base 2 s, cap 2 minutes) without aborting the batch. The
-row ID is the envelope's `eventId`, so a resend keeps it. If a process
-dies after the business commit, the event is published by the next round
-of any instance; if it dies between sending and marking, the same event is
-sent again: delivery is at least once. As shipped this publishes at most
-about 10 events per second per instance, and a money movement produces
-two; the
-[baselines](docs/benchmarks/README.md) measure the consequence. See
+The relay (`internal/app/relay`) runs every `OUTBOX_PUBLISH_INTERVAL`
+(2 s) in every instance. Each round (`PublishOnce`) asks the store
+(`postgres.OutboxStore`) to claim up to `OUTBOX_BATCH_SIZE` (20) due events
+with `SELECT ... FOR UPDATE SKIP LOCKED` in one transaction, hands each to
+the sink (`sqsx.Sink`, the events queue), marks `published_at` and
+commits; concurrent relays skip each other's rows
+(`TestConcurrentPublishersNeverSendAnEventTwice`). A failed send backs that
+event off exponentially (base 2 s, cap 2 minutes) without aborting the
+batch, and counts as failed. The row ID is the envelope's `eventId`, so a
+resend keeps it. If a process dies after the business commit, the event is
+published by the next round of any instance; if it dies between sending
+and marking, the same event is sent again: delivery is at least once. As
+shipped this publishes at most about 10 events per second per instance,
+and a money movement produces two; the
+[benchmarks](docs/benchmarks/README.md) measure the consequence, and
+phase 3 replaces the relay. See
 [ADR 0005](docs/adr/0005-transactional-outbox-with-polling.md).
 
 **Inbox** (`inbox_messages`). Unique on `(consumer_name, message_id)`,
 with the payload hash, reception and completion time. A redelivery with
 the same `messageId` and different content is refused
 (`ErrInboxPayloadMismatch`). The inbox write and the business operation
-are separate commits (record, `Submit`, complete); the guarantee against a
-double movement is the idempotency index (section 6), and a crash between
-`Submit` and completion just replays on redelivery.
+are separate statements (record, `Submit`, complete); the guarantee
+against a double movement is the idempotency index (section 6), and a
+crash between `Submit` and completion just replays on redelivery.
 
 ## 10. SQS consumer
 
@@ -321,7 +351,7 @@ Per message (long polling of 10 s, up to 10 per call), inside a
    own `MessageId` (a producer that resends gets a new one);
 2. record it in the inbox with the payload hash; an already completed
    message is just deleted (`duplicate`);
-3. call the same `Service.Submit` as HTTP;
+3. call the same `wagering.Submit` as HTTP;
 4. mark the inbox entry completed;
 5. only then delete the message.
 
@@ -333,10 +363,10 @@ Per message (long polling of 10 s, up to 10 per call), inside a
 | Unknown wallet, idempotency conflict, transient failure | not deleted; redelivered after 30 s, eventually DLQ | `error` |
 
 On shutdown the consumer's context is cancelled: no new receive starts, a
-message in flight has its SQL transaction aborted, is not deleted and is
+message in flight has its statement cancelled, is not deleted and is
 redelivered after the visibility timeout. `TestConsumerRecordsOutcomes`
-and `TestPublishOnceSendsDueEventsAndRecordsTheBatch` run both workers
-against LocalStack.
+and `TestRelaySendsDueEventsToTheQueue` run both workers against
+LocalStack.
 
 ## 11. Outgoing events
 
@@ -363,8 +393,11 @@ Destination `wager-events.fifo`; `MessageGroupId` is the event's
 | `WagerTransactionRejected` | final rejection | transaction ID | `transactionId`, `failureCode` |
 | `WagerTransactionPendingReference` | reversal waiting for its reference | transaction ID | `transactionId`, `referenceExternalTransactionId` |
 
-Timestamps are UTC RFC 3339, amounts decimal strings, and the stored
-payload is an immutable snapshot. `correlationId` is the `messageId` for
+Timestamps are UTC RFC 3339 with microseconds, amounts decimal strings,
+and the stored payload is an immutable snapshot. The engine builds the
+envelope in SQL (`wager_emit`); the contract suite decodes every event of
+every outcome into the Go types of `internal/app/events` and compares
+them field by field with the reference model's. `correlationId` is the `messageId` for
 SQS operations and the transaction ID for HTTP ones. Consumers must
 deduplicate by `eventId`.
 
@@ -407,7 +440,9 @@ opening. Identifiers in paths, bodies and the ledger cursor must be
 canonical UUIDs (`INVALID_ID` otherwise); `externalTransactionId`,
 `referenceExternalTransactionId`, `roundId`, `gameId` and the
 `Idempotency-Key` are limited to 255 characters (`VALIDATION_ERROR`).
-400, 409 and 413 store nothing and can be corrected and resent. A 503
+A submission is validated completely before anything is looked up, so a
+400 depends only on the request. 400, 409 and 413 store nothing and can
+be corrected and resent. A 503
 `TIMEOUT` means the request ran out of time: almost always its transaction
 rolled back, but a deadline that expires while the commit is in flight
 can leave the operation committed. Either way resending it with the same
@@ -432,7 +467,7 @@ final for that operation: the replay returns the same rejection. See
 `POST /wallets/{id}/reconciliation` (internal role) rebuilds the balance
 from the ledger, opening credit included, and compares it with the stored
 balance. Stored balance, delta sum and entry count come from one SQL
-statement (`ReconciliationSnapshot`), and PostgreSQL gives each statement
+statement (`queries.Reader.Reconciliation`), and PostgreSQL gives each statement
 one snapshot, so both sides see the same committed data even while the
 wallet moves. A divergence shows in the response (`consistent: false`), in
 an ERROR log and in `wallet_reconciliation_mismatches_total`.
@@ -466,6 +501,13 @@ inside the Compose network.
   re-read, which is what accepts a freshly rotated key; it happens at most
   once every 5 minutes and costs the request at most 2 seconds, even with
   the IdP slow or down.
+- **Verified-token cache.** A verified token is kept (by its SHA-256)
+  until the earlier of its expiry and one refresh interval, and served
+  only while its signing key is still in the JWKS, so a revoked key stops
+  being trusted at the next refresh as before. A cached request costs
+  about 10 µs in the middleware instead of 78 µs; the cache holds at most
+  10,000 entries and never a rejected token
+  ([ADR 0017](docs/adr/0017-cache-verified-tokens.md)).
 
 Authorization: wallet endpoints require the `internal` role; wagering
 endpoints require a `provider_id` claim, and the authorized provider is
@@ -478,31 +520,35 @@ On SQS, access is up to broker credentials and policies; the domain checks
 still apply (currency, amounts, no `OPENING`, wallet ownership). See the
 provider identity gap in section 22.
 
-## 15. Fx composition, lifecycle and shutdown (`cmd/api`)
+## 15. Composition, lifecycle and shutdown (`cmd/api`)
 
-Fx modules: `config` (configuration and metrics), `persistence` (pool and
-repositories), `application` (use cases and the retry worker),
-`messaging` (SQS client, consumer, publisher, readiness) and `http`
+Fx modules: `config` (configuration and metrics), `persistence` (pool,
+engine, reader, outbox store, inbox, reference queue, readiness),
+`application` (the wagering service, the retry worker, the relay),
+`messaging` (SQS client, consumer, sink, readiness) and `http`
 (authenticator and handler). One `appInvokes` list, shared by `main` and
 its composition test, registers everything with a lifecycle: tracing, the
 database metrics, the public HTTP server, the admin server and the three
 workers.
 
-`config.Load` fails the boot on a missing or invalid variable. The
-database is opened and pinged before anything starts; the authenticator
-waits for the JWKS (section 14). Workers use `runBackground`
-(`cmd/api/lifecycle.go`): on `OnStart` they get a cancellable context and
-a goroutine; on `OnStop` the context is cancelled and the hook waits for
-the goroutine within the shutdown deadline, returning an error if it does
-not exit. On `SIGTERM`, Fx runs `OnStop` in reverse order: the HTTP and
-admin servers stop accepting and drain in-flight requests, the workers
-stop, traces are flushed and the database is closed last.
+`config.Load` fails the boot on a missing or invalid variable. The pool is
+opened and pinged before anything starts; the authenticator waits for the
+JWKS (section 14). Servers and workers are `platform/lifecycle`
+components, free of Fx: a server listens on start, so a taken port fails
+the boot, and drains in-flight requests on stop; a worker gets a
+cancellable context on start, and on stop the context is cancelled and the
+stop waits for the worker within the shutdown deadline, failing if it does
+not exit. `cmd/api` only hooks them into Fx. On `SIGTERM`, Fx stops them
+in reverse order: the HTTP and admin servers stop accepting and drain,
+the workers stop, traces are flushed and the pool is closed last.
 `TestFxAppStartsAndStopsCleanly` builds the whole composition against
 PostgreSQL and LocalStack containers and an in-process JWKS and checks
 that start and stop complete with every worker exiting.
 
-The domain does not import Fx, HTTP, SQS or the database library; only
-`cmd/api` depends on Fx.
+The dependency rule ([ADR 0013](docs/adr/0013-hexagonal-layout-and-engine-port.md)),
+checked by `internal/archtest`: the domain imports only the domain and
+`google/uuid`; the app layer imports no adapter, platform, driver,
+transport or Fx; no adapter imports another; only `cmd/` imports Fx.
 
 ## 16. Configuration
 
@@ -517,12 +563,12 @@ The domain does not import Fx, HTTP, SQS or the database library; only
 | `ADMIN_ADDR` | `127.0.0.1:6060` | metrics and pprof, loopback by default |
 | `PPROF_ENABLED` | `false` | serve the Go profiler on the admin port |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn` or `error` |
-| `DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS` | `10`, `5` | connection pool |
+| `DB_MAX_OPEN_CONNS`, `DB_MIN_CONNS` | `10`, `2` | connection pool: most and fewest open connections |
 | `DB_STATEMENT_TIMEOUT`, `DB_IDLE_IN_TRANSACTION_TIMEOUT`, `DB_LOCK_TIMEOUT` | `5s`, `10s`, `2s` | PostgreSQL session limits on every pooled connection |
 | `REQUEST_TIMEOUT` | `5s` | deadline of every authenticated request; past it the API answers 503 `TIMEOUT` |
-| `OUTBOX_PUBLISH_INTERVAL`, `OUTBOX_BATCH_SIZE` | `2s`, `20` | outbox publisher |
+| `OUTBOX_PUBLISH_INTERVAL`, `OUTBOX_BATCH_SIZE` | `2s`, `20` | outbox relay |
 | `REFERENCE_RETRY_INTERVAL` | `15s` | pending-reference worker |
-| `JWKS_REFRESH_INTERVAL` | `1h` | JWKS re-read |
+| `JWKS_REFRESH_INTERVAL` | `1h` | JWKS re-read; also the longest a verified token stays cached |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, `OTEL_TRACES_SAMPLER[_ARG]` | tracing off | OpenTelemetry |
 
 Durations accept whole seconds (`2`) or Go durations (`500ms`). An
@@ -546,12 +592,13 @@ exemplars travel):
 | `outbox_publish_batch_duration_seconds` | one publishing round |
 | `outbox_pending_events`, `outbox_oldest_pending_age_seconds` | backlog, queried per scrape (omitted, never failing, if the database is slow) |
 | `wallet_reconciliation_mismatches_total` | reconciliation divergences |
-| `go_sql_*{db_name="wallet"}` | connection pool |
+| `auth_token_cache_total{result}` | bearer tokens served from the verified-token cache (`hit`) or verified (`miss`) |
+| `wallet_db_pool_*` | the pool: acquires, acquires that waited and their total wait, cancelled acquires, connections by state, maximum, connections opened |
 | `go_*`, `process_*`, `wallet_build_info` | runtime, process, build version |
 
 **Traces** (OpenTelemetry over OTLP): HTTP server spans, one span per SQL
-statement under its request, and spans for each SQS message, outbox round
-and retry round. Off unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+statement under its request (one per command since phase 2b), and spans
+for each SQS message, outbox round and retry round. Off unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
 
 **Logs** are JSON (`log/slog`) and carry `trace_id`/`span_id` when logged
 inside a span. Wager operations log `transport`, `correlationId`,
@@ -581,18 +628,32 @@ the test's namespace (Docker Desktop on WSL can hand out ports a local
 process already holds). Integration tests run or fail; `-short` runs unit
 tests only.
 
+Four kinds of checks hold the engine to its rules
+([ADR 0013](docs/adr/0013-hexagonal-layout-and-engine-port.md)): the
+engine contract (`enginetest.Run`, 37 cases, against the reference model
+and PostgreSQL), a property test (`TestEngineMatchesTheModel`, rapid)
+that drives PostgreSQL and the model with the same random command
+sequences, a linearizability check (`TestEngineIsLinearizable`,
+porcupine) and fuzz targets for HTTP and SQS decoding. The app layer's
+tests run against the model and need no Docker.
+
 | Scenario | Test |
 | --- | --- |
-| 100.00 and two concurrent 80.00 bets | `TestConcurrentBetsOnSameWallet` |
-| The same bet 50 times in parallel | `TestFiftyConcurrentDuplicateSubmissions` |
-| Distinct wallets at once, three instances | `TestDistinctWalletsProcessConcurrently`, `TestConcurrentBetsAcrossThreeIndependentInstances` |
-| Reversal before its reference | `TestSubmitRefundBeforeReferenceArrivesGoesPendingThenResolves` |
-| Retry worker across instances | `TestListDuePendingReferencesClaimsEachRowOnce` |
-| Same key, different payload | `TestSubmitRejectsSameKeyDifferentPayload` |
+| Every command's outcome, events and ledger | `TestEngineHonoursTheEngineContract`, `TestModelHonoursTheEngineContract` |
+| PostgreSQL answers like the model on random sequences | `TestEngineMatchesTheModel` |
+| Concurrent histories on one wallet are linearizable | `TestEngineIsLinearizable` |
+| Concurrency across three instances | `TestConcurrentBetsAcrossThreeIndependentPools`, `TestDuplicatesAcrossThreeIndependentPoolsMoveMoneyOnce`, `TestDistinctWalletsProcessConcurrently` |
+| No deadlock between a fresh reversal and the retry worker | `TestFreshRollbackRacesTheRetryWorkerWithoutDeadlock` |
+| One statement per command, no sequential scan, HOT updates | `TestEveryCommandIsOneStatement`, `TestSubmitNeverScansTransactions`, `TestBalanceUpdatesAreHOT` |
+| Each lookup on its own index, helpers inlined | `TestLookupsUseTheirOwnIndexEvenWithStaleStatistics`, `TestEngineHelpersAreInlinedOrCached` |
+| A request out of time cancels its statement and keeps the connection | `TestDeadlineCancelsTheStatementAndKeepsTheConnection`, `TestSubmitTimesOutWith503WhenTheWalletIsLocked` |
+| Retry worker across instances | `TestClaimDueClaimsEachRowOnce` |
 | Reconciliation | `TestReconciliationSnapshot` |
-| The HTTP contract end to end | `TestE2E*` in `internal/httpapi` |
-| JWKS revocation, startup and hung IdP | `TestAuthenticatorStopsTrustingRevokedKeys`, `TestNewAuthenticator*`, `TestUnknownKeyIsRejectedQuicklyWhileTheIdPHangs` |
-| SQS consumer outcomes and outbox publishing | `TestConsumerRecordsOutcomes`, `TestPublishOnceSendsDueEventsAndRecordsTheBatch` |
+| The HTTP contract end to end | `TestE2E*` in `internal/adapters/httpapi` |
+| JWKS revocation, startup, hung IdP, token cache | `TestAuthenticatorStopsTrustingRevokedKeys`, `TestNewAuthenticator*`, `TestUnknownKeyIsRejectedQuicklyWhileTheIdPHangs`, `TestCachedToken*` |
+| SQS consumer outcomes and the relay | `TestConsumerRecordsOutcomes`, `TestRelaySendsDueEventsToTheQueue` |
+| Decoding never panics and never lets an invalid command through | `FuzzDecodeSubmitRequest`, `FuzzDecodeMessage` |
+| The dependency rule | `TestDependencyRule` |
 | Invariant checks detect corruption | `TestVerifyDetectsEachViolation` |
 | Fx start and stop | `TestFxAppStartsAndStopsCleanly` |
 
@@ -609,15 +670,18 @@ tests only.
   cannot run.
 - `bench/k6/` holds five open-model scenarios; `bench/run.sh` (`make
   bench`) runs one on a fresh, pinned, seeded stack and collects the
-  summary, profiles, container stats, a Prometheus snapshot and the
-  verification, and exits 1 when k6 or the verification failed. Method in
+  summary, profiles, container stats, a Prometheus snapshot, PostgreSQL's
+  table and index counters and log, and the verification, and exits 1
+  when k6 or the verification failed. `bench/summarize.py` turns a run
+  into the report tables, PostgreSQL CPU and commits per bet served
+  and the wallet HOT ratio included. Method in
   [ADR 0009](docs/adr/0009-benchmark-methodology.md), results in
   [`docs/benchmarks`](docs/benchmarks/README.md).
 
 ## 20. `playerId` and `walletId` consistency
 
-`Service.Submit` loads the wallet and checks it belongs to the given
-`playerId` before any movement; otherwise a provider could move another
+The engine checks that the wallet belongs to the given `playerId` before
+any movement; otherwise a provider could move another
 player's wallet by sending a `walletId` it learned. A mismatch answers
 `WALLET_NOT_FOUND` (404) without telling "missing" from "someone else's".
 There is no provider-player link (no `provider_players` table): the
@@ -644,25 +708,35 @@ challenge never defined that relationship.
 
 - **No admission control.** A saturated service queues requests up to
   their deadline instead of rejecting the excess at once
-  ([benchmark 003](docs/benchmarks/003-fixes-measured.md)); phase 2c adds
-  it.
-- **A hot wallet serializes at about 240 bets a second.** Each bet holds
-  the wallet's row lock for its whole multi-statement transaction; past
-  that, waits end as 503s from the lock and request timeouts.
-- **About eleven SQL round trips and four commits per bet** and **an
-  outbox that publishes about 10 events per second per instance**, one at
-  a time, while a money movement produces two. Both are measured in the
-  [benchmarks](docs/benchmarks/README.md) and are the targets of phases 2b
-  and 3. Benchmarks 002 and 003 also show short stalls of a few hundred
-  milliseconds, likely checkpoints, to look into with phase 2c's tuning.
-- **Inbox and business operation in separate commits** (section 9). The
-  financial guarantee rests on the idempotency index.
+  ([benchmark 004](docs/benchmarks/004-single-statement-hot-path.md));
+  phase 2c adds it.
+- **A hot wallet still serializes** on its row lock, now held for one
+  statement instead of a multi-statement exchange: one wallet takes about
+  450 to 470 bets a second (benchmark 004). Past that, latency grows to
+  the request budget, and waits that outlast the lock timeout end as 503s.
+  Phase 6's single writer per partition is the way past it.
+- **An outbox that publishes about 10 events per second per instance**,
+  one at a time, while a money movement produces two. Under load the
+  backlog grows without bound; since migration 15 the relay keeps
+  publishing at that rate however large the backlog, where it used to
+  stall. Phase 3 replaces it.
+- **PostgreSQL CPU per bet** is about halved by the one-statement
+  path (1.5 to 2.1 ms against 3.9) but still above phase 2's target of
+  1 ms, and the knee, 400 rps within a 50 ms p99, is short of phase 2's
+  1,000. Phase 2c tunes PostgreSQL, the pool and the indexes benchmark
+  004 reports unused.
+- **Short stalls** of a few hundred milliseconds were seen in benchmarks
+  002 to 004. Benchmark 004's PostgreSQL logs tie them to checkpoints,
+  triggered by WAL volume from about 700 rps, but not a one-minute stall
+  on a single wallet at 350 rps; phase 2c tunes the checkpoints and logs
+  autovacuum to explain it.
+- **Inbox and business operation in separate statements** (section 9).
+  The financial guarantee rests on the idempotency index.
 - **SQS retries on a fixed visibility timeout** and do not tell transient
   from permanent errors: both use the same 5 attempts before the DLQ.
-- **No automated tests** for two publishers racing on the same events, a
-  consumer killed between commit and delete, or a full application
-  restart. The mechanisms exist (`SKIP LOCKED`, delete after completion,
-  all state in the database) and were checked by hand.
+- **No automated tests** for a consumer killed between commit and delete,
+  or a full application restart. The mechanisms exist (delete after
+  completion, all state in the database) and were checked by hand.
 - **No DLQ counter** and **no attempt limit on the outbox**: an event that
   can never be published keeps retrying every 2 minutes.
 - **Provider identity is not verified on SQS.** Over HTTP the JWT proves
@@ -670,8 +744,11 @@ challenge never defined that relationship.
   so anyone who can publish to the shared queue can claim any provider.
   Per-provider queues or IAM policies would close it; LocalStack with
   shared test credentials cannot model it.
+- **`/health/ready` is public** and pings PostgreSQL and SQS on every
+  call; phase 5's probes split liveness, readiness and dependency checks.
 - **One API instance in Compose.** Coordination between instances is
-  shown by tests with independent `Service`s (section 5) rather than by
-  several containers; phase 5 runs several replicas on Kubernetes.
-- **The ledger cannot be checked as a chain** until it is keyed by
-  `(wallet_id, version)` (phase 4).
+  shown by tests with independent pools (section 5) rather than by several
+  containers; phase 5 runs several replicas on Kubernetes.
+- **Index changes take write locks.** Migrations 14 and 15 build indexes
+  without `CONCURRENTLY`; on a live database they would block writes while
+  they run. Phase 5 brings expand-and-contract migrations.

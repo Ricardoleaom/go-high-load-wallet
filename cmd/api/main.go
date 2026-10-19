@@ -8,12 +8,11 @@ import (
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 
-	walletapp "github.com/Ricardoleaom/go-high-load-wallet/internal/application/wallet"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/buildinfo"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/config"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/httpapi"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/observability"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/httpapi"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/postgres"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/buildinfo"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/config"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/platform/observability"
 )
 
 var configModule = fx.Module("config",
@@ -23,27 +22,26 @@ var configModule = fx.Module("config",
 	),
 )
 
-// persistenceModule owns the database connection and every repository.
-// Repositories are infrastructure, not domain: the domain packages
-// (internal/domain/...) never import this module or Fx itself.
+// persistenceModule owns the connection pool and every PostgreSQL adapter.
+// Only cmd/ knows Fx: the adapters and the app layer are plain constructors.
 var persistenceModule = fx.Module("persistence",
 	fx.Provide(
-		newDB,
-		postgres.NewWalletRepository,
-		postgres.NewTransactionRepository,
-		postgres.NewLedgerRepository,
-		newInboxRepository,
-		newOutboxRepository,
+		newPool,
+		newEngine,
+		newReader,
+		postgres.NewOutboxStore,
+		postgres.NewInbox,
+		postgres.NewReferenceQueue,
+		postgres.NewReadiness,
 	),
 )
 
-// applicationModule wires the use cases. These depend on the domain and on
-// the repositories above, never on HTTP, SQS or Fx types.
+// applicationModule wires the use cases on top of the ports above.
 var applicationModule = fx.Module("application",
 	fx.Provide(
-		walletapp.NewService,
-		newWagerService,
+		newWageringService,
 		newReferenceRetryWorker,
+		newRelay,
 	),
 )
 
@@ -51,7 +49,7 @@ var messagingModule = fx.Module("messaging",
 	fx.Provide(
 		newSQSClient,
 		newSQSConsumer,
-		newOutboxPublisher,
+		newSQSSink,
 		newSQSReadiness,
 	),
 )
@@ -72,7 +70,7 @@ var appInvokes = fx.Invoke(
 	registerHTTPServer,
 	registerAdminServer,
 	registerSQSConsumer,
-	registerOutboxPublisher,
+	registerRelay,
 	registerReferenceRetryWorker,
 )
 

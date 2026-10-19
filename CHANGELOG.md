@@ -4,6 +4,77 @@ All notable changes to this project. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 uses [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+Phase 2b: the hot path rewritten as one statement per command, behind an
+`Engine` port, in a hexagonal layout, measured in
+[benchmark 004](docs/benchmarks/004-single-statement-hot-path.md): one
+commit and 1.5 to 2.1 ms of PostgreSQL CPU per bet (from about four and
+3.9 ms), the knee from 150 to 400 rps, about 1,000 bets a second at
+saturation, and one wallet from about 240 to 450 bets a second.
+
+### Changed (breaking)
+
+- `DB_MAX_IDLE_CONNS` is replaced by `DB_MIN_CONNS` (default 2): the pool
+  is now pgx's own, which has no idle maximum. `DB_MAX_OPEN_CONNS` still
+  sets the maximum.
+- The pool metrics are `wallet_db_pool_*` instead of `go_sql_*`.
+- A submission is validated completely before anything is looked up. A
+  request that breaks a rule of its kind now answers 400
+  `VALIDATION_ERROR` even under an idempotency key already used (it
+  answered 409 `IDEMPOTENCY_CONFLICT`) or for a wallet that does not exist
+  (it answered 404).
+- Events' `occurredAt` carries microseconds with six digits, and a
+  transaction, its ledger entry and its events share one instant, taken
+  after the wallet lock.
+- New rows get UUIDv7 keys. Identifiers sent by clients may still be any
+  UUID.
+- Opening a wallet answers the `playerId` in lower case, as it is stored.
+- Migrations: `000012` leaves room on wallet pages for HOT updates and
+  drops `idx_wallets_player_id`; `000013` adds the engine's functions;
+  `000014` rebuilds the idempotency and external-ID unique indexes, each
+  led by its own column; `000015` indexes pending outbox events by age.
+  `000014` and `000015` build indexes without `CONCURRENTLY`.
+
+### Added
+
+- `engine.Engine`, a reference model of the rules and a 37-case contract
+  every engine passes; a property test (rapid) comparing the PostgreSQL
+  engine with the model and a linearizability check (porcupine)
+  ([ADR 0013](docs/adr/0013-hexagonal-layout-and-engine-port.md)).
+- Fuzz targets for HTTP and SQS command decoding, and a test enforcing
+  the layout's dependency rule.
+- `auth_token_cache_total{result}` and the `wallet_db_pool_*` metrics.
+- Benchmark runs record PostgreSQL's table and index counters and its
+  log; the summaries report PostgreSQL CPU and commits per bet served
+  and the wallet HOT ratio.
+
+### Changed
+
+- Every command (open a wallet, submit, retry a pending reversal) is one
+  call to a PL/pgSQL function: one round trip and one commit, where a bet
+  took about eleven and four
+  ([ADR 0014](docs/adr/0014-one-statement-per-command.md)).
+- pgx's pool replaces `database/sql`; a request that runs out of time has
+  its statement cancelled on the server and keeps its connection
+  ([ADR 0015](docs/adr/0015-pgxpool-and-server-side-cancellation.md)).
+- `wallets` pages keep a fifth free so balance updates are HOT
+  ([ADR 0016](docs/adr/0016-uuidv7-keys-and-wallet-fillfactor.md)).
+- Verified tokens are cached until their expiry, one JWKS refresh
+  interval, or their key leaving the JWKS, whichever comes first
+  ([ADR 0017](docs/adr/0017-cache-verified-tokens.md)).
+- The outbox relay moves to the app layer over a store and a sink, and
+  counts failed sends.
+
+### Fixed
+
+- The idempotency lookup could be planned on the external-ID index with
+  the provider alone, reading every transaction of the provider, while
+  the statistics did not know that provider's rows yet.
+- Claiming due outbox events sorted the whole backlog on every round;
+  with a large backlog the claim hit the statement timeout and the relay
+  published nothing.
+
 ## [0.2.1] - unreleased
 
 Phase 2a: the defects benchmark 002 found, fixed and measured in
@@ -115,6 +186,7 @@ and SQS with persistent idempotency, an append-only ledger, a
 transactional outbox, pending-reference handling for early reversals and
 OAuth2 authentication with Keycloak.
 
-[0.2.1]: https://github.com/Ricardoleaom/go-high-load-wallet/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Ricardoleaom/go-high-load-wallet/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Ricardoleaom/go-high-load-wallet/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Ricardoleaom/go-high-load-wallet/compare/v0.1.0-challenge...v0.2.0
 [0.1.0-challenge]: https://github.com/Ricardoleaom/go-high-load-wallet/releases/tag/v0.1.0-challenge

@@ -44,7 +44,7 @@ vuln: ## Check dependencies for known vulnerabilities
 	$(TOOLS) govulncheck ./...
 
 build: ## Build the API binary into bin/
-	CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X github.com/Ricardoleaom/go-high-load-wallet/internal/buildinfo.Version=$(VERSION)" -o bin/api ./cmd/api
+	CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X github.com/Ricardoleaom/go-high-load-wallet/internal/platform/buildinfo.Version=$(VERSION)" -o bin/api ./cmd/api
 
 image: ## Build the API container image
 	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE) .

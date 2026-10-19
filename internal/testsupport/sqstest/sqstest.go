@@ -10,7 +10,7 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/localstack"
 
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/sqsx"
+	"github.com/Ricardoleaom/go-high-load-wallet/internal/adapters/sqsx"
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/testsupport/hostport"
 )
 

@@ -1,0 +1,24 @@
+File: api
+Build ID: 93eb1d033159b0d7f87cfe699878a54f7f3f8724
+Type: cpu
+Time: 2026-10-18 17:15:55 -03
+Duration: 30s, Total samples = 6.24s (20.80%)
+Showing nodes accounting for 2.44s, 39.10% of 6.24s total
+Dropped 482 nodes (cum <= 0.03s)
+Showing top 15 nodes out of 261
+      flat  flat%   sum%        cum   cum%
+     1.68s 26.92% 26.92%      1.68s 26.92%  internal/runtime/syscall/linux.Syscall6
+     0.11s  1.76% 28.69%      0.11s  1.76%  crypto/internal/fips140/sha256.blockAVX2
+     0.08s  1.28% 29.97%      0.08s  1.28%  runtime.memmove
+     0.07s  1.12% 31.09%      0.13s  2.08%  github.com/jackc/pgx/v5/pgtype.(*Map).planScan
+     0.06s  0.96% 32.05%      0.06s  0.96%  runtime.futex
+     0.06s  0.96% 33.01%      0.11s  1.76%  runtime.tryDeferToSpanScan
+     0.05s   0.8% 33.81%      0.05s   0.8%  memeqbody
+     0.05s   0.8% 34.62%      0.08s  1.28%  runtime.mapaccess2_fast32
+     0.04s  0.64% 35.26%      0.05s   0.8%  context.value
+     0.04s  0.64% 35.90%      0.12s  1.92%  encoding/json/v2.makeStructArshaler.func2
+     0.04s  0.64% 36.54%      0.04s  0.64%  log/slog.Value.Kind
+     0.04s  0.64% 37.18%      0.16s  2.56%  net/textproto.readMIMEHeader
+     0.04s  0.64% 37.82%      0.04s  0.64%  reflect.Value.Field
+     0.04s  0.64% 38.46%      0.04s  0.64%  runtime.mallocgcSmallScanNoHeaderSC3
+     0.04s  0.64% 39.10%      0.04s  0.64%  runtime.memclrNoHeapPointers

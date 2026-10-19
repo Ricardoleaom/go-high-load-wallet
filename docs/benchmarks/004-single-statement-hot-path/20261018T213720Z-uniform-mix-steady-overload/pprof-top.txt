@@ -1,0 +1,24 @@
+File: api
+Build ID: acc4389f58cdbdab390f029ae9d8ad66964be5a4
+Type: cpu
+Time: 2026-10-18 18:40:42 -03
+Duration: 30s, Total samples = 10.02s (33.40%)
+Showing nodes accounting for 3.84s, 38.32% of 10.02s total
+Dropped 664 nodes (cum <= 0.05s)
+Showing top 15 nodes out of 276
+      flat  flat%   sum%        cum   cum%
+     2.60s 25.95% 25.95%      2.60s 25.95%  internal/runtime/syscall/linux.Syscall6
+     0.15s  1.50% 27.45%      0.15s  1.50%  crypto/internal/fips140/sha256.blockAVX2
+     0.12s  1.20% 28.64%      0.12s  1.20%  runtime.memmove
+     0.11s  1.10% 29.74%      0.12s  1.20%  runtime.mallocgcSmallScanNoHeaderSC4
+     0.10s     1% 30.74%      0.10s     1%  net/textproto.validHeaderValueByte
+     0.09s   0.9% 31.64%      0.09s   0.9%  context.value
+     0.09s   0.9% 32.53%      0.14s  1.40%  github.com/felixge/httpsnoop.Wrap
+     0.09s   0.9% 33.43%      0.09s   0.9%  memeqbody
+     0.09s   0.9% 34.33%      0.09s   0.9%  runtime.futex
+     0.09s   0.9% 35.23%      0.09s   0.9%  runtime.spanClass.sizeclass
+     0.07s   0.7% 35.93%      0.07s   0.7%  runtime.nextFreeFast
+     0.06s   0.6% 36.53%      0.09s   0.9%  internal/runtime/maps.(*Map).getWithoutKeySmallFastStr
+     0.06s   0.6% 37.13%      0.07s   0.7%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+     0.06s   0.6% 37.72%      0.06s   0.6%  log/slog.Value.Kind
+     0.06s   0.6% 38.32%      0.11s  1.10%  runtime.(*unwinder).resolveInternal

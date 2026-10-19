@@ -25,9 +25,12 @@ tag `v0.1.0-challenge`) and grows phase by phase along the
 ## What it guarantees
 
 - **Exact money**: `int64` minor units, never floats, never rounded.
-- **No lost updates**: every movement is one conditional `UPDATE`;
-  concurrent bets on one wallet serialize on its row, different wallets run
-  in parallel, with one instance or many.
+- **No lost updates**: every command is one call to a PostgreSQL function
+  that locks the wallet, decides and writes in one statement and one
+  commit; concurrent bets on one wallet serialize on its row, different
+  wallets run in parallel, with one instance or many. A reference model,
+  a 37-case contract, a property test and a linearizability check hold it
+  to the rules.
 - **Idempotency** by `(provider, idempotency key)` with a canonical payload
   hash, enforced by unique indexes: resends, races and HTTP plus queue
   duplicates move money once.
@@ -119,9 +122,13 @@ make lint lint-ci vuln
 Integration tests start what they need with testcontainers — a migrated
 PostgreSQL, LocalStack and an in-process identity provider — and fail
 instead of skipping when Docker is missing. Setting `DATABASE_URL` reuses a
-running PostgreSQL. The concurrency scenarios (two bets racing for the same
-balance, fifty duplicates across three instances, out-of-order reversals)
-run against real PostgreSQL with the race detector; the list is in
+running PostgreSQL. The engine contract runs against both the PostgreSQL engine
+and an in-memory reference model; a property test (rapid) drives the two
+with the same random command sequences, a linearizability check
+(porcupine) replays concurrent histories, and the concurrency scenarios
+(bets racing for one balance, fifty duplicates across three instances,
+out-of-order reversals racing the retry worker) run against real
+PostgreSQL with the race detector. The list is in
 [ARCHITECTURE.md §18](ARCHITECTURE.md#18-testing).
 
 ## Benchmarks
@@ -137,6 +144,7 @@ from a report in [docs/benchmarks](docs/benchmarks/README.md).
 | [002](docs/benchmarks/002-baseline-config-tuned.md), configuration only | no better | 18 ms | 86 rps | up to 57 a second; one publisher tops out near 240 |
 | [002](docs/benchmarks/002-baseline-config-tuned.md#where-postgresqls-cpu-goes), same code with two indexes | 100 rps | 4.7 ms | 443 rps | |
 | [003](docs/benchmarks/003-fixes-measured.md), defects fixed (0.2.1) | 150 rps | 4.5 ms | 495 rps; 568 at 750 offered, no stall | 10 a second |
+| [004](docs/benchmarks/004-single-statement-hot-path.md), one statement per command | 400 rps | 3.2 ms | 970 rps; 1,021 at 1,500 offered, no stall, no 5xx | 10 a second, without stalling |
 | phase 2 target | ≥ 1,000 rps | ≤ 5 ms | | |
 | phase 3 target | | | | ≥ 2,000 a second, p99 age under 1 s |
 
@@ -154,20 +162,33 @@ Version 0.2.1 fixes the first two, bounds every request in time and size
 ([ADR 0012](docs/adr/0012-time-budgets-and-input-limits.md)), and
 [benchmark 003](docs/benchmarks/003-fixes-measured.md) measures the
 result: six times the as-delivered throughput, and no stall under 1.5
-times the peak. Every run, the overloaded ones included, passed all
-eight invariant checks.
+times the peak.
+
+Phase 2b makes every command one call to a PL/pgSQL function
+([ADR 0014](docs/adr/0014-one-statement-per-command.md)), and
+[benchmark 004](docs/benchmarks/004-single-statement-hot-path.md) measures
+one commit and 1.5 to 2.1 ms of PostgreSQL CPU per bet, against about four
+and 3.9 ms. The knee moved to 400 rps, the service serves about 1,000 bets
+a second at saturation, and one wallet takes about 450 a second instead of
+240. Phase 2's target, 1,000 rps within a 50 ms p99, is still ahead: the
+tail breaks first, on pool waits and checkpoints, which is phase 2c's
+work. Every run, the overloaded ones included, passed all eight invariant
+checks.
 
 ## Layout
 
+A hexagonal layout ([ADR 0013](docs/adr/0013-hexagonal-layout-and-engine-port.md)),
+its dependency rule checked by a test:
+
 ```
-cmd/api            the service (Fx composition)
-cmd/seed, verify   load-test seeding and invariant checks
-internal/domain    money, wallet, wager transaction, ledger
-internal/application  use cases
-internal/infrastructure  PostgreSQL and SQS adapters
-internal/httpapi   HTTP handlers and authentication
-internal/observability  metrics, tracing, admin endpoints
-bench/             k6 scenarios and the benchmark runner
-deploy/            Keycloak realm, LocalStack queues, Prometheus, Grafana
-migrations/        SQL schema
+cmd/api                 the service (Fx composition)
+cmd/seed, verify        load-test seeding and invariant checks
+internal/domain         money, ids, wallet, wager transaction, ledger: the rules
+internal/app            ports and use cases: engine (+ reference model and
+                        contract), wagering, queries, relay, events
+internal/adapters       postgres (the engine as SQL functions), httpapi, sqsx
+internal/platform       config, observability, lifecycle, buildinfo
+bench/                  k6 scenarios and the benchmark runner
+deploy/                 Keycloak realm, LocalStack queues, Prometheus, Grafana
+migrations/             SQL schema and the engine's functions
 ```

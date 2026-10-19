@@ -152,12 +152,12 @@ func Migrate(ctx context.Context, url string) error {
 	})
 }
 
-// MigrateSteps moves the schema n migrations up (n > 0) or down (n < 0),
-// for tests of a migration against data written under the previous schema.
-func MigrateSteps(ctx context.Context, url string, n int) error {
+// MigrateTo moves the schema to exactly version, up or down, so a test of
+// one migration keeps working as later ones are added.
+func MigrateTo(ctx context.Context, url string, version uint) error {
 	return withMigrate(ctx, url, func(m *migrate.Migrate) error {
-		if err := m.Steps(n); err != nil {
-			return fmt.Errorf("migrate %d steps: %w", n, err)
+		if err := m.Migrate(version); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			return fmt.Errorf("migrate to version %d: %w", version, err)
 		}
 		return nil
 	})

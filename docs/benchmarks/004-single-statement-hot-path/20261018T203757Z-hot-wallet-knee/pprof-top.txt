@@ -1,0 +1,24 @@
+File: api
+Build ID: acc4389f58cdbdab390f029ae9d8ad66964be5a4
+Type: cpu
+Time: 2026-10-18 17:53:00 -03
+Duration: 30s, Total samples = 6.99s (23.30%)
+Showing nodes accounting for 2.98s, 42.63% of 6.99s total
+Dropped 537 nodes (cum <= 0.03s)
+Showing top 15 nodes out of 291
+      flat  flat%   sum%        cum   cum%
+     2.15s 30.76% 30.76%      2.15s 30.76%  internal/runtime/syscall/linux.Syscall6
+     0.11s  1.57% 32.33%      0.11s  1.57%  runtime.memclrNoHeapPointers
+     0.10s  1.43% 33.76%      0.10s  1.43%  crypto/internal/fips140/sha256.blockAVX2
+     0.08s  1.14% 34.91%      0.08s  1.14%  runtime.futex
+     0.07s  1.00% 35.91%      0.07s  1.00%  context.value
+     0.07s  1.00% 36.91%      0.07s  1.00%  net/textproto.validHeaderValueByte (inline)
+     0.05s  0.72% 37.63%      0.05s  0.72%  runtime.mallocgcSmallScanNoHeaderSC5
+     0.05s  0.72% 38.34%      0.05s  0.72%  runtime.nextFreeFast (inline)
+     0.05s  0.72% 39.06%      0.06s  0.86%  runtime.step
+     0.05s  0.72% 39.77%      0.05s  0.72%  unicode/utf8.ValidString
+     0.04s  0.57% 40.34%      0.20s  2.86%  encoding/json/jsontext.(*decoderState).ReadValue
+     0.04s  0.57% 40.92%      0.04s  0.57%  indexbytebody
+     0.04s  0.57% 41.49%      0.04s  0.57%  memeqbody
+     0.04s  0.57% 42.06%      0.45s  6.44%  net/http.(*conn).readRequest
+     0.04s  0.57% 42.63%      0.04s  0.57%  runtime.mallocgcSmallScanNoHeaderSC3

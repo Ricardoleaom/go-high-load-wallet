@@ -9,6 +9,7 @@ with the harness in [`bench/`](../../bench) and the method in
 | [001](001-baseline-as-delivered.md) | The service as delivered for the challenge |
 | [002](002-baseline-config-tuned.md) | The same code with only configuration changed, the diagnosis of its ceiling, and the targets for phases 2 and 3 |
 | [003](003-fixes-measured.md) | The same hot path with the defects fixed and every request bounded (0.2.1) |
+| [004](004-single-statement-hot-path.md) | Every command as one statement behind the `Engine` port (phase 2b) |
 
 ## Running one
 
@@ -37,6 +38,7 @@ repository.
 | `WARMUP` | `60s` | warmup at a tenth of the rate |
 | `BENCH_CPUS_POSTGRES`, `BENCH_CPUS_APP`, `BENCH_CPUS_K6` | `0-1`, `2`, `3` | CPU pinning |
 | `POSTGRES_HOST_PORT` | `5432` | host port for seeding and verifying |
+| `DB_MAX_OPEN_CONNS`, `DB_MIN_CONNS`, ... | the app's | any app setting passes through to the API |
 
 App settings such as `DB_MAX_OPEN_CONNS`, `OUTBOX_BATCH_SIZE` or
 `OUTBOX_PUBLISH_INTERVAL` pass straight through to the API container.

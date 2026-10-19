@@ -1,0 +1,24 @@
+File: api
+Build ID: acc4389f58cdbdab390f029ae9d8ad66964be5a4
+Type: cpu
+Time: 2026-10-18 18:19:18 -03
+Duration: 30s, Total samples = 5.05s (16.83%)
+Showing nodes accounting for 2.01s, 39.80% of 5.05s total
+Dropped 413 nodes (cum <= 0.03s)
+Showing top 15 nodes out of 322
+      flat  flat%   sum%        cum   cum%
+     1.34s 26.53% 26.53%      1.34s 26.53%  internal/runtime/syscall/linux.Syscall6
+     0.07s  1.39% 27.92%      0.07s  1.39%  crypto/internal/fips140/sha256.blockAVX2
+     0.07s  1.39% 29.31%      0.15s  2.97%  runtime.mapaccess2_faststr
+     0.06s  1.19% 30.50%      0.06s  1.19%  runtime.memmove
+     0.05s  0.99% 31.49%      0.10s  1.98%  fmt.(*pp).printArg
+     0.05s  0.99% 32.48%      0.09s  1.78%  github.com/jackc/pgx/v5/pgtype.(*Map).planScan
+     0.05s  0.99% 33.47%      0.05s  0.99%  memeqbody
+     0.05s  0.99% 34.46%      0.05s  0.99%  runtime.futex
+     0.05s  0.99% 35.45%      0.05s  0.99%  runtime.memclrNoHeapPointers
+     0.04s  0.79% 36.24%      1.44s 28.51%  github.com/Ricardoleaom/go-high-load-wallet/internal/app/wagering.(*Service).Submit
+     0.04s  0.79% 37.03%      0.04s  0.79%  github.com/felixge/httpsnoop.Wrap
+     0.04s  0.79% 37.82%      0.04s  0.79%  reflect.Value.Field
+     0.04s  0.79% 38.61%      0.04s  0.79%  runtime.nanotime
+     0.03s  0.59% 39.21%      0.04s  0.79%  go.opentelemetry.io/otel/sdk/trace.(*tracer).newSpan
+     0.03s  0.59% 39.80%      0.06s  1.19%  go.opentelemetry.io/otel/trace.SpanFromContext

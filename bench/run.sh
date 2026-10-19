@@ -160,7 +160,16 @@ for run in $(seq 1 "$REPEAT"); do
   # Let the outbox publisher work through what the run left behind for a
   # moment, then sample the app's own view of the backlog.
   sleep 10
-  curl -fsS localhost:6060/metrics | grep -E '^(outbox_|wager_transactions_total|outbox_events_published_total)' > "$dir/metrics-after.txt" || true
+  curl -fsS localhost:6060/metrics | grep -E '^(outbox_|wager_transactions_total|outbox_events_published_total|auth_token_cache_total|http_requests_total)' > "$dir/metrics-after.txt" || true
+  # What PostgreSQL counted over the run (the backends flushed their
+  # statistics while the relay drained): scans, HOT updates, index use.
+  compose exec -T postgres psql -U app -d wallet --csv -c \
+    "SELECT relname, seq_scan, COALESCE(idx_scan, 0) AS idx_scan, n_tup_ins, n_tup_upd, n_tup_hot_upd, n_dead_tup
+     FROM pg_stat_user_tables ORDER BY relname" > "$dir/pg-tables.csv" 2> /dev/null || true
+  compose exec -T postgres psql -U app -d wallet --csv -c \
+    "SELECT relname, indexrelname, idx_scan FROM pg_stat_user_indexes ORDER BY relname, indexrelname" \
+    > "$dir/pg-indexes.csv" 2> /dev/null || true
+  compose logs --no-color postgres > "$dir/postgres.log" 2>&1 || true
   python3 bench/prometheus_snapshot.py "$started" "$finished" > "$dir/prometheus.json" || true
 
   set +e
@@ -178,7 +187,7 @@ def out(cmd):
         return ""
 cpu = next((line.split(":", 1)[1].strip() for line in out(["lscpu"]).splitlines() if line.startswith("Model name")), "")
 keys = ["SCENARIO", "MODE", "RATE", "DURATION", "REPEAT", "WARMUP", "WALLETS", "KNEE_START", "KNEE_STEP", "KNEE_MAX",
-        "KNEE_STEP_DURATION", "MIX", "ZIPF_S", "REPLAY_RATIO", "LABEL", "DB_MAX_OPEN_CONNS", "DB_MAX_IDLE_CONNS",
+        "KNEE_STEP_DURATION", "MIX", "ZIPF_S", "REPLAY_RATIO", "LABEL", "DB_MAX_OPEN_CONNS", "DB_MIN_CONNS",
         "OUTBOX_BATCH_SIZE", "OUTBOX_PUBLISH_INTERVAL", "OTEL_TRACES_SAMPLER_ARG", "BENCH_CPUS_POSTGRES", "BENCH_CPUS_APP", "BENCH_CPUS_K6"]
 meta = {
     "git_sha": out(["git", "rev-parse", "HEAD"]),

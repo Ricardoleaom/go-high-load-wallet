@@ -11,8 +11,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/bench/verify"
-	"github.com/Ricardoleaom/go-high-load-wallet/internal/infrastructure/postgres"
 )
 
 func main() {
@@ -47,11 +48,11 @@ func run(databaseURL string, timeout time.Duration) (verify.Report, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	db, err := postgres.Open(ctx, databaseURL)
+	conn, err := pgx.Connect(ctx, databaseURL)
 	if err != nil {
-		return verify.Report{}, err
+		return verify.Report{}, fmt.Errorf("connect: %w", err)
 	}
-	defer func() { _ = db.Close() }()
+	defer func() { _ = conn.Close(context.Background()) }()
 
-	return verify.Run(ctx, db)
+	return verify.Run(ctx, conn)
 }

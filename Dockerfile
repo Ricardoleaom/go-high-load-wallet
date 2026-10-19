@@ -7,7 +7,7 @@ RUN go mod download
 COPY . .
 ARG VERSION=dev
 RUN CGO_ENABLED=0 go build -trimpath \
-    -ldflags "-s -w -X github.com/Ricardoleaom/go-high-load-wallet/internal/buildinfo.Version=${VERSION}" \
+    -ldflags "-s -w -X github.com/Ricardoleaom/go-high-load-wallet/internal/platform/buildinfo.Version=${VERSION}" \
     -o /out/api ./cmd/api
 
 FROM gcr.io/distroless/static-debian12:nonroot
