@@ -112,6 +112,14 @@ func (i *Issuer) InternalToken(t testing.TB) string {
 	return i.sign(t, jwt.MapClaims{"realm_access": realmAccess}, time.Now().Add(5*time.Minute))
 }
 
+// OperatorToken is what the console gets for a person signed in with the
+// operator realm role: a user's token, with no provider_id.
+func (i *Issuer) OperatorToken(t testing.TB) string {
+	t.Helper()
+	realmAccess := map[string]any{"roles": []string{"operator"}}
+	return i.sign(t, jwt.MapClaims{"realm_access": realmAccess, "preferred_username": "operator"}, time.Now().Add(5*time.Minute))
+}
+
 func (i *Issuer) ExpiredProviderToken(t testing.TB, providerID string) string {
 	t.Helper()
 	return i.sign(t, jwt.MapClaims{"provider_id": providerID}, time.Now().Add(-time.Minute))

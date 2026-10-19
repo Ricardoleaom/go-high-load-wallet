@@ -28,30 +28,63 @@ type Dependencies struct {
 
 	// RequestTimeout bounds every authenticated request; zero means none.
 	RequestTimeout time.Duration
+
+	// AllowedOrigins are the browser origins CORS admits; none turns it off.
+	AllowedOrigins []string
+
+	// Summary serves GET /ops/summary; nil leaves the route out.
+	Summary OpsSummary
 }
 
 type handler struct {
 	deps Dependencies
 }
 
+// route is one pattern and its handler. The two route lists are the
+// API's surface; docs/openapi.yaml must describe exactly these
+// (TestOpenAPIDescribesEveryRoute).
+type route struct {
+	pattern string
+	handle  http.HandlerFunc
+}
+
+// publicRoutes need no token.
+func publicRoutes(h *handler) []route {
+	return []route{
+		{"GET /health/live", healthLive},
+		{"GET /health/ready", h.healthReady},
+	}
+}
+
+// protectedRoutes sit behind the authenticator; each authorizes its caller.
+func (h *handler) protectedRoutes() []route {
+	routes := []route{
+		{"POST /wallets", h.openWallet},
+		{"GET /wallets/{id}", h.getWallet},
+		{"GET /wallets/{id}/ledger", h.getWalletLedger},
+		{"POST /wallets/{id}/reconciliation", h.reconcileWallet},
+		{"POST /wagering/transactions", h.submitWagerTransaction},
+		{"GET /wagering/transactions/{id}", h.getTransaction},
+		{"GET /providers/{providerId}/wagering/transactions/{externalId}", h.getTransactionByExternalID},
+	}
+	if h.deps.Summary != nil {
+		routes = append(routes, route{"GET /ops/summary", h.getOpsSummary})
+	}
+	return routes
+}
+
 func NewHandler(deps Dependencies) http.Handler {
 	h := &handler{deps: deps}
 
 	protected := http.NewServeMux()
-	protected.HandleFunc("POST /wallets", h.openWallet)
-	protected.HandleFunc("GET /wallets/{id}", h.getWallet)
-	protected.HandleFunc("GET /wallets/{id}/ledger", h.getWalletLedger)
-	protected.HandleFunc("POST /wallets/{id}/reconciliation", h.reconcileWallet)
-	protected.HandleFunc("POST /wagering/transactions", h.submitWagerTransaction)
-	protected.HandleFunc("GET /wagering/transactions/{id}", h.getTransaction)
-	protected.HandleFunc(
-		"GET /providers/{providerId}/wagering/transactions/{externalId}",
-		h.getTransactionByExternalID,
-	)
+	for _, r := range h.protectedRoutes() {
+		protected.HandleFunc(r.pattern, r.handle)
+	}
 
 	mux := http.NewServeMux()
-	mux.Handle("GET /health/live", metricsMiddleware(deps.Metrics, http.HandlerFunc(healthLive)))
-	mux.Handle("GET /health/ready", metricsMiddleware(deps.Metrics, http.HandlerFunc(h.healthReady)))
+	for _, r := range publicRoutes(h) {
+		mux.Handle(r.pattern, metricsMiddleware(deps.Metrics, r.handle))
+	}
 
 	// Auth.Middleware calls r.WithContext to attach the authenticated
 	// identity, which (per net/http's own semantics) hands `protected` a
@@ -67,7 +100,7 @@ func NewHandler(deps Dependencies) http.Handler {
 	mux.Handle("/", deps.Auth.Middleware(withRequestTimeout(deps.RequestTimeout,
 		metricsMiddleware(deps.Metrics, limitBody(protected)))))
 
-	return otelhttp.NewHandler(mux, "http.server")
+	return otelhttp.NewHandler(withCORS(deps.AllowedOrigins, deps.Metrics, mux), "http.server")
 }
 
 // withRequestTimeout gives each request a deadline that every database call

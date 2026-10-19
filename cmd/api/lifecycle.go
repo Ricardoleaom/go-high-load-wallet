@@ -66,6 +66,10 @@ func registerRelay(lc fx.Lifecycle, cfg config.Config, r *relay.Relay) {
 	}))
 }
 
+func registerOpsSampler(lc fx.Lifecycle, sampler *observability.Sampler) {
+	hook(lc, lifecycle.Background("ops-sampler", sampler.Run))
+}
+
 func registerReferenceRetryWorker(lc fx.Lifecycle, cfg config.Config, worker *wagering.RetryWorker) {
 	hook(lc, lifecycle.Background("reference-retry-worker", func(ctx context.Context) error {
 		return worker.Run(ctx, cfg.ReferenceRetryInterval)

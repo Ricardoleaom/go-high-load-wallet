@@ -38,6 +38,7 @@ func TestLoadDefaultsReproduceTheDeliveredBehavior(t *testing.T) {
 		{"AdminAddr", cfg.AdminAddr, "127.0.0.1:6060"},
 		{"PprofEnabled", cfg.PprofEnabled, false},
 		{"LogLevel", cfg.LogLevel, slog.LevelInfo},
+		{"OpsSampleInterval", cfg.OpsSampleInterval, 5 * time.Second},
 	}
 	for _, c := range checks {
 		if c.got != c.want {
@@ -74,6 +75,11 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 		{"REFERENCE_RETRY_INTERVAL", "-5"},
 		{"LOG_LEVEL", "loud"},
 		{"PPROF_ENABLED", "maybe"},
+		{"OPS_SAMPLE_INTERVAL", "0"},
+		{"CORS_ALLOWED_ORIGINS", "*"},
+		{"CORS_ALLOWED_ORIGINS", "http://localhost:5173/app"},
+		{"CORS_ALLOWED_ORIGINS", "localhost:5173"},
+		{"CORS_ALLOWED_ORIGINS", "ftp://localhost"},
 	}
 	for _, c := range cases {
 		t.Run(c.key+"="+c.value, func(t *testing.T) {
@@ -157,5 +163,31 @@ func TestLoadRequiresJWTIssuerAndAudience(t *testing.T) {
 				t.Fatalf("Load error = %v, want one naming %s", err, key)
 			}
 		})
+	}
+}
+
+func TestLoadReadsAllowedOrigins(t *testing.T) {
+	setRequired(t)
+	t.Setenv("CORS_ALLOWED_ORIGINS", " http://localhost:5173, https://console.example.com:8443 ,")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	want := []string{"http://localhost:5173", "https://console.example.com:8443"}
+	if strings.Join(cfg.CORSAllowedOrigins, " ") != strings.Join(want, " ") {
+		t.Fatalf("CORSAllowedOrigins = %q, want %q", cfg.CORSAllowedOrigins, want)
+	}
+}
+
+func TestLoadLeavesCORSOffByDefault(t *testing.T) {
+	setRequired(t)
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(cfg.CORSAllowedOrigins) != 0 {
+		t.Fatalf("CORSAllowedOrigins = %q, want none", cfg.CORSAllowedOrigins)
 	}
 }

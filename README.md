@@ -109,7 +109,26 @@ operation can arrive through the `wager-transactions.fifo` queue
 (`MessageGroupId` = wallet) with the envelope documented in
 [ARCHITECTURE.md §10](ARCHITECTURE.md#10-sqs-consumer); events leave
 through `wager-events.fifo`. Every endpoint, status code and
-`failureCode` is in [§12](ARCHITECTURE.md#12-http-contract).
+`failureCode` is in [§12](ARCHITECTURE.md#12-http-contract) and in the
+OpenAPI contract, [`docs/openapi.yaml`](docs/openapi.yaml).
+
+### For a browser console
+
+A web console signs people in through the public client
+`wallet-console` (authorization code with PKCE) and calls the API as an
+`operator`: it opens, reads and reconciles wallets, reads every
+provider's transactions and reads `GET /ops/summary`, the last five
+minutes of the service's own numbers, but never submits a wager; opening
+a wallet with an initial balance is as trusted as for the internal
+service. Compose
+allows the console's local origins through `CORS_ALLOWED_ORIGINS`. The
+realm's demo user is `operator` with password `operator`, for local use
+only ([ADR 0018](docs/adr/0018-browser-console-surface.md)).
+
+```sh
+# the live summary, with any internal or operator token
+curl -s -H "Authorization: Bearer $INTERNAL_TOKEN" localhost:8080/ops/summary | jq '.points[-1]'
+```
 
 ## Testing
 

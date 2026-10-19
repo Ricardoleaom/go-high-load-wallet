@@ -21,11 +21,13 @@ type contextKey string
 const (
 	ctxKeyProviderID contextKey = "providerID"
 	ctxKeyInternal   contextKey = "internal"
+	ctxKeyOperator   contextKey = "operator"
 )
 
 // claims are the token fields this API relies on. A provider's
 // client_credentials token carries provider_id; the internal service's
-// token carries the "internal" realm role instead.
+// token carries the "internal" realm role instead, and a person signed in
+// to the console the "operator" one.
 type claims struct {
 	jwt.RegisteredClaims
 	ProviderID  string `json:"provider_id,omitempty"`
@@ -121,7 +123,7 @@ func NewAuthenticator(
 }
 
 // Middleware rejects requests without a valid bearer token and puts the
-// authenticated identity (provider ID, or internal-service flag) in the
+// authenticated identity (provider ID, internal-service or operator flag) in the
 // request context for handlers to authorize against. Requests it rejects
 // never reach metricsMiddleware wrapping the protected routes (see
 // handler.go), so it records http_requests_total for them itself.
@@ -148,6 +150,9 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 		if id.internal {
 			ctx = context.WithValue(ctx, ctxKeyInternal, true)
 		}
+		if id.operator {
+			ctx = context.WithValue(ctx, ctxKeyOperator, true)
+		}
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -157,6 +162,7 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 type identity struct {
 	providerID string
 	internal   bool
+	operator   bool
 }
 
 // verify answers from the cache when it can, and otherwise checks the
@@ -181,7 +187,7 @@ func (a *Authenticator) verify(ctx context.Context, token string) (identity, boo
 	if err != nil {
 		return identity{}, false
 	}
-	id := identity{providerID: parsed.ProviderID, internal: parsed.hasRole("internal")}
+	id := identity{providerID: parsed.ProviderID, internal: parsed.hasRole("internal"), operator: parsed.hasRole("operator")}
 	expires := parsed.ExpiresAt.Time
 	if limit := now.Add(a.refresh); limit.Before(expires) {
 		expires = limit
@@ -271,5 +277,10 @@ func providerIDFromContext(ctx context.Context) (string, bool) {
 
 func isInternal(ctx context.Context) bool {
 	v, _ := ctx.Value(ctxKeyInternal).(bool)
+	return v
+}
+
+func isOperator(ctx context.Context) bool {
+	v, _ := ctx.Value(ctxKeyOperator).(bool)
 	return v
 }

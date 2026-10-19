@@ -7,6 +7,10 @@
       {
         "name": "internal",
         "description": "Internal service, allowed to operate on wallets directly."
+      },
+      {
+        "name": "operator",
+        "description": "A person using the console: reads wallets and every provider's transactions, opens wallets, never bets."
       }
     ]
   },
@@ -180,6 +184,45 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "wallet-console",
+      "name": "Wallet console",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://localhost:4173/*",
+        "http://localhost:8088/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://localhost:4173",
+        "http://localhost:8088"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost:4173/*##http://localhost:8088/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "wallet-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "wallet-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
@@ -197,6 +240,24 @@
       "serviceAccountClientId": "bench-internal",
       "realmRoles": [
         "internal"
+      ]
+    },
+    {
+      "username": "operator",
+      "enabled": true,
+      "firstName": "Demo",
+      "lastName": "Operator",
+      "email": "operator@example.com",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "operator",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "operator"
       ]
     }
   ]
