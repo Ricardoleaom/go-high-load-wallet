@@ -403,20 +403,26 @@ deduplicate by `eventId`.
 
 ## 12. HTTP contract
 
-Errors always have the body `{"code": "CODE", "error": "message"}`.
+The contract is [`docs/openapi.yaml`](docs/openapi.yaml) (OpenAPI 3.1):
+two tests hold it to the code, so it describes exactly the registered
+routes and lists exactly the error codes the handlers answer. Errors
+always have the body `{"code": "CODE", "error": "message"}`.
 
 | Endpoint | Who may call |
 | --- | --- |
-| `POST /wallets` | `internal` role |
-| `GET /wallets/{id}` | `internal` role |
-| `GET /wallets/{id}/ledger?cursor=...&limit=50` | `internal` role |
-| `POST /wallets/{id}/reconciliation` | `internal` role |
-| `POST /wagering/transactions` | a provider |
-| `GET /wagering/transactions/{id}` | the provider that owns the transaction |
-| `GET /providers/{providerId}/wagering/transactions/{externalId}` | that provider |
+| `POST /wallets` | `internal` or `operator` role |
+| `GET /wallets/{id}` | `internal` or `operator` role |
+| `GET /wallets/{id}/ledger?cursor=...&limit=50` | `internal` or `operator` role |
+| `POST /wallets/{id}/reconciliation` | `internal` or `operator` role |
+| `POST /wagering/transactions` | a provider, never an operator |
+| `GET /wagering/transactions/{id}` | the provider that owns the transaction, or an operator |
+| `GET /providers/{providerId}/wagering/transactions/{externalId}` | that provider, or an operator |
+| `GET /ops/summary` | `internal` or `operator` role (section 17) |
 | `GET /health/live`, `GET /health/ready` | public |
 
-`/metrics` and pprof are not on this port (section 17).
+`/metrics` and pprof are not on this port (section 17). With
+`CORS_ALLOWED_ORIGINS` set, the listed browser origins may call the API
+(section 14).
 
 `POST /wagering/transactions`:
 
@@ -480,7 +486,11 @@ The IdP is Keycloak. The realm `wagering` is imported at startup
 (`deploy/keycloak/realm-export.json`) with `client_credentials` clients:
 `provider-a` and `provider-b` (a hard-coded `provider_id` claim),
 `internal-service` (the `internal` realm role), and two benchmark clients
-with two-hour tokens, `bench-provider` and `bench-internal`.
+with two-hour tokens, `bench-provider` and `bench-internal`. For people it
+has the public client `wallet-console`, limited to the authorization code
+flow with S256 PKCE from the console's local origins, the `operator` realm
+role, and a demo user `operator` (password `operator`, development only)
+([ADR 0018](docs/adr/0018-browser-console-surface.md)).
 
 `httpapi.Authenticator` validates JWTs against Keycloak's JWKS
 (`MicahParks/keyfunc/v3` with `golang-jwt/jwt/v5`): signature, algorithm,
@@ -509,12 +519,21 @@ inside the Compose network.
   10,000 entries and never a rejected token
   ([ADR 0017](docs/adr/0017-cache-verified-tokens.md)).
 
-Authorization: wallet endpoints require the `internal` role; wagering
-endpoints require a `provider_id` claim, and the authorized provider is
-always the token's (a different `providerId` in the body is 403). Lookups
-by ID or external ID only return the caller's transactions; another
-provider's transaction answers 404 so its existence is not confirmed.
+Authorization: wallet endpoints and the live summary require the
+`internal` or the `operator` role. Submitting a wager requires a
+`provider_id` claim, so an operator never moves money, and the authorized
+provider is always the token's (a different `providerId` in the body is
+403). A provider's lookups by ID or external ID only return its own
+transactions; another provider's transaction answers 404 so its existence
+is not confirmed. An operator may read every provider's transactions.
 Rejected requests never reach the database.
+
+**CORS.** With `CORS_ALLOWED_ORIGINS` set, a listed origin's preflight is
+answered before authentication (a browser never sends a token on one),
+another origin's preflight is refused with 403, and every response to a
+listed origin, a 401 included, is readable by it. Credentials are never
+allowed: the console sends a bearer token, not cookies. A wildcard fails
+the boot. Unset, the API has no CORS at all.
 
 On SQS, access is up to broker credentials and policies; the domain checks
 still apply (currency, amounts, no `OPENING`, wallet ownership). See the
@@ -566,6 +585,8 @@ transport or Fx; no adapter imports another; only `cmd/` imports Fx.
 | `DB_MAX_OPEN_CONNS`, `DB_MIN_CONNS` | `10`, `2` | connection pool: most and fewest open connections |
 | `DB_STATEMENT_TIMEOUT`, `DB_IDLE_IN_TRANSACTION_TIMEOUT`, `DB_LOCK_TIMEOUT` | `5s`, `10s`, `2s` | PostgreSQL session limits on every pooled connection |
 | `REQUEST_TIMEOUT` | `5s` | deadline of every authenticated request; past it the API answers 503 `TIMEOUT` |
+| `CORS_ALLOWED_ORIGINS` | none (CORS off) | comma-separated browser origins allowed to call the API, such as the console's; Compose allows the console's local ones |
+| `OPS_SAMPLE_INTERVAL` | `5s` | how often the live summary behind `GET /ops/summary` reads the metrics |
 | `OUTBOX_PUBLISH_INTERVAL`, `OUTBOX_BATCH_SIZE` | `2s`, `20` | outbox relay |
 | `REFERENCE_RETRY_INTERVAL` | `15s` | pending-reference worker |
 | `JWKS_REFRESH_INTERVAL` | `1h` | JWKS re-read; also the longest a verified token stays cached |
@@ -595,6 +616,15 @@ exemplars travel):
 | `auth_token_cache_total{result}` | bearer tokens served from the verified-token cache (`hit`) or verified (`miss`) |
 | `wallet_db_pool_*` | the pool: acquires, acquires that waited and their total wait, cancelled acquires, connections by state, maximum, connections opened |
 | `go_*`, `process_*`, `wallet_build_info` | runtime, process, build version |
+
+**Live summary.** `GET /ops/summary` serves the last five minutes of the
+same numbers to the console, which must not reach Prometheus or the admin
+port: a `Sampler` reads the process's own registry every
+`OPS_SAMPLE_INTERVAL`, turns counters into rates over the interval (a
+counter that went down counts as reset), and estimates the bets' p50 and
+p99 from the interval's bucket deltas, as `histogram_quantile` does. It
+holds sixty points by default; the outbox backlog query it triggers runs
+once per sample, as on a Prometheus scrape.
 
 **Traces** (OpenTelemetry over OTLP): HTTP server spans, one span per SQL
 statement under its request (one per command since phase 2b), and spans

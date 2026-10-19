@@ -23,3 +23,4 @@ superseded.
 | [0015](0015-pgxpool-and-server-side-cancellation.md) | Use pgx's own pool and cancel timed-out statements on the server | accepted |
 | [0016](0016-uuidv7-keys-and-wallet-fillfactor.md) | Key new rows with UUIDv7 and leave room for HOT wallet updates | accepted |
 | [0017](0017-cache-verified-tokens.md) | Cache verified tokens until their key or their expiry ends them | accepted |
+| [0018](0018-browser-console-surface.md) | Serve a browser console through an operator role, explicit CORS and an in-process summary | accepted |

@@ -48,6 +48,14 @@ saturation, and one wallet from about 240 to 450 bets a second.
 - Benchmark runs record PostgreSQL's table and index counters and its
   log; the summaries report PostgreSQL CPU and commits per bet served
   and the wallet HOT ratio.
+- For a browser console ([ADR 0018](docs/adr/0018-browser-console-surface.md)):
+  the `operator` realm role, which opens, reads and reconciles wallets
+  and reads every provider's transactions but never submits a wager; the
+  public `wallet-console` client (authorization code with S256 PKCE) and
+  a demo `operator` user; CORS for `CORS_ALLOWED_ORIGINS`, off when unset;
+  `GET /ops/summary`, five minutes of live numbers sampled every
+  `OPS_SAMPLE_INTERVAL`; and the OpenAPI contract `docs/openapi.yaml`,
+  held to the routes and error codes by tests.
 
 ### Changed
 
