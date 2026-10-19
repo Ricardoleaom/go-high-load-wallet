@@ -15,9 +15,11 @@ import (
 	"github.com/Ricardoleaom/go-high-load-wallet/internal/domain/ids"
 )
 
-func requireInternal(w http.ResponseWriter, r *http.Request) bool {
-	if !isInternal(r.Context()) {
-		writeError(w, http.StatusForbidden, "FORBIDDEN", "wallet operations are restricted to the internal service")
+// requireWalletAccess admits the internal service and operators: wallets
+// are not scoped to a provider, so providers never use these routes.
+func requireWalletAccess(w http.ResponseWriter, r *http.Request) bool {
+	if !isInternal(r.Context()) && !isOperator(r.Context()) {
+		writeError(w, http.StatusForbidden, "FORBIDDEN", "wallet operations need the internal service or an operator")
 		return false
 	}
 	return true
@@ -36,7 +38,7 @@ type walletResponse struct {
 }
 
 func (h *handler) openWallet(w http.ResponseWriter, r *http.Request) {
-	if !requireInternal(w, r) {
+	if !requireWalletAccess(w, r) {
 		return
 	}
 
@@ -75,7 +77,7 @@ func (h *handler) openWallet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) getWallet(w http.ResponseWriter, r *http.Request) {
-	if !requireInternal(w, r) {
+	if !requireWalletAccess(w, r) {
 		return
 	}
 
@@ -117,7 +119,7 @@ type ledgerPageResponse struct {
 }
 
 func (h *handler) getWalletLedger(w http.ResponseWriter, r *http.Request) {
-	if !requireInternal(w, r) {
+	if !requireWalletAccess(w, r) {
 		return
 	}
 
@@ -209,7 +211,7 @@ type reconciliationResponse struct {
 // opening credit) and compares it against the stored balance. It never
 // writes anything.
 func (h *handler) reconcileWallet(w http.ResponseWriter, r *http.Request) {
-	if !requireInternal(w, r) {
+	if !requireWalletAccess(w, r) {
 		return
 	}
 

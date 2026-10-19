@@ -220,8 +220,18 @@ func toTransactionResponse(view queries.TransactionView) transactionResponse {
 	return resp
 }
 
+// requireTransactionReader admits a provider, to its own transactions, and
+// an operator, to every provider's: anyProvider says which.
+func requireTransactionReader(w http.ResponseWriter, r *http.Request) (providerID string, anyProvider, ok bool) {
+	if isOperator(r.Context()) {
+		return "", true, true
+	}
+	providerID, ok = requireProvider(w, r)
+	return providerID, false, ok
+}
+
 func (h *handler) getTransaction(w http.ResponseWriter, r *http.Request) {
-	providerID, ok := requireProvider(w, r)
+	providerID, anyProvider, ok := requireTransactionReader(w, r)
 	if !ok {
 		return
 	}
@@ -240,7 +250,7 @@ func (h *handler) getTransaction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if view.Transaction.ProviderID() != providerID {
+	if !anyProvider && view.Transaction.ProviderID() != providerID {
 		writeError(w, http.StatusNotFound, "TRANSACTION_NOT_FOUND", "transaction not found")
 		return
 	}
@@ -249,18 +259,18 @@ func (h *handler) getTransaction(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) getTransactionByExternalID(w http.ResponseWriter, r *http.Request) {
-	providerID, ok := requireProvider(w, r)
+	providerID, anyProvider, ok := requireTransactionReader(w, r)
 	if !ok {
 		return
 	}
 
 	pathProviderID := r.PathValue("providerId")
-	if pathProviderID != providerID {
+	if !anyProvider && pathProviderID != providerID {
 		writeError(w, http.StatusForbidden, "FORBIDDEN", "cannot access another provider's transactions")
 		return
 	}
 
-	view, err := h.deps.Reader.TransactionByExternalID(r.Context(), providerID, r.PathValue("externalId"))
+	view, err := h.deps.Reader.TransactionByExternalID(r.Context(), pathProviderID, r.PathValue("externalId"))
 	if err != nil {
 		if errors.Is(err, queries.ErrTransactionNotFound) {
 			writeError(w, http.StatusNotFound, "TRANSACTION_NOT_FOUND", "transaction not found")
