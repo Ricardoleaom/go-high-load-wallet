@@ -28,6 +28,9 @@ type Dependencies struct {
 
 	// RequestTimeout bounds every authenticated request; zero means none.
 	RequestTimeout time.Duration
+
+	// AllowedOrigins are the browser origins CORS admits; none turns it off.
+	AllowedOrigins []string
 }
 
 type handler struct {
@@ -67,7 +70,7 @@ func NewHandler(deps Dependencies) http.Handler {
 	mux.Handle("/", deps.Auth.Middleware(withRequestTimeout(deps.RequestTimeout,
 		metricsMiddleware(deps.Metrics, limitBody(protected)))))
 
-	return otelhttp.NewHandler(mux, "http.server")
+	return otelhttp.NewHandler(withCORS(deps.AllowedOrigins, deps.Metrics, mux), "http.server")
 }
 
 // withRequestTimeout gives each request a deadline that every database call

@@ -156,5 +156,6 @@ func newHTTPHandlerDeps(
 		Metrics:           metrics,
 		ReadinessCheckers: []httpapi.ReadinessChecker{database, queue},
 		RequestTimeout:    cfg.RequestTimeout,
+		AllowedOrigins:    cfg.CORSAllowedOrigins,
 	}
 }

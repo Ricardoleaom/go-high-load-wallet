@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -25,6 +26,10 @@ type Config struct {
 
 	// RequestTimeout bounds every authenticated HTTP request.
 	RequestTimeout time.Duration
+
+	// CORSAllowedOrigins are the browser origins, such as the console's,
+	// allowed to call the API; none turns CORS off.
+	CORSAllowedOrigins []string
 
 	DatabaseURL    string
 	DBMaxOpenConns int
@@ -104,6 +109,8 @@ func Load() (Config, error) {
 	collect(err)
 	cfg.DBLockTimeout, err = durationEnv("DB_LOCK_TIMEOUT", 2*time.Second)
 	collect(err)
+	cfg.CORSAllowedOrigins, err = originsEnv("CORS_ALLOWED_ORIGINS")
+	collect(err)
 
 	for key, value := range map[string]string{
 		"DATABASE_URL":               cfg.DatabaseURL,
@@ -173,6 +180,26 @@ func intEnv(key string, fallback, minimum int) (int, error) {
 		return 0, fmt.Errorf("%s must be at least %d, got %d", key, minimum, n)
 	}
 	return n, nil
+}
+
+// originsEnv reads a comma-separated list of origins, each a scheme and a
+// host with an optional port and nothing else. A wildcard is refused: the
+// console sends a bearer token, and any site could then read the answers.
+func originsEnv(key string) ([]string, error) {
+	var origins []string
+	for _, raw := range strings.Split(os.Getenv(key), ",") {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		u, err := url.Parse(raw)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
+			u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
+			return nil, fmt.Errorf("%s %q is not an origin such as https://console.example.com", key, raw)
+		}
+		origins = append(origins, raw)
+	}
+	return origins, nil
 }
 
 // durationEnv accepts whole seconds ("2", the original format) or a Go

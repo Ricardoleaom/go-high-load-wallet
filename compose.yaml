@@ -96,6 +96,9 @@ services:
       DB_IDLE_IN_TRANSACTION_TIMEOUT: ${DB_IDLE_IN_TRANSACTION_TIMEOUT:-10s}
       DB_LOCK_TIMEOUT: ${DB_LOCK_TIMEOUT:-2s}
       REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-5s}
+      # The console's origins: Vite's dev server and preview, and its
+      # container. The API itself leaves CORS off unless this is set.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:4173,http://localhost:8088}
       OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE:-20}
       OUTBOX_PUBLISH_INTERVAL: ${OUTBOX_PUBLISH_INTERVAL:-2s}
       # Empty disables tracing; `make up-obs` points it at Jaeger.
