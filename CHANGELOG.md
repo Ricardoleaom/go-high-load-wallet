@@ -83,7 +83,7 @@ saturation, and one wallet from about 240 to 450 bets a second.
   with a large backlog the claim hit the statement timeout and the relay
   published nothing.
 
-## [0.2.1] - unreleased
+## [0.2.1] - 2026-10-18
 
 Phase 2a: the defects benchmark 002 found, fixed and measured in
 [benchmark 003](docs/benchmarks/003-fixes-measured.md), plus the hardening
