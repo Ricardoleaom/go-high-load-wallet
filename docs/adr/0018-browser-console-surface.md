@@ -22,8 +22,9 @@ Prometheus or the admin port, which are on the internal network.
   only to the console's listed origins, with the `wallet-api` audience. An
   operator may do what the internal service does on wallets and read
   every provider's transactions. Submitting a wager still requires a
-  provider identity, so the console can watch money move but never move
-  it. A test pins the client's settings in the realm export.
+  provider identity, so an operator never moves money between a player
+  and a provider; like the internal service, it can open a wallet with an
+  initial balance. A test pins the client's settings in the realm export.
 - **CORS only for listed origins** (`CORS_ALLOWED_ORIGINS`, off when
   unset). Their preflights are answered before authentication, other
   origins' preflights get 403, and responses to a listed origin, errors
@@ -41,7 +42,11 @@ Prometheus or the admin port, which are on the internal network.
 ## Consequences
 
 - The console needs no secret and no network path beyond the API and
-  Keycloak; a stolen operator token reads but cannot move money.
+  Keycloak. A stolen operator token reads everything and can open
+  wallets with any opening balance, as an internal-service token can, but
+  cannot bet, pay out or reverse anything; operators are therefore as
+  trusted as the internal service, and a deployment that wants read-only
+  people needs a separate role.
 - The demo `operator`/`operator` user is for local use only; any shared
   deployment must remove it and manage people in the IdP.
 - The summary is per instance: behind several instances each answers

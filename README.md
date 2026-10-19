@@ -118,7 +118,9 @@ A web console signs people in through the public client
 `wallet-console` (authorization code with PKCE) and calls the API as an
 `operator`: it opens, reads and reconciles wallets, reads every
 provider's transactions and reads `GET /ops/summary`, the last five
-minutes of the service's own numbers, but never submits a wager. Compose
+minutes of the service's own numbers, but never submits a wager; opening
+a wallet with an initial balance is as trusted as for the internal
+service. Compose
 allows the console's local origins through `CORS_ALLOWED_ORIGINS`. The
 realm's demo user is `operator` with password `operator`, for local use
 only ([ADR 0018](docs/adr/0018-browser-console-surface.md)).

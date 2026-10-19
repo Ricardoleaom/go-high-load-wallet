@@ -521,7 +521,9 @@ inside the Compose network.
 
 Authorization: wallet endpoints and the live summary require the
 `internal` or the `operator` role. Submitting a wager requires a
-`provider_id` claim, so an operator never moves money, and the authorized
+`provider_id` claim, so an operator never bets, pays out or reverses
+anything (opening a wallet with an initial balance is the one movement it
+shares with the internal service), and the authorized
 provider is always the token's (a different `providerId` in the body is
 403). A provider's lookups by ID or external ID only return its own
 transactions; another provider's transaction answers 404 so its existence
